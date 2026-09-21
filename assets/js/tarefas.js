@@ -39,6 +39,12 @@
      lifeos.js), só que em hex literal — Chart.js não lê var(--x). */
   var STATUS_COR = { 'Não Iniciado': '#6b6456', 'Em Andamento': '#c4913a', 'Feito': '#3fb98c' };
 
+  /* O status "concluído" é o ÚLTIMO do vocabulário, não a string 'Feito' —
+     os valores são editáveis na tela de Tags e renomear quebraria qualquer
+     comparação literal. Tudo que pergunta "esta tarefa está pronta?" passa
+     por aqui. */
+  function statusConcluido(lista) { return lista[lista.length - 1]; }
+
   /* ── Vocabulários dinâmicos ──────────────────────────────────────────
    * As listas acima são FALLBACK. Desde a migration 0002 elas vivem em
    * `lifeos_vocabularios`, editáveis em LifeOS → menu → Tags.
@@ -328,7 +334,8 @@
          comparator que só decide "com data < sem data" preserva a ordem
          relativa dentro de cada grupo. Mesmo critério do mini-kanban do
          hub (lifeos.js, renderTarMiniKanban). */
-      if (status === 'Feito') {
+      var statusFinal = statusConcluido(STATUS_TAREFA);
+      if (status === statusFinal) {
         rows = rows.slice().sort(function (a, b) { return (b.updated_at || '').localeCompare(a.updated_at || ''); });
       } else {
         rows = rows.slice().sort(function (a, b) {
@@ -349,7 +356,7 @@
         var empty = document.createElement('div'); empty.className = 'kanban-col-empty'; empty.textContent = '—';
         body.appendChild(empty);
       } else {
-        var isComplete = (status === 'Feito');
+        var isComplete = (status === statusFinal);
         rows.forEach(function (t) {
           var card = document.createElement('div'); card.className = 'kanban-card'; card.setAttribute('data-id', t.id);
           if (IS_DESKTOP) { card.classList.add('is-draggable'); card.setAttribute('draggable', 'true'); }
@@ -419,11 +426,11 @@
   function renderStats() {
     var nao = TAREFAS.filter(function (t) { return t.status === 'Não Iniciado'; }).length;
     var and = TAREFAS.filter(function (t) { return t.status === 'Em Andamento'; }).length;
-    var feito = TAREFAS.filter(function (t) { return t.status === 'Feito'; }).length;
+    var feito = TAREFAS.filter(function (t) { return t.status === statusConcluido(STATUS_TAREFA); }).length;
     var total = TAREFAS.length;
     var pct = total ? Math.round((feito / total) * 100) : 0;
     var hoje = todayISO();
-    var atrasadas = TAREFAS.filter(function (t) { return t.status !== 'Feito' && t.data_entrega && t.data_entrega < hoje; }).length;
+    var atrasadas = TAREFAS.filter(function (t) { return t.status !== statusConcluido(STATUS_TAREFA) && t.data_entrega && t.data_entrega < hoje; }).length;
     $('stat-nao-iniciado').textContent = nao;
     $('stat-em-andamento').textContent = and;
     $('stat-feito').textContent = feito;
@@ -523,7 +530,7 @@
       var td3 = document.createElement('td'); td3.className = 'td-tar-status';
       var badge = document.createElement('span'); badge.className = 'td-tar-status-badge'; badge.setAttribute('data-status', t.status); badge.textContent = t.status;
       td3.appendChild(badge);
-      var overdue = t.status !== 'Feito' && t.data_entrega && t.data_entrega < hoje;
+      var overdue = t.status !== statusConcluido(STATUS_TAREFA) && t.data_entrega && t.data_entrega < hoje;
       var td4 = document.createElement('td'); td4.className = 'td-tar-data' + (overdue ? ' is-overdue' : ''); td4.textContent = fmtDate(t.data_entrega);
       row.appendChild(td1); row.appendChild(td2); row.appendChild(td3); row.appendChild(td4);
       tbody.appendChild(row);

@@ -69,6 +69,12 @@
      do calendário do hub. */
   var TAR_STATUS = ['Não Iniciado', 'Em Andamento', 'Feito'];
   var TAR_STATUS_COR = { 'Não Iniciado': 'var(--mute)', 'Em Andamento': 'var(--gold)', 'Feito': 'var(--green)' };
+
+  /* O status "concluído" é o ÚLTIMO do vocabulário, não a string 'Feito' —
+     os valores são editáveis na tela de Tags e renomear quebraria qualquer
+     comparação literal. Tudo que pergunta "esta tarefa está pronta?" passa
+     por aqui. */
+  function statusConcluido(lista) { return lista[lista.length - 1]; }
   /* Vocabulário de PROJETO (diferente do de tarefa acima) — CRUD completo
      movido de tarefas.js pra cá em set/2026 (ver LIFEOS.md), cópia isolada
      de STATUS_PROJETO/TAGS_PROJETO que existia lá. */
@@ -1865,7 +1871,7 @@
     if (!elNao || !elAnd || !elFeito) return;
     elNao.textContent = TAREFAS_ALL.filter(function (t) { return t.status === 'Não Iniciado'; }).length;
     elAnd.textContent = TAREFAS_ALL.filter(function (t) { return t.status === 'Em Andamento'; }).length;
-    elFeito.textContent = TAREFAS_ALL.filter(function (t) { return t.status === 'Feito'; }).length;
+    elFeito.textContent = TAREFAS_ALL.filter(function (t) { return t.status === statusConcluido(TAR_STATUS); }).length;
   }
 
   function renderProjetoSelect() {
@@ -1902,7 +1908,8 @@
          comparator que só decide "com data < sem data" preserva a ordem
          relativa dentro de cada grupo. Importa aqui mais do que na tabela:
          é essa ordem que decide quais 6 aparecem antes do corte abaixo. */
-      if (status === 'Feito') {
+      var statusFinal = statusConcluido(TAR_STATUS);
+      if (status === statusFinal) {
         rowsForStatus = rowsForStatus.slice().sort(function (a, b) { return (b.updated_at || '').localeCompare(a.updated_at || ''); });
       } else {
         rowsForStatus = rowsForStatus.slice().sort(function (a, b) {
@@ -1950,7 +1957,7 @@
               meta.appendChild(tag);
             });
             if (t.data_entrega) {
-              var overdue = t.status !== 'Feito' && t.data_entrega < todayISO();
+              var overdue = t.status !== statusConcluido(TAR_STATUS) && t.data_entrega < todayISO();
               var dspan = document.createElement('span'); dspan.className = 'tar-mini-card-data' + (overdue ? ' is-overdue' : '');
               dspan.textContent = fmtDate(t.data_entrega);
               meta.appendChild(dspan);
@@ -2180,7 +2187,7 @@
       var tdProg = document.createElement('td'); tdProg.className = 'proj-progress-cell';
       var tarefasProjeto = TAREFAS_ALL.filter(function (t) { return t.projeto_id === p.id; });
       var total = tarefasProjeto.length;
-      var feitas = tarefasProjeto.filter(function (t) { return t.status === 'Feito'; }).length;
+      var feitas = tarefasProjeto.filter(function (t) { return t.status === statusConcluido(TAR_STATUS); }).length;
       var pct = total ? Math.round((feitas / total) * 100) : 0;
       var progLabel = document.createElement('div'); progLabel.className = 'proj-progress-label';
       progLabel.textContent = total ? (feitas + '/' + total + ' tarefas') : 'sem tarefas';
@@ -2260,7 +2267,7 @@
       return;
     }
     lista.forEach(function (t) {
-      var row = document.createElement('div'); row.className = 'pdet-task' + (t.status === 'Feito' ? ' is-done' : '');
+      var row = document.createElement('div'); row.className = 'pdet-task' + (t.status === statusConcluido(TAR_STATUS) ? ' is-done' : '');
       var dot = document.createElement('span'); dot.className = 'pdet-task-dot';
       dot.style.background = TAR_STATUS_COR[t.status] || 'var(--mute)';
       var main = document.createElement('div'); main.className = 'pdet-task-main';
@@ -2272,7 +2279,7 @@
       }
       row.appendChild(dot); row.appendChild(main);
       if (t.data_entrega) {
-        var late = t.status !== 'Feito' && t.data_entrega < today;
+        var late = t.status !== statusConcluido(TAR_STATUS) && t.data_entrega < today;
         var dateEl = document.createElement('span'); dateEl.className = 'pdet-task-date' + (late ? ' is-late' : '');
         dateEl.textContent = fmtDate(t.data_entrega);
         row.appendChild(dateEl);

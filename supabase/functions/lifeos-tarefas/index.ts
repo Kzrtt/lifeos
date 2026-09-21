@@ -142,6 +142,12 @@ function normalizeRow(r: any) {
   return {
     id: r.id, name: r.name, status: r.status, tipo: r.tipo ?? [],
     projeto_id: r.projeto_id, data_entrega: r.data_entrega,
+    // `updated_at` NAO e decorativo: a coluna final dos dois kanbans (hub e
+    // tarefas.html) ordena por ele pra mostrar a conclusao mais recente
+    // primeiro. Sem o campo aqui, o comparator do front recebe undefined
+    // dos dois lados, devolve 0 pra todo par, e a ordem cai silenciosamente
+    // na de criacao -- bug invisivel em modo local, onde o mock gera o campo.
+    updated_at: r.updated_at,
   };
 }
 
