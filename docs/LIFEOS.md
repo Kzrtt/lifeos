@@ -1305,11 +1305,11 @@ A URL vem de `lifeos-config` (ação `mcp_url`), que lê `admin_config.mcp_token
 Pôr o token em `lifeos-config.js` seria publicá-lo — aquele arquivo é servido
 pelo GitHub Pages.
 
-> **Pendência conhecida:** `lifeos-mcp/index.ts` ainda tem o token numa
-> constante chapada, e é essa constante que a function usa de fato. Os dois
-> valores foram gravados iguais, mas são duas fontes para o mesmo dado —
-> trocar uma sem a outra quebra o conector. Resolver isso é pré-requisito de
-> tornar o repositório público (ver [`OPENSOURCE.md`](OPENSOURCE.md) §1.2).
+> O token saiu do código em set/2026. Antes disso ele era uma constante
+> chapada em `lifeos-mcp/index.ts`, e havia duas fontes para o mesmo valor —
+> trocar uma sem a outra quebrava o conector. Hoje a function lê da mesma
+> linha de `admin_config` que esta tela, então rotacionar é um `update` só,
+> sem redeploy.
 
 A lista de tools em `mcp.js` é **cópia** da de `lifeos-mcp/index.ts`. Buscá-la
 do servidor exigiria falar JSON-RPC com o MCP a partir do browser — mais peça

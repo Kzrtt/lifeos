@@ -1,241 +1,191 @@
-# OPENSOURCE.md — o que falta para alguém instanciar este projeto
+# OPENSOURCE.md — o estado honesto deste repositório
 
-Levantamento feito em **set/2026**, varrendo o código e o projeto Supabase.
+Este arquivo existe para você decidir se quer instalar isto, sabendo o que
+ainda dói. Nenhum projeto pessoal vira produto num passe — o que segue é o que
+já está resolvido, o que ainda é atrito, e o que é dívida assumida.
 
-**Resposta curta: sim, com uma ressalva de deploy.** Os quatro bloqueadores
-foram resolvidos em set/2026. O que falta é polimento (§2 e §3), não
-impedimento.
-
----
-
-## 1. Bloqueadores — RESOLVIDOS
-
-### 1.1 ✅ Schema do banco versionado
-
-`supabase/migrations/0001_init.sql` + `supabase/seed.sql`. Cobre as 11 tabelas,
-as constraints, os índices, o RLS, as 5 funções que o produto usa e o bucket
-`manifestacoes` do Storage.
-
-**Foi testado de verdade**, não só escrito: a migration foi aplicada num schema
-descartável (`mig_test`) no próprio banco, o seed rodou em cima, e as funções de
-gate foram verificadas (`check_master_token` aceita a senha do seed e recusa
-outra; `check_page_access` confirma que um token mestre abre qualquer página).
-O schema de teste foi removido em seguida; a produção não foi tocada.
-
-O `seed.sql` cria a senha mestre `lifeos`, um projeto inicial (toda tarefa exige
-um projeto, então sem isso a primeira ação do usuário falha) e cinco tarefas que
-funcionam como checklist de configuração.
-
-> A migration **não é cópia literal da produção**: três políticas foram fechadas
-> e cinco funções órfãs não foram recriadas. Tudo marcado no rodapé do arquivo,
-> com o SQL para corrigir a instância original — ver §3.5 aqui.
-
-### 1.2 ✅ Segredo do MCP fora do código
-
-`lifeos-mcp` lê o token de `admin_config.mcp_token` (ou do secret
-`LIFEOS_MCP_TOKEN`, que tem precedência). A constante sumiu do arquivo.
-
-Se não houver token configurado, a function recusa **toda** conexão — o
-contrário transformaria um erro de instalação num servidor aberto. No `seed.sql`
-o valor nasce como um placeholder inválido de propósito.
-
-> **Pendência de deploy:** a versão em execução no projeto do autor ainda é a
-> anterior, com a constante. Ela continua funcionando, e o segredo não está
-> publicado em lugar nenhum — mas o repositório e o deploy divergem até que
-> `lifeos-mcp` seja redeployado. É o único passo pendente desta lista.
-
-### 1.3 ✅ `LICENSE`
-
-MIT. É o padrão para projetos desta natureza e o mais permissivo para quem
-forkar — a escolha pode ser trocada à vontade, é um arquivo só.
-
-### 1.4 ✅ CORS não trava mais um domínio diferente
-
-Era o bloqueador mais traiçoeiro: nove Edge Functions tinham
-`const ALLOWED_ORIGIN = "https://SEU-USUARIO.github.io"` chapado. Um fork subia tudo
-certo e **toda chamada morria em CORS**, com um erro de browser que não diz o
-que fazer.
-
-Agora: `Deno.env.get("LIFEOS_ALLOWED_ORIGIN") ?? "*"`. Sem configuração
-nenhuma, funciona em qualquer domínio.
-
-**Por que `*` é aceitável aqui:** a autenticação é a senha mestre enviada no
-**corpo** da requisição, não um cookie. Não existe credencial ambiente que o
-browser anexe sozinho, então uma página maliciosa que chame a function não
-consegue nada sem já saber a senha — e se souber, o CORS não a impediria de
-qualquer forma (`curl` ignora CORS). A fronteira real é `check_master_token`,
-server-side. Quem quiser restringir mesmo assim define o secret.
-
-`lifeos-ingest` não tem CORS porque é server-to-server; `lifeos-mcp` já era `*`
-pelo mesmo motivo — clientes MCP não são browsers.
+Atualizado em **set/2026**, verificando cada afirmação contra o código.
 
 ---
 
-## 2. Atritos de instalação (dá para subir, mas dói)
+## 1. O que funciona
 
-### 2.1 Credenciais ainda chapadas em 7 arquivos
+O sistema **está em uso diário** na instância do autor, e é de lá que vieram as
+capturas do README.
 
-`assets/js/lifeos-config.js` resolveu isso para as páginas do LifeOS, mas
-continuam com o project ref escrito no código:
+| | |
+|---|---|
+| Painel | 11 páginas — hub, finanças, tarefas, notas, e as 7 telas de configuração |
+| Backend | 11 Edge Functions, 2 migrations, RLS sem policy (só `service_role`) |
+| Temas | 9 paletas, cada uma em versão clara (blog) e escura (painel) |
+| Arquivo público | capa paginada por volumes, galeria, publicação pelo próprio painel |
+| Integrações | conector MCP para IA, webhook de lançamento por celular |
 
-```
-assets/js/eventos.js      assets/js/financas.js     assets/js/gallery.js
-assets/js/gate.js         assets/js/notas.js        assets/js/tarefas.js
-login.html
-```
+**Configurável de dentro de si mesmo.** Senhas, token do GitHub, temas e os
+vocabulários (tags e status de todas as tabelas) se editam por tela. Nada
+exige SQL no painel do Supabase depois da instalação.
 
-Quem forkar tem de achar e trocar o ref em cada um. `gate.js` e `login.html`
-são os mais sensíveis: são o gate das páginas protegidas do archive.
+**O schema é versionado e foi testado.** `0001_init.sql` foi aplicado num
+schema descartável, o seed rodou em cima, e as funções de gate foram
+verificadas — `check_master_token` aceita a senha do seed e recusa outra.
 
-### 2.2 ✅ Origin do GitHub Pages — resolvido
-
-Virou o bloqueador §1.4. As nove functions com CORS agora leem
-`LIFEOS_ALLOWED_ORIGIN`, com `*` como padrão.
-
-**Pendência de deploy:** os arquivos do repositório estão corretos, mas as
-versões em execução no projeto do autor ainda têm o valor antigo. Como a
-instância dele usa exatamente aquele domínio, nada quebrou — e deployar
-mudaria o comportamento dela de "travado num domínio" para "aberto". Fica a
-critério dele.
-
-### 2.3 Identidade pessoal no código
-
-"LifeOS", "LifeOS", os banners e avatares, os vocabulários (tipos de nota,
-tags de projeto, meios de pagamento). `LIFEOS_CONFIG.identidade` cobre o
-masthead do hub; o resto está espalhado. Um fork nasce com a cara de outra
-pessoa.
-
-### 2.4 Dados de exemplo — parcial
-
-`seed.sql` cria um projeto e cinco tarefas que funcionam como checklist de
-configuração. Resolve o caso que travava de verdade (toda tarefa exige um
-projeto, então sem nenhum a primeira ação do usuário falha).
-
-Falta o resto: nota, evento, manifestação e movimentação de exemplo, para que
-cada módulo abra mostrando o que sabe fazer em vez de uma tela vazia.
-
-### 2.5 ✅ `.env.example` e `SETUP.md`
-
-`.env.example` existe e documenta os secrets (quais a Supabase injeta sozinha,
-quais são opcionais, e o que cada um faz).
-
-`SETUP.md` cobre os dois caminhos — instalação assistida por IA (com o prompt
-pronto) e manual — mais diagnóstico de erros comuns e os limites do plano free.
-A skill `/personalizar` (em `.claude/skills/`) entrevista o dono do fork e
-aplica identidade, backend, tema e limpeza do conteúdo do autor original.
-
-### 2.6 Functions pessoais misturadas
-
-`notion-movimentacoes` (local) e `notion-explore` /
-`notion-manifestacoes-migrate` (só no Supabase) são scripts de migração única
-do Notion. Não pertencem ao produto e devem ficar fora do repo OSS.
+**Modo local em toda tela que fala com o backend.** Em `file://` ou
+`localhost` o sistema roda contra mocks em memória, que reproduzem inclusive
+os casos de erro. Dá para mexer na interface sem tocar no Supabase.
 
 ---
 
-## 3. Inconsistências de código
+## 2. A ressalva que mais importa
 
-Levantadas na varredura. **Nenhuma quebra nada hoje** — são dívida.
+**O caminho de instalação nunca foi percorrido do zero por outra pessoa.**
 
-### 3.1 `THEME_ACCENTS` em quatro cópias
+O `SETUP.md` foi escrito a partir do conhecimento de quem construiu o sistema,
+não executando os passos num ambiente limpo. A migration foi testada
+isoladamente; o fluxo completo — projeto Supabase novo → schema → deploy das
+functions → apontar a config → primeiro login — não.
 
-`index.html`, `assets/js/index.js`, `assets/js/publicar.js` e
-`assets/js/temas.js`. Trocar a cor de um tema exige editar os quatro, e nada
-avisa se um ficar para trás. **É a pior das duplicações**, porque as cópias
-não estão perto umas das outras.
-
-Candidato claro a `assets/js/theme-accents.js` carregado por `<script>` — o
-mesmo padrão de `manifest.js` e `lifeos-config.js`. Mexe no render do
-`index.html`, que é a capa pública, então pede cuidado.
-
-### 3.2 Vocabulários duplicados entre front e MCP
-
-`PROJETO_STATUS` aparece em 3 arquivos, `TIPOS_TAREFA` e `MANIFESTACAO_TAGS`
-em 2 cada, e todos aparecem **de novo** em `lifeos-mcp/index.ts`. Um valor
-novo precisa ser adicionado em dois a três lugares; esquecer um faz a busca
-via MCP rejeitar um valor que a interface aceita.
-
-Aqui a duplicação é deliberada (`LIFEOS.md` §2) — mas a promessa de
-"configurável a partir de si mesmo" exige que virem dados numa tabela, lidos
-por todos. É a mudança de maior retorno depois das migrations.
-
-### 3.3 Helpers repetidos por cópia
-
-`IS_LOCAL_DEV`, `showDevBadge`, `mockDelay` em 7 arquivos; `esc` em 4;
-`confirmDelete` em 3. **Isto é `LIFEOS.md` §2 funcionando como desenhado**,
-não um defeito: a alternativa (um `lifeos-shared.js`) reintroduz o acoplamento
-que motivou a separação.
-
-O ponto de atenção é outro: **a regra não está sendo verificada**. Foi
-exatamente assim que `publicar.html` e `senhas.html` nasceram sem
-`[hidden] { display: none !important; }` e travaram em loading infinito — a
-linha existia nas quatro páginas antigas e se perdeu ao copiar. Um teste que
-compare as cópias vale mais que centralizá-las.
-
-### 3.4 `lifeos.js` com 3.125 linhas
-
-O hub concentra seis domínios num arquivo. Ainda navegável, mas é o arquivo
-onde um erro custa mais caro. Não urge.
-
-### 3.5 ✅ RPCs órfãs expostas ao `anon` — corrigido
-
-**Resolvido em set/2026.** `list_access_tokens`, `list_token_pages`,
-`grant_token_page`, `revoke_token_page` e `check_access_token` foram dropadas
-da instância original — nenhuma era chamada desde que `lifeos-senhas` assumiu,
-e todas estavam expostas ao `anon` (`list_access_tokens` devolvia os tokens em
-texto puro). A migration nunca as recriou.
-
-### 3.7 ✅ Duas policies abertas demais — corrigido
-
-Descobertas ao gerar a migration, e **corrigidas na instância original em
-set/2026**. Um fork já nascia fechado. Eram:
-
-- **`gallery` aceitava INSERT de `anon`** (`anon_insert_gallery`, with check
-  `true`). A anon key é pública por natureza — vai no código do site. Qualquer
-  pessoa podia inserir linhas arbitrárias na galeria.
-- **`token_pages` tinha SELECT liberado para `anon`** (`anon_read_token_pages`).
-  Não vaza senha, mas vaza o mapa de quais páginas são protegidas e por qual
-  token. Nenhum código do projeto depende dessa policy.
-
-Ambas removidas, junto com as cinco funções órfãs de §3.5. A instância agora
-expõe ao `anon` exatamente o que a migration prevê: `check_page_access`,
-`get_admin_config`, e a leitura pública da galeria.
-
-### 3.6 O PAT do GitHub vai para o browser
-
-Documentado em `AUTH.md` e assumido conscientemente, mas continua sendo o
-ponto mais frágil: quem tem a senha mestre e abre `publicar.html` recebe um
-token com escrita no repositório. A tela nova de Token reduz o estrago
-(ensina a escopar em um repositório e só a permissão Contents), não elimina.
-
-O fim da linha é a publicação virar uma Edge Function que segura o PAT
-server-side.
+Na prática isso significa que você provavelmente vai encontrar um passo que
+assume algo óbvio para quem já conhece o projeto. Se acontecer, é bug de
+documentação e vale abrir uma issue: é exatamente o que o projeto precisa
+descobrir.
 
 ---
 
-## 4. O que já está pronto
+## 3. Atritos de instalação
 
-Para não perder de vista:
+Dá para subir. Estas são as partes que ainda pedem trabalho manual.
 
-- Front inteiro funcionando, com dez páginas coerentes e tema trocável
-- Todas as Edge Functions em uso **existem no repositório** (`lifeos-manifestacoes`
-  foi recuperada do Supabase em set/2026 — estava deployada e fora do repo)
-- Configuração do LifeOS feita de dentro do próprio LifeOS: senhas, token do
-  GitHub, temas — nada mais exige SQL no painel do Supabase
-- Modo local (`IS_LOCAL_DEV`) em todas as telas que falam com o backend, com
-  mocks que reproduzem inclusive os casos de erro
-- Documentação de arquitetura densa em `docs/`, que é o que faz uma IA
-  conseguir trabalhar no projeto
+### 3.1 Três arquivos a editar, não um
+
+`assets/js/lifeos-config.js` é o arquivo de configuração, e cobre todas as
+páginas do painel. Mas `assets/js/gate.js` e `login.html` — o fluxo de senha
+das páginas protegidas do arquivo público — ainda têm o endereço do Supabase
+e a chave em constantes próprias, com placeholders explícitos
+(`https://SEU-PROJETO.supabase.co`).
+
+Você vai trocar os três. Se não usar o blog, os dois últimos não importam.
+
+### 3.2 Dados de exemplo cobrem só o essencial
+
+O `seed.sql` cria a senha mestre, o token do MCP (placeholder inválido de
+propósito), um projeto e cinco tarefas que funcionam como checklist.
+
+O projeto inicial não é decoração: **toda tarefa exige um projeto**, então sem
+ele a primeira ação do usuário falha.
+
+Falta exemplo de nota, evento, manifestação e movimentação. Esses módulos
+abrem vazios, o que é correto mas não ensina nada sobre o que eles fazem.
+
+### 3.3 A identidade visual ainda é de alguém
+
+O banner e o avatar em `assets/images/` são do autor. `LIFEOS_CONFIG.identidade`
+troca nome, subtítulo e os dois caminhos de imagem num lugar só — mas alguém
+precisa trocar.
+
+A skill `/personalizar` (Claude Code) entrevista você e aplica isso, incluindo
+a limpeza do que sobrou do repositório de origem.
 
 ---
 
-## 5. Ordem sugerida do que sobrou
+## 4. Dívida de código
 
-Nada aqui impede o lançamento.
+Nada aqui quebra hoje. São coisas que um colaborador deve saber antes de mexer.
 
-1. Redeployar `lifeos-mcp` (§1.2) — fecha a divergência repo/deploy
-2. Corrigir as policies e funções órfãs da instância original (§3.5, §3.7 e o
-   rodapé de `0001_init.sql`)
-3. Padronizar `lifeos-config.js` nos 7 arquivos que faltam (§2.1)
-4. `SETUP.md` com o roteiro de instalação assistida por IA
-5. Despersonalizar identidade e vocabulários (§2.3)
-6. `THEME_ACCENTS` num arquivo só (§3.1)
+### 4.1 `THEME_ACCENTS` em três cópias
+
+`index.html`, `assets/js/publicar.js` e `assets/js/temas.js`. É o mapa que
+define a cor da barra lateral de cada card no índice. Trocar uma cor exige
+editar os três, e nada avisa se um ficar para trás.
+
+Candidato claro a virar um arquivo de dados carregado por `<script>` — o mesmo
+padrão de `manifest.js` e `lifeos-config.js`. Mexe no render do `index.html`,
+que é a capa pública, então pede cuidado.
+
+### 4.2 `lifeos.js` com 3.230 linhas
+
+O hub concentra seis domínios num arquivo só. Ainda navegável, mas é onde um
+erro custa mais caro. Não urge.
+
+### 4.3 Helpers repetidos por cópia — e isso é de propósito
+
+`IS_LOCAL_DEV` e `showDevBadge` aparecem em 9 arquivos; `esc` em 6.
+**Isto é `LIFEOS.md` §2 funcionando como desenhado**, não um defeito: a
+alternativa (um `lifeos-shared.js`) reintroduz o acoplamento que motivou a
+separação das páginas.
+
+O problema real é outro: **a regra não é verificada por nada.** Foi assim que
+duas páginas nasceram sem `[hidden] { display: none !important; }` e travaram
+em loading infinito — a linha existia nas outras e se perdeu ao copiar a
+casca. Um teste que compare as cópias vale mais que centralizá-las.
+
+### 4.4 A documentação cita páginas que não existem
+
+Vários docs (`VISUAL.md`, `EXPANDING_PAGES.md`, `MANIFEST.md`) usam entradas
+da instância de origem como exemplo — "ver `pages/retrato.html`". Os arquivos
+não vieram, porque são conteúdo pessoal.
+
+O `EXPANDING_PAGES.md` é o caso extremo: o documento inteiro descreve um
+padrão em torno de uma página específica que não está aqui.
+
+---
+
+## 5. Escolhas de segurança que você deve conhecer
+
+Não são bugs — são o desenho. Mas se você vai confiar dados sensíveis ao
+sistema, decida conscientemente.
+
+### 5.1 As senhas ficam em texto puro
+
+`access_tokens.token` guarda o valor como digitado. Elas são comparadas por
+igualdade dentro de funções `SECURITY DEFINER` e nunca saem do banco (a tela
+de senhas só recebe versões mascaradas), mas quem tiver acesso ao banco lê
+todas.
+
+Um hash seria o correto. Exigiria trocar `token = p_token` por verificação de
+hash em `check_master_token` e `check_page_access`.
+
+### 5.2 O PAT do GitHub chega ao navegador
+
+Para publicar uma página, `publicar.html` busca o token no Supabase e o usa
+direto do browser. Quem souber a senha mestre e abrir essa tela consegue
+escrever no seu repositório.
+
+A tela ensina a reduzir o estrago — escopar o token em **um** repositório e só
+a permissão Contents — mas não elimina. O fim da linha é a publicação virar
+uma Edge Function que segura o PAT server-side.
+
+### 5.3 Autenticação é uma senha, não um sistema de contas
+
+Não é multiusuário, não tem OAuth, não tem recuperação de senha. Isso é
+deliberado: é um sistema pessoal. Mas significa que "compartilhar acesso" é
+compartilhar uma senha.
+
+O único escalonamento é o escopo por página do arquivo público: senhas
+não-mestre abrem só as entradas que você conceder a elas.
+
+### 5.4 CORS é aberto por padrão
+
+`LIFEOS_ALLOWED_ORIGIN` não definido significa `*`. É o que faz um fork
+funcionar em qualquer domínio sem configuração.
+
+Isso não afrouxa nada neste desenho: a autenticação é a senha enviada **no
+corpo**, não um cookie. Não há credencial que o browser anexe sozinho, então
+uma página maliciosa não consegue nada sem já saber a senha — e se souber, o
+CORS não a impediria (`curl` ignora CORS). A fronteira real é
+`check_master_token`, server-side.
+
+Quem quiser restringir mesmo assim define o secret.
+
+---
+
+## 6. Por onde contribuir
+
+Em ordem de retorno, se você quiser ajudar:
+
+1. **Instalar seguindo o `SETUP.md` e relatar onde travou** (§2) — é o que o
+   projeto mais precisa e não exige escrever código
+2. Exemplos de nota, evento e movimentação no `seed.sql` (§3.2)
+3. `gate.js` e `login.html` lendo de `lifeos-config.js` (§3.1)
+4. `THEME_ACCENTS` num arquivo só (§4.1)
+5. Hash nas senhas (§5.1)
+6. Publicação via Edge Function, tirando o PAT do browser (§5.2)
