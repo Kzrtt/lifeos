@@ -1,0 +1,770 @@
+<!DOCTYPE html>
+<!-- data-blog-page: ver index.html e assets/js/blog.js -->
+<html lang="pt-BR" data-blog-page="">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LifeOS · Galeria</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;0,900;1,400&family=JetBrains+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+  <link rel="icon" href="assets/images/favicon.svg">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #f5f2ec;
+      --bg-card: #faf8f4;
+      --bg-hover: #ffffff;
+      --ink: #1a1814;
+      --ink-dim: #6b6456;
+      --ink-mute: #b0a898;
+      --rule: #d8d0c4;
+      --gold: #c4913a;
+      --gold-wash: rgba(196, 145, 58, 0.06);
+      --scrim: rgba(20, 18, 15, 0.94);
+
+      --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+      --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+    }
+
+    html.dark {
+      --bg: #14120f;
+      --bg-card: #1c1a16;
+      --bg-hover: #242018;
+      --ink: #ede8df;
+      --ink-dim: #b0a898;
+      --ink-mute: #6b6456;
+      --rule: #2e2a24;
+      --gold: #c4913a;
+      --gold-wash: rgba(196, 145, 58, 0.1);
+      --scrim: rgba(8, 7, 6, 0.96);
+    }
+
+    html { background: var(--bg); color: var(--ink); font-family: 'JetBrains Mono', monospace; -webkit-font-smoothing: antialiased; }
+    body { min-height: 100vh; transition: background 300ms var(--ease-in-out); }
+    a { color: inherit; }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        animation-duration: 0.01ms !important; animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important; scroll-behavior: auto !important;
+      }
+    }
+
+    /* ── AMBIENT FIELD ── */
+    .ambient-field { position: fixed; inset: 0; z-index: -1; overflow: hidden; pointer-events: none; }
+    .ambient-glyph {
+      position: absolute; font-family: 'Playfair Display', serif; font-style: italic; color: var(--ink);
+      opacity: 0; animation-name: ambientFade; animation-timing-function: ease-in-out; animation-iteration-count: infinite;
+      will-change: opacity, transform;
+    }
+    @keyframes ambientFade {
+      0% { opacity: 0; transform: translateY(10px); }
+      50% { opacity: var(--peak, 0.05); transform: translateY(-10px); }
+      100% { opacity: 0; transform: translateY(-24px); }
+    }
+
+    /* ── CHROME (back / theme toggle / back-to-top) ── */
+    .back-fab, .theme-toggle, .back-to-top {
+      position: fixed; z-index: 900;
+      width: 34px; height: 34px; background: var(--bg-card); border: 1px solid var(--rule); border-radius: 6px;
+      color: var(--ink-mute); cursor: pointer; display: flex; align-items: center; justify-content: center; padding: 0;
+      transition: border-color 150ms var(--ease-out), color 150ms var(--ease-out), background 150ms var(--ease-out), opacity 200ms var(--ease-out), transform 200ms var(--ease-out);
+      text-decoration: none;
+    }
+    .back-fab { top: 1.2rem; left: 1.2rem; }
+    .theme-toggle { top: 1.2rem; right: 1.2rem; }
+    .back-fab:hover, .theme-toggle:hover, .back-to-top:hover { border-color: var(--gold); color: var(--ink-dim); background: var(--gold-wash); }
+    .back-fab:active, .theme-toggle:active, .back-to-top:active { transform: scale(0.93); }
+    .back-to-top { bottom: 1.5rem; right: 1.5rem; opacity: 0; pointer-events: none; transform: translateY(8px); }
+    .back-to-top.visible { opacity: 1; pointer-events: auto; transform: translateY(0); }
+
+    /* ── MASTHEAD ── */
+    .masthead { border-bottom: 3px double var(--ink); padding: 40px 24px 0; text-align: center; }
+    .masthead::before { content: '✦ ✦ ✦'; display: block; font-family: 'JetBrains Mono', monospace; font-size: 10px; letter-spacing: 0.6em; color: var(--ink-mute); margin-bottom: 16px; }
+    .masthead-title { font-family: 'Playfair Display', Georgia, serif; font-size: clamp(2.6rem, 7vw, 4.5rem); letter-spacing: -0.02em; line-height: 0.95; color: var(--ink); display: inline-block; }
+    .masthead-title .psyche { font-style: italic; font-weight: 700; }
+    .masthead-title .arch { font-style: normal; font-weight: 400; font-size: 0.42em; display: block; letter-spacing: 0.38em; color: var(--ink-dim); margin-top: 10px; text-transform: uppercase; }
+    .masthead-rule { width: 100%; max-width: 460px; height: 2px; background: var(--gold); margin: 20px auto 0; clip-path: inset(0 100% 0 0); animation: reveal 700ms var(--ease-in-out) 150ms both; }
+    @keyframes reveal { to { clip-path: inset(0 0 0 0); } }
+    .masthead-sub { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--ink-mute); letter-spacing: 0.2em; text-transform: uppercase; padding: 14px 0 22px; opacity: 0; animation: fadeIn 400ms var(--ease-out) 500ms forwards; }
+    @keyframes fadeIn { to { opacity: 1; } }
+
+    /* ── DATELINE ── */
+    .dateline { display: flex; justify-content: center; align-items: center; gap: 12px; padding: 10px 24px; border-bottom: 1px solid var(--rule); }
+    .dateline span { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--ink-mute); letter-spacing: 0.14em; text-transform: uppercase; }
+    .dateline .count { color: var(--gold); font-weight: 500; }
+    .dateline .dot { color: var(--rule); }
+
+    /* ── GALLERY GRID ── */
+    .gallery-container { max-width: 960px; margin: 0 auto; padding: 2.5rem 2rem 5rem; }
+
+    .gallery-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 10px; }
+
+    .gallery-card { background: var(--bg-card); border: 1px solid var(--rule); overflow: hidden; cursor: pointer; position: relative; aspect-ratio: 1 / 1; transition: background 0.2s, box-shadow 0.2s, border-color 0.2s; }
+    .gallery-card:hover { background: var(--bg-hover); border-color: var(--gold); }
+
+    .gallery-card-rim { position: absolute; inset: 0; pointer-events: none; opacity: 0; background: radial-gradient(220px circle at 50% 50%, rgba(196, 145, 58, 0.35), transparent 70%); mix-blend-mode: soft-light; transition: opacity 220ms var(--ease-out); }
+    .gallery-card:hover .gallery-card-rim { opacity: 1; }
+
+    .gallery-card img { display: block; width: 100%; height: 100%; object-fit: cover; transition: opacity 0.2s, transform 0.3s ease; filter: grayscale(6%) contrast(1.02); }
+    .gallery-card:hover img { opacity: 0.9; transform: scale(1.02); }
+
+    .gallery-card-label {
+      position: absolute; bottom: 0; left: 0; right: 0; padding: 0.5rem 0.75rem;
+      background: linear-gradient(to top, rgba(20, 18, 15, 0.85), transparent);
+      font-family: 'JetBrains Mono', monospace; font-size: 0.55rem; letter-spacing: 0.15em;
+      color: rgba(232, 224, 212, 0.75); text-transform: uppercase; opacity: 0; transition: opacity 0.2s;
+    }
+    .gallery-card:hover .gallery-card-label { opacity: 1; }
+
+    /* ── LIGHTBOX ── */
+    .lightbox { position: fixed; inset: 0; background: var(--scrim); z-index: 1000; display: flex; align-items: center; justify-content: center; opacity: 0; pointer-events: none; transition: opacity 0.25s ease; }
+    .lightbox.active { opacity: 1; pointer-events: auto; }
+
+    .lightbox-inner { position: relative; max-width: min(90vw, 1000px); max-height: 90vh; display: flex; align-items: center; justify-content: center; touch-action: none; user-select: none; }
+
+    .lightbox img { display: block; max-width: 100%; max-height: 90vh; object-fit: contain; border: 1px solid rgba(255, 255, 255, 0.12); transition: opacity 0.18s ease; cursor: pointer; -webkit-user-drag: none; user-select: none; will-change: transform; }
+
+    .lightbox-close {
+      position: fixed; top: 1.5rem; right: 1.5rem; width: 36px; height: 36px;
+      background: rgba(255, 255, 255, 0.06); border: 1px solid rgba(255, 255, 255, 0.14); color: rgba(232, 224, 212, 0.65);
+      cursor: pointer; display: flex; align-items: center; justify-content: center;
+      font-family: 'JetBrains Mono', monospace; font-size: 0.9rem; transition: color 0.15s, border-color 0.15s; z-index: 1002;
+    }
+    .lightbox-close:hover { color: var(--gold); border-color: var(--gold); }
+
+    .lightbox-label { position: fixed; bottom: 2rem; left: 50%; transform: translateX(-50%); font-family: 'JetBrains Mono', monospace; font-size: 0.58rem; letter-spacing: 0.2em; color: rgba(232, 224, 212, 0.6); text-transform: uppercase; }
+
+    /* ── FOOTER ── */
+    footer { margin-top: 48px; padding: 24px; text-align: center; border-top: 3px double var(--ink); }
+    footer p { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--ink-mute); letter-spacing: 0.18em; text-transform: uppercase; line-height: 1.9; }
+    footer .sig { font-family: 'Playfair Display', serif; font-style: italic; font-size: 13px; color: var(--ink-dim); letter-spacing: 0; text-transform: none; display: block; margin-top: 6px; }
+    .footer-icon { display: block; width: 100px; opacity: 0.35; margin: 20px auto 0; transition: filter 0.2s ease; }
+    html.dark .footer-icon { filter: invert(1); }
+    .footer-links { display: flex; flex-direction: column; gap: 6px; max-width: 260px; margin: 20px auto 0; }
+    .masthead-about {
+      display: flex; align-items: center; justify-content: center; width: 100%; font-family: 'JetBrains Mono', monospace; font-size: 11px; letter-spacing: 0.18em;
+      text-transform: uppercase; color: var(--ink-mute); text-decoration: none; border: 1px solid var(--rule); padding: 11px 16px;
+      text-align: center; transition: color 0.2s, border-color 0.2s, background 0.2s;
+    }
+    .masthead-about::before { content: '✦'; font-size: 8px; color: var(--gold); letter-spacing: 0; margin-right: 8px; }
+    .masthead-about:hover { color: var(--ink); border-color: var(--gold); background: var(--gold-wash); }
+
+    /* ── ANIMATIONS ── */
+    @media (prefers-reduced-motion: no-preference) {
+      .gallery-container { animation: fadeUp 0.45s 0.1s ease both; }
+      @keyframes fadeUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    }
+
+    /* ── RESPONSIVE ── */
+    @media (max-width: 480px) {
+      .gallery-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+
+    /* ── GALLERY STATE (loading / empty / error) ── */
+    .gallery-grid:empty { display: none; }
+
+    .gallery-state { font-family: 'JetBrains Mono', monospace; font-size: 0.6rem; letter-spacing: 0.2em; text-transform: uppercase; text-align: center; padding: 4rem 0; color: var(--ink-mute); }
+    .gallery-state.error { color: #8b3a3a; }
+
+    /* ── UPLOAD BUTTON ── */
+    .upload-trigger {
+      position: fixed; bottom: 4.25rem; right: 1.5rem; width: 34px; height: 34px;
+      background: var(--bg-card); border: 1px solid var(--rule); border-radius: 6px; color: var(--ink-mute);
+      display: flex; align-items: center; justify-content: center; cursor: pointer; z-index: 900; padding: 0;
+      transition: border-color 0.15s ease, color 0.15s ease, background 0.15s ease;
+    }
+    .upload-trigger:hover { border-color: var(--gold); color: var(--ink-dim); background: var(--gold-wash); }
+
+    /* ── UPLOAD MODAL ── */
+    .upload-modal { position: fixed; inset: 0; background: var(--scrim); z-index: 1001; display: flex; align-items: center; justify-content: center; padding: 1.5rem; opacity: 0; pointer-events: none; transition: opacity 0.25s ease; }
+    .upload-modal.active { opacity: 1; pointer-events: auto; }
+
+    .upload-panel { width: 100%; max-width: 380px; background: var(--bg-card); border: 1px solid var(--rule); padding: 2.25rem 2rem 2rem; position: relative; }
+
+    .upload-close {
+      position: absolute; top: 1rem; right: 1rem; width: 28px; height: 28px; background: transparent;
+      border: 1px solid var(--rule); color: var(--ink-mute); cursor: pointer; font-family: 'JetBrains Mono', monospace;
+      font-size: 0.7rem; display: flex; align-items: center; justify-content: center; transition: color 0.15s, border-color 0.15s;
+    }
+    .upload-close:hover { color: var(--gold); border-color: var(--gold); }
+
+    .upload-eyebrow { font-family: 'JetBrains Mono', monospace; font-size: 0.55rem; letter-spacing: 0.28em; color: var(--ink-mute); text-transform: uppercase; margin-bottom: 0.6rem; }
+    .upload-eyebrow::before { content: '✦ '; color: var(--gold); letter-spacing: 0; }
+
+    .upload-title { font-family: 'Playfair Display', serif; font-size: 1.5rem; font-weight: 700; font-style: italic; color: var(--ink); margin-bottom: 1.75rem; line-height: 1; }
+
+    .upload-field { margin-bottom: 1.1rem; }
+
+    .upload-field-label { display: block; font-family: 'JetBrains Mono', monospace; font-size: 0.52rem; letter-spacing: 0.22em; color: var(--ink-mute); text-transform: uppercase; margin-bottom: 0.45rem; }
+
+    .upload-file-zone { display: flex; align-items: center; gap: 0.75rem; border: 1px solid var(--rule); padding: 0.75rem 1rem; cursor: pointer; transition: border-color 0.15s; }
+    .upload-file-zone:hover { border-color: var(--gold); }
+    .upload-file-zone input[type="file"] { position: absolute; width: 1px; height: 1px; opacity: 0; overflow: hidden; }
+    .upload-file-icon { color: var(--ink-mute); flex-shrink: 0; }
+    .upload-file-name { font-family: 'JetBrains Mono', monospace; font-size: 0.58rem; letter-spacing: 0.08em; color: var(--ink-mute); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .upload-file-name.selected { color: var(--ink-dim); }
+
+    .upload-input { width: 100%; background: var(--bg-hover); border: 1px solid var(--rule); outline: none; padding: 0.75rem 1rem; font-family: 'JetBrains Mono', monospace; font-size: 0.75rem; color: var(--ink); letter-spacing: 0.1em; transition: border-color 0.15s; }
+    .upload-input:focus { border-color: var(--gold); }
+    .upload-input::placeholder { color: var(--ink-mute); }
+
+    .upload-submit { width: 100%; background: transparent; border: 1px solid var(--rule); color: var(--ink-mute); font-family: 'JetBrains Mono', monospace; font-size: 0.6rem; letter-spacing: 0.22em; text-transform: uppercase; padding: 0.85rem; cursor: pointer; margin-top: 0.35rem; transition: border-color 0.15s, color 0.15s; }
+    .upload-submit:hover:not(:disabled) { border-color: var(--gold); color: var(--gold); }
+    .upload-submit:disabled { opacity: 0.35; cursor: default; }
+
+    .upload-status { font-family: 'JetBrains Mono', monospace; font-size: 0.52rem; letter-spacing: 0.15em; text-transform: uppercase; text-align: center; margin-top: 0.9rem; min-height: 0.9rem; color: var(--ink-mute); }
+    .upload-status.error   { color: #8b3a3a; }
+    .upload-status.success { color: var(--gold); }
+  </style>
+  <link rel="stylesheet" id="lifeos-tema" href="assets/css/themes/blog/sepia.css">
+  <!-- Tema da capa. O <link> vem DEPOIS do <style> pra vencer o :root inline,
+       e tema.js roda antes da primeira pintura (sem flash). Ele deriva a pasta
+       do próprio href, então o mesmo script serve blog e painel — a escolha é
+       uma só, compartilhada pela chave `lifeos_tema`. Ver LIFEOS.md §12. -->
+  <script src="assets/js/lifeos-config.js"></script>
+  <script src="assets/js/tema.js"></script>
+  <script src="assets/js/blog.js"></script>
+<script src="assets/js/gallery.js"></script>
+</head>
+<body>
+
+<div class="ambient-field" id="ambient-field" aria-hidden="true"></div>
+<a href="index.html" class="back-fab" aria-label="Voltar ao arquivo">
+  <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+    <line x1="2" y1="7" x2="12" y2="7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+    <polyline points="6,2 2,7 6,12" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"/>
+  </svg>
+</a>
+<button class="theme-toggle" id="theme-toggle" aria-label="Alternar tema"></button>
+<button class="back-to-top" id="back-to-top" aria-label="Voltar ao topo">
+  <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+    <line x1="7" y1="12" x2="7" y2="2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+    <polyline points="3,6 7,2 11,6" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"/>
+  </svg>
+</button>
+
+<div class="masthead">
+  <h1 class="masthead-title"><span class="psyche">Galeria</span><span class="arch">LifeOSs</span></h1>
+  <div class="masthead-rule"></div>
+  <p class="masthead-sub">diagramas · registros · piadinhas</p>
+</div>
+
+<div class="dateline">
+  <span class="count" id="img-count"></span>
+  <span class="dot">·</span>
+  <span>registro visual</span>
+</div>
+
+<div class="gallery-container">
+  <div class="gallery-state" id="gallery-state">carregando...</div>
+  <div class="gallery-grid" id="gallery-grid"></div>
+</div>
+
+<footer>
+  <p>LifeOS · Arquivo · LifeOS · 2026<span class="sig">o mapa sendo mapeado</span></p>
+  <img src="assets/images/avatar.jpg" alt="" class="footer-icon">
+  <div class="footer-links">
+    <a href="index.html" class="masthead-about">arquivo</a>
+  </div>
+</footer>
+
+<!-- UPLOAD BUTTON -->
+<button class="upload-trigger" id="upload-trigger" aria-label="Enviar imagem">
+  <svg width="13" height="13" viewBox="0 0 13 13" fill="none" aria-hidden="true">
+    <line x1="6.5" y1="10" x2="6.5" y2="1.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+    <polyline points="3,5 6.5,1.5 10,5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"/>
+    <line x1="2" y1="11.5" x2="11" y2="11.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+  </svg>
+</button>
+
+<!-- UPLOAD MODAL -->
+<div class="upload-modal" id="upload-modal" role="dialog" aria-modal="true" aria-label="Enviar imagem para a galeria">
+  <div class="upload-panel">
+    <button class="upload-close" id="upload-close" aria-label="Fechar">✕</button>
+
+    <p class="upload-eyebrow">galeria · novo registro</p>
+    <h2 class="upload-title">Enviar imagem</h2>
+
+    <div class="upload-field">
+      <span class="upload-field-label">arquivo</span>
+      <label class="upload-file-zone" for="upload-file-input">
+        <span class="upload-file-icon">
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true">
+            <line x1="6" y1="9.5" x2="6" y2="1.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
+            <polyline points="2.5,5 6,1.5 9.5,5" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round" stroke-linecap="round"/>
+            <line x1="1.5" y1="10.5" x2="10.5" y2="10.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/>
+          </svg>
+        </span>
+        <span class="upload-file-name" id="upload-file-name">escolher imagem...</span>
+        <input type="file" id="upload-file-input" accept="image/*">
+      </label>
+    </div>
+
+    <div class="upload-field">
+      <label class="upload-field-label" for="upload-password">senha de acesso</label>
+      <input
+        type="password"
+        id="upload-password"
+        class="upload-input"
+        placeholder="senha"
+        autocomplete="off"
+        spellcheck="false"
+      >
+    </div>
+
+    <button class="upload-submit" id="upload-submit" disabled>enviar →</button>
+    <div class="upload-status" id="upload-status" aria-live="polite"></div>
+  </div>
+</div>
+
+<!-- LIGHTBOX -->
+<div class="lightbox" id="lightbox">
+  <button class="lightbox-close" id="lightbox-close">✕</button>
+  <div class="lightbox-inner" id="lightbox-inner">
+    <img src="" alt="" id="lightbox-img">
+  </div>
+  <span class="lightbox-label" id="lightbox-label"></span>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  /* ── Refs ─────────────────────────────────────────────────────── */
+  var grid         = document.getElementById('gallery-grid');
+  var stateEl      = document.getElementById('gallery-state');
+  var lightbox     = document.getElementById('lightbox');
+  var lightboxImg  = document.getElementById('lightbox-img');
+  var lightboxLbl  = document.getElementById('lightbox-label');
+  var countEl      = document.getElementById('img-count');
+
+  var uploadModal  = document.getElementById('upload-modal');
+  var uploadTrigger= document.getElementById('upload-trigger');
+  var uploadClose  = document.getElementById('upload-close');
+  var uploadFile   = document.getElementById('upload-file-input');
+  var uploadName   = document.getElementById('upload-file-name');
+  var uploadPass   = document.getElementById('upload-password');
+  var uploadSubmit = document.getElementById('upload-submit');
+  var uploadStatus = document.getElementById('upload-status');
+
+  var images = []; // Array<{ id, image_url, updated_at }>
+
+  /* ── Helpers ──────────────────────────────────────────────────── */
+  var MONTHS = ['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
+
+  function fmtDate(iso) {
+    if (!iso) return '';
+    var d = new Date(iso);
+    return String(d.getDate()).padStart(2, '0') + ' ' + MONTHS[d.getMonth()] + ' ' + d.getFullYear();
+  }
+
+  function setState(msg, isError) {
+    stateEl.textContent = msg;
+    stateEl.className   = 'gallery-state' + (isError ? ' error' : '');
+    stateEl.style.display = msg ? '' : 'none';
+  }
+
+  /* ── Gallery render ───────────────────────────────────────────── */
+  function renderGrid(data) {
+    images    = data || [];
+    var count = images.length;
+
+    countEl.textContent = count + ' imagem' + (count !== 1 ? 's' : '');
+    grid.innerHTML = '';
+
+    if (count === 0) {
+      setState('nenhuma imagem registrada ainda');
+      return;
+    }
+
+    setState(''); // hide state message
+
+    images.forEach(function (row, i) {
+      var card = document.createElement('div');
+      card.className = 'gallery-card';
+
+      var img = document.createElement('img');
+      img.src     = row.image_url;
+      img.alt     = fmtDate(row.updated_at);
+      img.loading = 'lazy';
+
+      var rim = document.createElement('div');
+      rim.className = 'gallery-card-rim';
+
+      var label = document.createElement('div');
+      label.className   = 'gallery-card-label';
+      label.textContent = fmtDate(row.updated_at);
+
+      card.appendChild(img);
+      card.appendChild(rim);
+      card.appendChild(label);
+      card.addEventListener('click', function () { openLightbox(i); });
+      grid.appendChild(card);
+    });
+  }
+
+  function loadGallery() {
+    setState('carregando...');
+    grid.innerHTML = '';
+    countEl.textContent = '';
+
+    LifeOSGallery.fetchImages()
+      .then(renderGrid)
+      .catch(function (err) {
+        console.error('[gallery] fetchImages:', err);
+        setState('erro ao carregar — tente recarregar a página', true);
+      });
+  }
+
+  /* ── Lightbox ─────────────────────────────────────────────────── */
+  var currentIdx    = -1;
+  var SWIPE_MIN     = 45;
+
+  var lightboxInner = document.getElementById('lightbox-inner');
+
+  /* ── Zoom state ───────────────────────────────────────────────── */
+  var zoomScale = 1;
+  var zoomPanX  = 0;
+  var zoomPanY  = 0;
+
+  /* double-tap */
+  var lastTapTime = 0;
+  var lastTapX    = 0;
+  var lastTapY    = 0;
+
+  /* touch tracking */
+  var t1StartX   = 0;
+  var t1StartY   = 0;
+  var panRefX    = 0;
+  var panRefY    = 0;
+  var touchMoved = false;
+
+  /* pinch */
+  var pinchDist0  = 0;
+  var pinchScale0 = 1;
+  var pinchMidX0  = 0;
+  var pinchMidY0  = 0;
+
+  function getTouchDist(touches) {
+    var dx = touches[0].clientX - touches[1].clientX;
+    var dy = touches[0].clientY - touches[1].clientY;
+    return Math.sqrt(dx * dx + dy * dy);
+  }
+
+  function applyZoom() {
+    lightboxImg.style.transform =
+      'translate(' + zoomPanX + 'px,' + zoomPanY + 'px) scale(' + zoomScale + ')';
+    lightboxImg.style.cursor = zoomScale > 1 ? 'grab' : '';
+  }
+
+  function resetZoom(animated) {
+    if (animated) {
+      lightboxImg.style.transition = 'transform 0.22s ease, opacity 0.18s ease';
+    }
+    zoomScale = 1; zoomPanX = 0; zoomPanY = 0;
+    lightboxImg.style.transform = '';
+    lightboxImg.style.cursor    = '';
+    if (animated) {
+      setTimeout(function () {
+        lightboxImg.style.transition = 'opacity 0.18s ease';
+      }, 240);
+    }
+  }
+
+  /* Zoom into screen point (mx, my), changing from current scale to targetScale */
+  function zoomToPoint(mx, my, targetScale) {
+    var r  = lightboxImg.getBoundingClientRect();
+    var cx = r.left + r.width  / 2;
+    var cy = r.top  + r.height / 2;
+    var ratio = targetScale / zoomScale;
+    zoomPanX  = (mx - cx) * (1 - ratio) + zoomPanX * ratio;
+    zoomPanY  = (my - cy) * (1 - ratio) + zoomPanY * ratio;
+    zoomScale = targetScale;
+  }
+
+  function updateLightboxState() {
+    var row = images[currentIdx];
+    lightboxImg.src         = row.image_url;
+    lightboxImg.alt         = fmtDate(row.updated_at);
+    lightboxLbl.textContent = fmtDate(row.updated_at) + ' · ' + (currentIdx + 1) + ' / ' + images.length;
+  }
+
+  function openLightbox(idx) {
+    currentIdx = idx;
+    resetZoom(false);
+    updateLightboxState();
+    lightbox.classList.add('active');
+    document.body.style.overflow = 'hidden';
+  }
+
+  function closeLightbox() {
+    lightbox.classList.remove('active');
+    document.body.style.overflow = '';
+    resetZoom(false);
+  }
+
+  function showImage(idx) {
+    resetZoom(false);
+    currentIdx = (idx + images.length) % images.length;
+    lightboxImg.style.opacity = '0';
+    updateLightboxState();
+    requestAnimationFrame(function () {
+      requestAnimationFrame(function () { lightboxImg.style.opacity = ''; });
+    });
+  }
+
+  document.getElementById('lightbox-close').addEventListener('click', closeLightbox);
+
+  /* close when clicking backdrop */
+  lightbox.addEventListener('click', function (e) {
+    if (e.target === lightbox) closeLightbox();
+  });
+
+  /* ── Touch gestures ───────────────────────────────────────────── */
+  lightboxInner.addEventListener('touchstart', function (e) {
+    touchMoved = false;
+
+    if (e.touches.length === 2) {
+      e.preventDefault();
+      pinchDist0  = getTouchDist(e.touches);
+      pinchScale0 = zoomScale;
+      pinchMidX0  = (e.touches[0].clientX + e.touches[1].clientX) / 2;
+      pinchMidY0  = (e.touches[0].clientY + e.touches[1].clientY) / 2;
+      lightboxImg.style.transition = 'none';
+    } else if (e.touches.length === 1) {
+      var x = e.touches[0].clientX;
+      var y = e.touches[0].clientY;
+      t1StartX = x; t1StartY = y;
+      panRefX  = x; panRefY  = y;
+
+      /* double-tap detection */
+      var now = Date.now();
+      if (now - lastTapTime < 280 &&
+          Math.abs(x - lastTapX) < 40 && Math.abs(y - lastTapY) < 40) {
+        lastTapTime = 0;
+        if (zoomScale > 1) {
+          resetZoom(true);
+        } else {
+          lightboxImg.style.transition = 'transform 0.22s ease';
+          zoomToPoint(x, y, 2.5);
+          applyZoom();
+          setTimeout(function () { lightboxImg.style.transition = 'opacity 0.18s ease'; }, 240);
+        }
+      } else {
+        lastTapTime = now;
+        lastTapX    = x;
+        lastTapY    = y;
+        lightboxImg.style.transition = 'none';
+      }
+    }
+  }, { passive: false });
+
+  lightboxInner.addEventListener('touchmove', function (e) {
+    touchMoved = true;
+
+    if (e.touches.length === 2) {
+      e.preventDefault();
+      var dist  = getTouchDist(e.touches);
+      var mx    = (e.touches[0].clientX + e.touches[1].clientX) / 2;
+      var my    = (e.touches[0].clientY + e.touches[1].clientY) / 2;
+      var newS  = Math.max(1, Math.min(6, pinchScale0 * dist / pinchDist0));
+
+      /* Keep pinch midpoint fixed + allow translation */
+      var r     = lightboxImg.getBoundingClientRect();
+      var cx    = r.left + r.width  / 2;
+      var cy    = r.top  + r.height / 2;
+      var ratio = newS / zoomScale;
+      zoomPanX  = (pinchMidX0 - cx) * (1 - ratio) + zoomPanX * ratio + (mx - pinchMidX0);
+      zoomPanY  = (pinchMidY0 - cy) * (1 - ratio) + zoomPanY * ratio + (my - pinchMidY0);
+      zoomScale = newS;
+      pinchMidX0 = mx;
+      pinchMidY0 = my;
+      applyZoom();
+
+    } else if (e.touches.length === 1 && zoomScale > 1) {
+      e.preventDefault();
+      var x = e.touches[0].clientX;
+      var y = e.touches[0].clientY;
+      zoomPanX += x - panRefX;
+      zoomPanY += y - panRefY;
+      panRefX = x; panRefY = y;
+      applyZoom();
+    }
+  }, { passive: false });
+
+  lightboxInner.addEventListener('touchend', function (e) {
+    lightboxImg.style.transition = 'opacity 0.18s ease';
+
+    /* Snap back if pinch ended near scale 1 */
+    if (zoomScale < 1.1 && zoomScale !== 1) {
+      resetZoom(true);
+      return;
+    }
+
+    if (!touchMoved && zoomScale === 1) {
+      closeLightbox();
+      return;
+    }
+
+    if (touchMoved && zoomScale === 1 && e.changedTouches.length === 1) {
+      var dx  = e.changedTouches[0].clientX - t1StartX;
+      var dy  = e.changedTouches[0].clientY - t1StartY;
+      if (Math.abs(dx) >= SWIPE_MIN && Math.abs(dx) > Math.abs(dy)) {
+        showImage(dx < 0 ? currentIdx + 1 : currentIdx - 1);
+      }
+    }
+  }, { passive: true });
+
+  /* Mouse: click image to close when not zoomed */
+  lightboxImg.addEventListener('click', function () {
+    if (zoomScale === 1) closeLightbox();
+  });
+
+  /* ── Upload modal ─────────────────────────────────────────────── */
+  function setUploadStatus(msg, cls) {
+    uploadStatus.textContent = msg;
+    uploadStatus.className   = 'upload-status' + (cls ? ' ' + cls : '');
+  }
+
+  function checkSubmitReady() {
+    uploadSubmit.disabled = !(uploadFile.files[0] && uploadPass.value.trim());
+  }
+
+  function openUpload() {
+    uploadFile.value         = '';
+    uploadPass.value         = '';
+    uploadName.textContent   = 'escolher imagem...';
+    uploadName.className     = 'upload-file-name';
+    uploadSubmit.disabled    = true;
+    setUploadStatus('');
+    uploadModal.classList.add('active');
+    document.body.style.overflow = 'hidden';
+    setTimeout(function () { uploadPass.focus(); }, 80);
+  }
+
+  function closeUpload() {
+    uploadModal.classList.remove('active');
+    document.body.style.overflow = '';
+  }
+
+  uploadTrigger.addEventListener('click', openUpload);
+  uploadClose.addEventListener('click', closeUpload);
+  uploadModal.addEventListener('click', function (e) {
+    if (e.target === uploadModal) closeUpload();
+  });
+
+  uploadFile.addEventListener('change', function () {
+    if (this.files[0]) {
+      uploadName.textContent = this.files[0].name;
+      uploadName.className   = 'upload-file-name selected';
+    } else {
+      uploadName.textContent = 'escolher imagem...';
+      uploadName.className   = 'upload-file-name';
+    }
+    checkSubmitReady();
+  });
+
+  uploadPass.addEventListener('input', checkSubmitReady);
+
+  uploadSubmit.addEventListener('click', async function () {
+    var file     = uploadFile.files[0];
+    var password = uploadPass.value.trim();
+    if (!file || !password) return;
+
+    uploadSubmit.disabled = true;
+    setUploadStatus('enviando...', '');
+
+    try {
+      await LifeOSGallery.uploadImage(file, password);
+      setUploadStatus('imagem registrada com sucesso', 'success');
+
+      // Recarrega galeria e fecha modal após breve delay
+      var fresh = await LifeOSGallery.fetchImages();
+      renderGrid(fresh);
+      setTimeout(closeUpload, 1000);
+
+    } catch (err) {
+      console.error('[gallery] uploadImage:', err);
+      setUploadStatus(err.message || 'erro ao enviar', 'error');
+      uploadPass.value  = '';
+      uploadSubmit.disabled = false;
+      if (err.isAuth) {
+        uploadPass.focus();
+      }
+    }
+  });
+
+  /* ── Keyboard ─────────────────────────────────────────────────── */
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape') { closeLightbox(); closeUpload(); return; }
+    if (!lightbox.classList.contains('active')) return;
+    if (e.key === 'ArrowLeft')  showImage(currentIdx - 1);
+    if (e.key === 'ArrowRight') showImage(currentIdx + 1);
+  });
+
+  /* ── Init ─────────────────────────────────────────────────────── */
+  loadGallery();
+}());
+</script>
+
+<script>
+(function () {
+  'use strict';
+
+  var ICON_MOON = '<svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M11.5 8.5A5 5 0 0 1 5.5 2.5a5 5 0 1 0 6 6Z" fill="currentColor"/></svg>';
+  var ICON_SUN  = '<svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="7" cy="7" r="2.5" fill="currentColor"/><line x1="7" y1="0.5" x2="7" y2="2.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><line x1="7" y1="11.5" x2="7" y2="13.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><line x1="0.5" y1="7" x2="2.5" y2="7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><line x1="11.5" y1="7" x2="13.5" y2="7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><line x1="2.4" y1="2.4" x2="3.8" y2="3.8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><line x1="10.2" y1="10.2" x2="11.6" y2="11.6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><line x1="11.6" y1="2.4" x2="10.2" y2="3.8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><line x1="3.8" y1="10.2" x2="2.4" y2="11.6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>';
+
+  var prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  /* ── ambient background field — faint drifting glyphs, same as index.html ── */
+  (function buildAmbientField() {
+    if (prefersReduced) return;
+    var GLYPHS = [
+      'ψ', 'Ω', 'Σ', 'Φ', 'α', 'β', 'γ', 'δ', 'θ', 'λ', 'μ', 'ξ', 'π', 'τ', 'ω', 'ρ', 'ν', 'ι', 'κ',
+      '☿', '☽', '☉', '♀', '♂', '♃', '♄', '⛢', '♆', '✦', '✧', '⟡', '◈', '⌖', '⬗', '☯', '✵', '✶', '✳', '⚝'
+    ];
+    var field = document.getElementById('ambient-field');
+    if (!field) return;
+    var count = window.innerWidth < 640 ? 85 : 170;
+    var frag = document.createDocumentFragment();
+    for (var i = 0; i < count; i++) {
+      var el = document.createElement('span');
+      el.className = 'ambient-glyph';
+      el.textContent = GLYPHS[Math.floor(Math.random() * GLYPHS.length)];
+      el.style.left = (Math.random() * 100) + '%';
+      el.style.top = (Math.random() * 100) + '%';
+      el.style.fontSize = (16 + Math.random() * 38) + 'px';
+      el.style.setProperty('--peak', (0.016 + Math.random() * 0.03).toFixed(3));
+      var dur = 3 + Math.random() * 5;
+      el.style.animationDuration = dur + 's';
+      el.style.animationDelay = (-Math.random() * dur) + 's';
+      frag.appendChild(el);
+    }
+    field.appendChild(frag);
+  })();
+
+  var isDark = localStorage.getItem('psyches_v2_theme') !== 'light';
+  function applyTheme() {
+    document.documentElement.classList.toggle('dark', isDark);
+    document.getElementById('theme-toggle').innerHTML = isDark ? ICON_SUN : ICON_MOON;
+  }
+  document.getElementById('theme-toggle').addEventListener('click', function () {
+    isDark = !isDark;
+    localStorage.setItem('psyches_v2_theme', isDark ? 'dark' : 'light');
+    applyTheme();
+  });
+  applyTheme();
+
+  document.getElementById('back-to-top').addEventListener('click', function () {
+    window.scrollTo({ top: 0, behavior: prefersReduced ? 'auto' : 'smooth' });
+  });
+  window.addEventListener('scroll', function () {
+    document.getElementById('back-to-top').classList.toggle('visible', window.scrollY > 300);
+  }, { passive: true });
+}());
+</script>
+</body>
+</html>

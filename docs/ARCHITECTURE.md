@@ -16,6 +16,7 @@ lifeos/
 ├── login.html                 # Tela de senha do fluxo gate.js
 ├── llms.txt                   # Guia de navegação para agentes/crawlers
 ├── manifest.json              # Espelho JSON do manifest (para humanos e máquinas)
+├── galeria.html               # Galeria de imagens (tabela + bucket `gallery`)
 │
 ├── pages/                     # As entradas do arquivo, uma por HTML autocontido
 │   └── sem-acesso.html        #   destino de quem não passa no access-gate

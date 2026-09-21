@@ -6,7 +6,61 @@ ao lado. Sem assinatura, sem servidor para alugar, sem framework.
 **Custo real: zero.** GitHub Pages para o site, plano free do Supabase para os
 dados. O uso de uma pessoa fica muito abaixo dos limites dos dois.
 
-**Repositório:** https://github.com/Kzrtt/lifeos
+**Repositório:** https://github.com/Kzrtt/lifeos ·
+**Instância no ar:** [Psychḗs Archives](https://kzrtt.github.io/psyches-archive/index.html?vol=3)
+
+---
+
+## Como ele é
+
+![O hub do LifeOS](docs/screenshots/hub.jpg)
+
+O **hub** abre no que importa hoje: calendário à esquerda, linha do tempo dos
+próximos eventos à direita, e abaixo o resumo de cada módulo. O banner e o
+avatar são seus — trocam em um arquivo de configuração.
+
+![Calendário e finanças](docs/screenshots/hub-calendario.jpg)
+
+Cada tipo de evento tem cor própria, definida por você na tela de Tags. O
+calendário alterna entre **eventos** e **tarefas** no mesmo lugar.
+
+![Finanças: saldo, fatura e últimas transações](docs/screenshots/hub-financas.jpg)
+
+Finanças trata **crédito como o que ele é**: uma compra no cartão não sai do
+caixa hoje, vira fatura futura. O card de fatura projetada mostra o que fecha
+nos próximos meses, e o sistema entende pagamento antecipado.
+
+![Kanban de tarefas](docs/screenshots/hub-tarefas.jpg)
+
+Tarefas em kanban, arrastáveis entre colunas. Toda tarefa pertence a um
+projeto — é o que impede a lista de virar uma caixa de entrada infinita.
+
+![Tabela de projetos](docs/screenshots/hub-projetos.jpg)
+
+Projetos são o eixo do sistema: tarefas exigem um, notas podem ter vários,
+eventos podem ter um. A barra de progresso vem das tarefas concluídas.
+
+![Notas com distribuição por tipo e por projeto](docs/screenshots/hub-notas.jpg)
+
+Notas em markdown, com os gráficos mostrando onde o seu material se acumula.
+É daqui que sai a matéria-prima do arquivo público.
+
+![Menu de configuração](docs/screenshots/menu.jpg)
+
+Tudo se configura de dentro do próprio sistema: senhas, temas, vocabulários,
+o token do GitHub, a automação do celular e o conector de IA. Nada exige SQL
+no painel do Supabase.
+
+![A capa do arquivo público](docs/screenshots/blog.png)
+
+E a metade pública: um arquivo paginado por volumes, com modo claro e escuro,
+publicado pelo próprio painel. Se você não quiser essa metade,
+`blog: { habilitado: false }` desliga.
+
+> As capturas são de uma instância real — a
+> [Psychḗs Archives](https://kzrtt.github.io/psyches-archive/index.html?vol=3),
+> do autor do projeto. Os dados, nomes de projeto e paleta são dela; uma
+> instalação nova começa vazia, com o tema sépia.
 
 ---
 
@@ -31,7 +85,8 @@ E três coisas que a maioria dos sistemas parecidos não tem:
   atalho de iPhone pronto; qualquer outra plataforma serve mandando o mesmo
   JSON.
 - **Blog estático** — páginas HTML independentes, publicadas pelo próprio
-  painel. Opcional: `blog: { habilitado: false }` desliga essa metade.
+  painel, mais uma **galeria** de imagens. Opcional:
+  `blog: { habilitado: false }` desliga essa metade.
 
 ---
 
@@ -58,6 +113,7 @@ Sem build step. Sem framework. Sem `node_modules`. `git push` publica.
 
 ```
 index.html              capa do blog (renderiza a partir de assets/js/manifest.js)
+galeria.html            galeria de imagens (upload atrás de senha)
 pages/                  as entradas do blog, uma por arquivo HTML
 lifeos/                 o painel — 11 páginas, cada uma isolada da outra
 assets/js/              o JS de cada página + a config da instância

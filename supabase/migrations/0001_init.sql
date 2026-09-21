@@ -296,6 +296,17 @@ insert into storage.buckets (id, name, public)
 values ('manifestacoes', 'manifestacoes', true)
 on conflict (id) do nothing;
 
+-- Bucket da galeria (galeria.html). Publico para leitura pelo mesmo motivo:
+-- as URLs sao renderizadas direto em <img> numa pagina publica.
+--
+-- Diferente de `manifestacoes`, a ESCRITA aqui vem do browser com a anon
+-- key, atras do gate de senha da propria pagina (RPC check_page_access com
+-- o slug 'gallery'). E o unico ponto do sistema que escreve em Storage sem
+-- passar por Edge Function -- desenho herdado, nao um padrao a repetir.
+insert into storage.buckets (id, name, public)
+values ('gallery', 'gallery', true)
+on conflict (id) do nothing;
+
 -- ════════════════════════════════════════════════════════════════════════
 -- RODAPÉ — onde este arquivo DIVERGE da produção, e por quê
 --

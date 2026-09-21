@@ -1495,7 +1495,8 @@ O que muda, via `assets/js/blog.js`:
 | Menu do hub | "Publicar página" some |
 | Topbar do LifeOS | o link "← arquivo" some |
 | `senhas.html` | a seção de escopo por página some de cada card |
-| `index.html` | redireciona para `lifeos/lifeos.html` |
+| `index.html` e `galeria.html` | redirecionam para `lifeos/lifeos.html` |
+| Rodapé da capa | o link da galeria some |
 
 **Esconde, não apaga.** O markup continua no HTML e os arquivos continuam no
 repositório — religar na config traz tudo de volta sem editar página nenhuma.
