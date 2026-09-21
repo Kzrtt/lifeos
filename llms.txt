@@ -1,66 +1,50 @@
 # LifeOS
 
-> Biblioteca estática de mapas cognitivos pessoais. Cada entrada é uma página HTML autocontida com um diagrama Mermaid.js e prosa narrativa. Hospedado no GitHub Pages, sem backend nem build step (única exceção: o dashboard /financas). Site: https://SEU-USUARIO.github.io/SEU-REPOSITORIO/
+> Um sistema de gestão de vida auto-hospedado, com um arquivo estático de
+> páginas HTML ao lado. Roda em GitHub Pages + Supabase, sem build step e sem
+> framework. Código: https://github.com/Kzrtt/lifeos
 
-## Como navegar (importante para agentes)
+Este arquivo existe porque **o índice é renderizado no cliente**: um `fetch`
+do HTML da capa não revela as entradas. Elas vêm de `assets/js/manifest.js`,
+carregado por `<script>`.
 
-O índice em `index.html` é montado no navegador, por um script inline da própria
-página, a partir de `assets/js/manifest.js` (que expõe `window.PSYCHES_MANIFEST`).
-Um fetch de `index.html` sem execução de JavaScript devolve apenas o esqueleto da
-página — **a lista de entradas não aparece no HTML estático**. Não há fetch de
-`manifest.json` em momento algum: o JSON é um espelho para consumo externo.
+Para enumerar o que está publicado, leia **`/manifest.json`** — espelho em
+JSON puro do mesmo dado, mantido em sincronia. Cada item de `entries` tem:
 
-Para enumerar todas as páginas do arquivo, use o manifesto:
+- `file` — caminho da página (ex.: `pages/minha-entrada.html`)
+- `slug` — identificador
+- `title`, `subtitle`, `date`, `categories`, `tags`
+- `volume` — agrupamento (10 entradas por volume)
+- `status` — `published` ou rascunho
+- `protected` — metadado informativo; **não** é o que protege a página
 
-- https://SEU-USUARIO.github.io/SEU-REPOSITORIO/manifest.json — espelho JSON do manifesto,
-  legível por máquina. É a forma canônica de descobrir o que existe.
+Marcações inline que podem aparecer em qualquer campo de texto: `#(x)` é
+exibido embaralhado, `_(x)_` em itálico.
 
-Formato do manifesto:
+## Estrutura
 
-- `meta.current_volume` — volume atualmente exibido no índice.
-- `meta.entries_per_volume` — teto de entradas por volume (10).
-- `meta.version` — carimbo de cache-busting; muda a cada atualização do manifesto.
-- `entries[]` — uma entrada por mapa. Campos relevantes:
-  - `slug` — identificador único, sem acentos.
-  - `file` — caminho do HTML relativo à raiz do site. Ex.: `pages/sistema-operacional.html`
-    → https://SEU-USUARIO.github.io/SEU-REPOSITORIO/pages/sistema-operacional.html
-  - `title`, `subtitle` — texto editorial. Podem conter marcações inline:
-    `_(texto)_` = itálico; `#(texto)` = trecho exibido embaralhado no índice
-    (o texto real está no campo; a redação é só uma barreira visual, não criptografia).
-  - `categories`, `tags` — arrays de classificação temática.
-  - `date` (ISO) e `date_display` (legível).
-  - `volume` — número do volume (1, 2, 3...). **Filtre por este campo para listar as
-    páginas de um volume.**
-  - `protected` — anotação informativa; **não é lida por nenhum renderizador** e
-    hoje diverge da realidade em algumas entradas. A proteção de fato vem de um
-    `<script>` no `<head>` da própria página (`assets/js/gate.js`, com senha, ou
-    `assets/js/access-gate.js`, por origem de navegação). O registro continua
-    listado no manifesto em qualquer caso.
-  - `status` — `"published"` está no ar; `"draft"` está oculto no índice.
+- [index.html](index.html): a capa. Lista as entradas em grade ou linha do
+  tempo, paginada por volume. Renderizada no cliente a partir do manifest.
+- [pages/](pages/): as entradas. Cada uma é um HTML autocontido, com o próprio
+  CSS embutido — não há folha compartilhada nem tema comum.
+- [lifeos/](lifeos/): o painel privado. Todo o conteúdo fica atrás de senha e
+  não é indexável.
 
-## Índice de entradas
+## Documentação
 
-- [manifest.json](https://SEU-USUARIO.github.io/SEU-REPOSITORIO/manifest.json): lista completa e estruturada de todas as entradas, com volume, status e metadados.
-- [assets/js/manifest.js](https://SEU-USUARIO.github.io/SEU-REPOSITORIO/assets/js/manifest.js): a mesma informação como `window.PSYCHES_MANIFEST`. É a fonte de verdade que o índice consome; o JSON é um espelho mantido em sincronia.
+- [README.md](README.md): o que o projeto é e como instalar.
+- [SETUP.md](SETUP.md): instalação passo a passo, assistida por IA ou manual.
+- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md): árvore de arquivos.
+- [docs/LIFEOS.md](docs/LIFEOS.md): arquitetura do painel.
+- [docs/MANIFEST.md](docs/MANIFEST.md): schema do manifest.
+- [docs/AUTH.md](docs/AUTH.md): os mecanismos de acesso.
+- [docs/VISUAL.md](docs/VISUAL.md): paleta, tipografia, temas.
 
-## Seções fixas
+## Notas para agentes
 
-- [Índice / capa](https://SEU-USUARIO.github.io/SEU-REPOSITORIO/index.html): hub de listagem em grade ou linha do tempo, paginado por volumes.
-- [Galeria](https://SEU-USUARIO.github.io/SEU-REPOSITORIO/galeria.html): recorte visual das entradas.
-- [Área profissional](https://SEU-USUARIO.github.io/SEU-REPOSITORIO/profissional.html): página de portfólio/currículo de Felipe o autor Pohling — identidade profissional separada do Archive. O Archive linka para ela (footer do índice), mas ela não linka de volta: é um portão de saída, não uma entrada do Archive, e fica fora do manifesto.
+Algumas entradas exigem senha (um `<script>` de gate no `<head>` esconde o
+conteúdo e redireciona). O campo `protected` do manifest é uma anotação de
+intenção e pode estar dessincronizado — a proteção real está na página.
 
-## Documentação do projeto
-
-- [README.md](https://SEU-USUARIO.github.io/SEU-REPOSITORIO/README.md): visão geral e estrutura.
-- [ARCHITECTURE.md](https://SEU-USUARIO.github.io/SEU-REPOSITORIO/docs/ARCHITECTURE.md): árvore de arquivos e como o índice funciona.
-- [VISUAL.md](https://SEU-USUARIO.github.io/SEU-REPOSITORIO/docs/VISUAL.md): sistema visual (paleta, tipografia, tema dos diagramas).
-- [MANIFEST.md](https://SEU-USUARIO.github.io/SEU-REPOSITORIO/docs/MANIFEST.md): schema completo do manifesto e regras de atualização.
-- [PAGE_TEMPLATE.md](https://SEU-USUARIO.github.io/SEU-REPOSITORIO/docs/PAGE_TEMPLATE.md): estrutura HTML base de uma entrada.
-- [AUTH.md](https://SEU-USUARIO.github.io/SEU-REPOSITORIO/docs/AUTH.md): fluxo de acesso das páginas protegidas.
-
-## Optional
-
-- [EXPANDING_PAGES.md](https://SEU-USUARIO.github.io/SEU-REPOSITORIO/docs/EXPANDING_PAGES.md): padrão das páginas que crescem ao longo do tempo.
-- [legacy.html](https://SEU-USUARIO.github.io/SEU-REPOSITORIO/legacy.html): versão anterior do índice, ainda no ar.
-- [jogo.html](https://SEU-USUARIO.github.io/SEU-REPOSITORIO/jogo.html): experimento interativo.
-- O **LifeOS** (`lifeos/lifeos.html`, `lifeos/financas.html`, `lifeos/tarefas.html`) é a única parte dinâmica do projeto: páginas protegidas por senha mestre, servidas por Supabase Edge Functions sobre tabelas próprias (`lifeos_*`). Fica fora do manifesto e fora do escopo do arquivo.
+O painel em `lifeos/` expõe um servidor MCP para consulta dos dados do
+sistema, mas ele é autenticado e não faz parte da superfície pública.

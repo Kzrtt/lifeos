@@ -54,8 +54,8 @@ window.LIFEOS_CONFIG = {
   identidade: {
     nome:   'LifeOS',
     sub:    'gestão de vida',
-    banner: '../assets/images/banner.svg',
-    avatar: '../assets/images/avatar.svg',
+    banner: '../assets/images/banner.jpg',
+    avatar: '../assets/images/avatar.jpg',
   },
 
   /* ── Blog ─────────────────────────────────────────────────────────────

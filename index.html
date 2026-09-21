@@ -396,7 +396,7 @@
 <div class="masthead">
   <h1 class="masthead-title"><span class="psyche">LifeOS</span><span class="arch">Archives</span></h1>
   <div class="masthead-rule"></div>
-  <p class="masthead-sub">mapas gerados a partir do Notion · LifeOS · 2026</p>
+  <p class="masthead-sub">um arquivo de textos e diagramas</p>
 </div>
 
 <div class="dateline">
@@ -415,7 +415,7 @@
   <noscript>
     <div class="noscript-index">
       <p>Este índice é montado no navegador a partir de <code>assets/js/manifest.js</code>. Sem JavaScript, a lista de entradas não aparece aqui.</p>
-      <p>Lista completa e legível por máquina: <a href="manifest.json">manifest.json</a> — cada <code>entries[].file</code> é o caminho da página (ex.: <code>pages/sistema-operacional.html</code>), <code>volume</code> agrupa por volume e <code>status</code> separa o que está no ar do rascunho.</p>
+      <p>Lista completa e legível por máquina: <a href="manifest.json">manifest.json</a> — cada <code>entries[].file</code> é o caminho da página (ex.: <code>pages/minha-entrada.html</code>), <code>volume</code> agrupa por volume e <code>status</code> separa o que está no ar do rascunho.</p>
       <p>Guia de navegação para agentes e crawlers: <a href="llms.txt">llms.txt</a>.</p>
     </div>
   </noscript>
@@ -427,15 +427,21 @@
     <button class="bottom-vol-btn" data-vol-next>próximo →</button>
   </div>
 
-  <div class="upcoming">
+  <!-- "Em preparação" — anuncie aqui o que você está escrevendo e ainda não
+       publicou. É editado à mão: não vem do manifest, porque são páginas que
+       ainda não existem.
+
+       Nasce oculta porque um arquivo recém-instalado não tem o que anunciar.
+       Para usar: tire o `hidden`, troque os itens, e acrescente quantos
+       quiser. Para não usar: apague o bloco inteiro. -->
+  <div class="upcoming" hidden>
     <div class="upcoming-title">Em preparação</div>
-    <div class="upcoming-item"><em>Proposta de Pesquisa — Cognição Distribuída Mediada por IA</em></div>
-    <div class="upcoming-item"><em>WebNews — arquitetura, decisões e o estudo de caso</em></div>
+    <div class="upcoming-item"><em>O título da sua próxima página</em></div>
   </div>
 </div>
 
 <footer>
-  <p>Publicado com <a href="https://github.com/SEU-USUARIO/SEU-REPOSITORIO" style="border-bottom:1px solid currentColor">LifeOS</a></p>
+  <p>Publicado com <a href="https://github.com/Kzrtt/lifeos" style="border-bottom:1px solid currentColor">LifeOS</a></p>
   <div class="footer-links">
     <a href="lifeos/lifeos.html" class="masthead-about full" rel="nofollow">painel</a>
   </div>

@@ -6,6 +6,8 @@ ao lado. Sem assinatura, sem servidor para alugar, sem framework.
 **Custo real: zero.** GitHub Pages para o site, plano free do Supabase para os
 dados. O uso de uma pessoa fica muito abaixo dos limites dos dois.
 
+**Repositório:** https://github.com/Kzrtt/lifeos
+
 ---
 
 ## O que ele faz

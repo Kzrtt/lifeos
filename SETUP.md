@@ -17,7 +17,8 @@ funções e edita a configuração.
 
 ### 1. Forke o repositório
 
-Pela interface do GitHub: **Fork** → escolha o nome → **Create fork**.
+Abra **https://github.com/Kzrtt/lifeos** e clique em **Fork** → escolha o nome
+→ **Create fork**.
 
 Depois, em **Settings → Pages** do seu fork: *Source* = **Deploy from a
 branch**, branch **main**, pasta **/ (root)**. O endereço será

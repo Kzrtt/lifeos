@@ -3,101 +3,59 @@
 ## Árvore de arquivos
 
 ```
-SEU-REPOSITORIO/
+lifeos/
 │
-├── .claude/CLAUDE.md          # Entry point para o Claude Code — lê primeiro
-├── README.md                  # Visão geral (único .md que fica na raiz, por convenção)
+├── .claude/CLAUDE.md          # Entry point para agentes — lê primeiro
+├── .claude/skills/            # /personalizar — entrevista de configuração
+├── README.md                  # O que o projeto é
+├── SETUP.md                   # Instalação, assistida por IA ou manual
+├── LICENSE                    # MIT
+├── .env.example               # Secrets que as Edge Functions esperam
 │
-├── docs/                      # Toda a documentação
-│   ├── ARCHITECTURE.md        #   Este arquivo
-│   ├── VISUAL.md              #   Sistema visual completo
-│   ├── MANIFEST.md            #   Schema e instruções do manifest
-│   ├── PAGE_TEMPLATE.md       #   Template HTML base para novas entradas
-│   ├── AUTH.md                #   Os quatro mecanismos de acesso
-│   ├── EXPANDING_PAGES.md     #   Padrão para páginas que crescem com o tempo
-│   ├── LIFEOS.md              #   Hub LifeOS + arquitetura de módulos isolados
-│   ├── FINANCAS.md            #   Módulo Finanças do LifeOS
-│   ├── NOTAS.md               #   Módulo Notas do LifeOS
-│   │                          #   — abaixo: handoffs de processo, não são referência —
-│   ├── ENTREGA-FINANCAS.md    #   Entrega da subsystem de finanças
-│   ├── CREDITO-FATURA-PROJECAO.md
-│   └── notion-movimentacoes-analise-financeira.md
+├── index.html                 # Capa do arquivo — renderiza de assets/js/manifest.js
+├── login.html                 # Tela de senha do fluxo gate.js
+├── llms.txt                   # Guia de navegação para agentes/crawlers
+├── manifest.json              # Espelho JSON do manifest (para humanos e máquinas)
 │
-├── manifest.json              # Cópia de referência em JSON (espelho de assets/js/manifest.js)
-├── llms.txt                   # Guia de navegação p/ agentes/crawlers → aponta p/ manifest.json
+├── pages/                     # As entradas do arquivo, uma por HTML autocontido
+│   └── sem-acesso.html        #   destino de quem não passa no access-gate
 │
-├── index.html                 # Index principal — lê window.PSYCHES_MANIFEST (assets/js/manifest.js)
-├── legacy.html                # Index antigo, ainda no ar — mesmo manifest, render por assets/js/index.js
+├── lifeos/                    # O PAINEL — 11 páginas, cada uma isolada
+│   ├── lifeos.html            #   hub: calendário, tarefas, saldo, notas
+│   ├── financas.html          #   movimentações, fatura, comparação de meses
+│   ├── tarefas.html           #   tarefas + projetos (kanban e lista)
+│   ├── notas.html             #   notas em markdown
+│   ├── publicar.html          #   publica entrada nova + aba do token GitHub
+│   ├── senhas.html            #   senhas de acesso e escopo por página
+│   ├── temas.html             #   troca a paleta
+│   ├── tags.html              #   vocabulários de todas as tabelas
+│   ├── automacao.html         #   webhook de lançamento pelo celular
+│   ├── mcp.html               #   URL do conector MCP e guia das tools
+│   └── tutorial.html          #   guia do sistema (sem gate)
 │
-├── pages/                     # 29 arquivos: 27 entradas do manifest + 2 utilitários
-│   ├── retrato.html
-│   ├── analise-integral.html
-│   ├── sistema-operacional.html
-│   ├── ...                    # ver manifest.json p/ a lista completa (entries[].file)
-│   ├── index.html             #   stub — evita listagem de diretório, fora do manifest
-│   └── sem-acesso.html        #   destino do bloqueio do access-gate.js, fora do manifest
+├── assets/
+│   ├── js/                    # Um .js por página + os compartilhados
+│   │   ├── lifeos-config.js   #   ÚNICO arquivo que um fork precisa editar
+│   │   ├── tema.js            #   aplica o tema antes da 1ª pintura
+│   │   ├── blog.js            #   liga/desliga a metade pública
+│   │   └── manifest.js        #   fonte de verdade das entradas
+│   ├── css/
+│   │   ├── icons.css          #   Font Awesome 5 Free (ver README)
+│   │   └── themes/            #   9 temas × 2 escopos (lifeos/ e blog/)
+│   ├── webfonts/              # Só os arquivos FA5 Free
+│   └── images/                # banner, avatar, favicon
 │
-├── qui-videti/                # Seção própria — arquivo público do perfil qui_videti
-│   ├── index.html             #   capa com os cards dos posts
-│   └── post-1..post-6/        #   um diretório por post, com index.html + images/ (fotos e vídeos)
-│
-├── galeria.html               # Seção Galeria (assets/gallery/ + assets/js/gallery.js)
-├── profissional.html          # Currículo / portfólio (Felipe o autor Pohling) — seção própria
-├── jogo.html                  # "Cobrinha" — página isolada, sem vínculo com o resto
-├── login.html                 # Tela de senha do fluxo gate.js (ver AUTH.md)
-├── admin/index.html           # Painel admin — edita o manifest via API do GitHub (ver AUTH.md §admin)
-│
-├── lifeos/                    # LifeOS — nenhuma destas entra no manifest
-│   ├── lifeos.html            #   Hub — Finanças + Tarefas + Notas (read-only) + Eventos e Manifestações (escrita)
-│   ├── financas.html          #   Módulo Finanças, página isolada
-│   ├── tarefas.html           #   Módulo Tarefas + Projetos, página isolada
-│   ├── notas.html             #   Módulo Notas, página isolada (ver NOTAS.md)
-│   └── eventos.html           #   DORMENTE — sem link apontando pra ela (calendário virou nativo do hub, ver LIFEOS.md §6)
-│                              #   NB: o JS destas páginas continua em assets/js/ — só o HTML mora aqui
-│
-├── supabase/                 # Backend dinâmico — NÃO é servido pelo GitHub Pages
-│   └── functions/
-│       ├── lifeos-movimentacoes/
-│       │   └── index.ts       # Edge Function: query/update/create/delete sobre lifeos_movimentacoes
-│       ├── lifeos-ingest/
-│       │   └── index.ts       # Edge Function: webhook (payload formato Notion) → lifeos_movimentacoes
-│       ├── lifeos-eventos/
-│       │   └── index.ts       # Edge Function: query/create/delete sobre lifeos_eventos
-│       ├── lifeos-projetos/
-│       │   └── index.ts       # Edge Function: query/create/update/delete sobre lifeos_projetos
-│       ├── lifeos-tarefas/
-│       │   └── index.ts       # Edge Function: query/create/update/delete sobre lifeos_tarefas
-│       ├── lifeos-notas/
-│       │   └── index.ts       # Edge Function: query/create/update/delete sobre lifeos_notas + lifeos_notas_projetos
-│       ├── lifeos-mcp/
-│       │   └── index.ts       # Edge Function: servidor MCP (JSON-RPC/Streamable HTTP) p/ custom connector em claude.ai — 6 tools search_*/1 tool create_nota (única de escrita), auth por token no path da URL, ver AUTH.md §4
-│       └── notion-movimentacoes/
-│           └── index.ts       # Edge Function DORMENTE (legado, pré-migração — ver FINANCAS.md §9)
-│                              # ⚠ lifeos-manifestacoes NÃO está aqui — ver "Functions não versionadas" abaixo
-│
-└── assets/
-    ├── css/                   # font-awesome-pro-master.min.css (único CSS em arquivo do projeto)
-    ├── webfonts/              # webfonts do Font Awesome Pro
-    ├── images/                # imagens do index, banners, favicon, logos do /profissional
-    ├── gallery/               # imagens da galeria.html
-    ├── files/                 # PDFs linkados por páginas de entrada
-    └── js/
-        ├── manifest.js         # FONTE DE VERDADE das entradas — seta window.PSYCHES_MANIFEST
-        ├── index.js            # Render do manifest — usado só por legacy.html (index.html tem render inline próprio)
-        ├── redact.js           # Embaralha trechos marcados com #(...) no manifest (ver MANIFEST.md)
-        ├── back-to-top.js      # Botão flutuante de voltar ao topo (24 das 29 entradas)
-        ├── share-guard.js      # Trava a sessão numa página aberta com ?ref=share (ver AUTH.md §4)
-        ├── share-link.js       # Botão "copiar link" com ?ref=share — só pages/fichamento-mestre.html
-        ├── gate.js             # Gate por senha via Supabase (ver AUTH.md §1)
-        ├── access-gate.js      # Gate por origem de navegação, SEM senha e SEM backend (ver AUTH.md §2)
-        ├── diagram-only.js     # Toggle "só o diagrama" — 3 entradas com mapas grandes
-        ├── gallery.js          # Lógica da galeria.html
-        ├── lifeos.js           # Lógica do hub — Finanças + Tarefas (só leitura) + Eventos e Manifestações
-        ├── financas.js         # Toda a lógica do módulo Finanças, isolada do hub
-        ├── tarefas.js          # Toda a lógica do módulo Tarefas + Projetos, isolada do hub
-        ├── notas.js            # Toda a lógica do módulo Notas, isolada do hub (ver NOTAS.md)
-        └── eventos.js          # DORMENTE — mesmo destino de eventos.html
+├── docs/                      # Referência de arquitetura
+└── supabase/
+    ├── migrations/            # 0001_init.sql + 0002_vocabularios.sql
+    ├── seed.sql               # Senha mestre padrão + projeto inicial
+    └── functions/             # 11 Edge Functions
 ```
+
+> Esta árvore descreve o repositório do **sistema**. A instância de origem
+> tinha seções próprias (galeria, portfólio, um jogo) que não fazem parte do
+> produto e não vieram — se você encontrar referências a elas em algum doc,
+> são resíduo da extração.
 
 ### Functions não versionadas (estado atual, não intencional)
 
