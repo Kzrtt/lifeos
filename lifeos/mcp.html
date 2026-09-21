@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="theme-color" content="#14120f">
+  <title>LifeOS · MCP</title>
+  <link rel="icon" href="../assets/images/favicon.svg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,500;0,700;0,900;1,400&family=JetBrains+Mono:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../assets/css/icons.css">
+  <style>
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    /* Tokens base — cópia do conjunto de lifeos.html (LIFEOS.md §2: padrões de
+       UI repetidos por cópia, não por arquivo compartilhado). A paleta final
+       vem do bloco SYSTEM SKIN no fim deste <style>. */
+    :root {
+      --bg:        #0c0e12;
+      --surface:   #14171d;
+      --surface-2: #1b1f27;
+      --border:    #262b34;
+      --text:      #e7e9ee;
+      --dim:       #9aa3b2;
+      --mute:      #5d6675;
+      --green:     #3fb98c;
+      --red:       #e5616a;
+      --gold:      #c9a96e;
+      --mono: 'JetBrains Mono', monospace;
+      --serif: 'Playfair Display', Georgia, serif;
+    }
+
+
+    /* Sem isto, `el.hidden = true` NÃO esconde .gate/.app: o atributo [hidden]
+       vale por uma regra do user-agent, e qualquer `display` declarado pelo
+       autor (`.gate { display: flex }`) vence. Mesma linha que lifeos.html,
+       financas.html, tarefas.html e notas.html já têm. */
+    [hidden] { display: none !important; }
+
+    html, body { height: 100%; }
+    body {
+      background: var(--bg); color: var(--text); font-family: var(--mono);
+      -webkit-font-smoothing: antialiased; line-height: 1.5;
+    }
+    .wrap { max-width: 860px; margin: 0 auto; padding: 0 20px 80px; }
+
+    /* ── Gate ── */
+    .gate {
+      position: fixed; inset: 0; z-index: 400; display: flex; align-items: center; justify-content: center;
+      padding: 24px; background: radial-gradient(ellipse at 50% 28%, #1c1a16 0%, #14120f 72%);
+    }
+    .gate-box { width: 100%; max-width: 380px; text-align: center; }
+    .gate-orn { font-size: 11px; letter-spacing: 0.5em; color: var(--mute); margin-bottom: 18px; }
+    .gate-brand {
+      font-family: var(--serif); font-weight: 900; font-style: italic;
+      font-size: clamp(44px, 11vw, 64px); line-height: 0.95; color: var(--text);
+      letter-spacing: -0.02em; margin-bottom: 36px;
+    }
+    .gate-label { font-size: 10px; letter-spacing: 0.32em; text-transform: uppercase; color: var(--mute); margin-bottom: 16px; }
+    .gate-row {
+      display: flex; border: 1px solid var(--border); border-radius: 6px; overflow: hidden;
+      transition: border-color 0.2s; background: var(--surface);
+    }
+    .gate-row:focus-within { border-color: var(--gold); }
+    .gate-row.shake { animation: shake 0.35s ease; }
+    @keyframes shake {
+      0%,100% { transform: translateX(0); }
+      20% { transform: translateX(-7px); }
+      60% { transform: translateX(7px); }
+      80% { transform: translateX(-3px); }
+    }
+    #gate-input {
+      flex: 1; min-width: 0; background: transparent; border: none; outline: none; padding: 15px 18px;
+      font-family: var(--mono); font-size: 16px; color: var(--text); letter-spacing: 0.12em; caret-color: var(--gold);
+    }
+    #gate-input::placeholder { color: var(--mute); }
+    #gate-btn {
+      background: transparent; border: none; border-left: 1px solid var(--border); color: var(--mute);
+      font-family: var(--mono); font-size: 18px; padding: 0 22px; cursor: pointer; transition: color 0.2s, background 0.2s;
+    }
+    #gate-btn:hover:not(:disabled) { color: var(--gold); background: var(--surface-2); }
+    #gate-btn:disabled { opacity: 0.4; cursor: default; }
+    .gate-remember {
+      display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 16px;
+      font-size: 10px; letter-spacing: 0.1em; color: var(--mute); text-transform: uppercase; cursor: pointer; user-select: none;
+    }
+    .gate-remember input { accent-color: var(--gold); cursor: pointer; width: 15px; height: 15px; }
+    .gate-error { margin-top: 16px; min-height: 14px; font-size: 10px; letter-spacing: 0.15em; text-transform: uppercase; color: var(--red); }
+    .gate-checking { margin-top: 8px; font-size: 11px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--mute); }
+
+    /* ── Topbar / cabeçalho ── */
+    .topbar {
+      display: flex; align-items: center; justify-content: space-between; gap: 10px;
+      padding: 18px 0 14px; border-bottom: 1px solid var(--border);
+    }
+    .back { font-size: 10px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--mute); text-decoration: none; transition: color 0.2s; white-space: nowrap; }
+    .back .fad { margin-right: 4px; }
+    .back:hover { color: var(--gold); }
+    .icon-btn {
+      width: 36px; height: 36px; flex-shrink: 0; display: flex; align-items: center; justify-content: center;
+      background: var(--surface); border: 1px solid var(--border); border-radius: 6px; color: var(--dim);
+      cursor: pointer; font-size: 15px; transition: color 0.15s, border-color 0.15s, background 0.15s;
+    }
+    .icon-btn:hover { color: var(--gold); border-color: var(--gold); background: var(--gold-wash); }
+
+    .head { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 16px; padding: 34px 0 26px; }
+    .head h1 {
+      font-family: var(--serif); font-weight: 700; font-style: italic;
+      font-size: clamp(34px, 7vw, 46px); line-height: 1; letter-spacing: -0.02em;
+    }
+    .head p { margin-top: 10px; font-size: 11px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--mute); }
+    .head-action {
+      display: inline-flex; align-items: center; gap: 8px; padding: 10px 16px;
+      background: transparent; border: 1px solid var(--border); border-radius: 6px;
+      color: var(--dim); font-family: var(--mono); font-size: 11px; letter-spacing: 0.1em;
+      cursor: pointer; transition: border-color 0.15s, color 0.15s, background 0.15s;
+    }
+    .head-action:hover { border-color: var(--gold); color: var(--gold); background: var(--gold-wash); }
+
+
+    /* ── Bloco de URL copiável ── */
+    .url-box {
+      display: flex; align-items: stretch; border: 1px solid var(--border); border-radius: 8px;
+      background: var(--surface); overflow: hidden; margin-bottom: 10px;
+    }
+    .url-val {
+      flex: 1; min-width: 0; padding: 14px 16px; font-size: 11.5px; color: var(--text);
+      word-break: break-all; line-height: 1.6; font-family: var(--mono);
+    }
+    .url-val.vazio { color: var(--mute); font-style: italic; word-break: normal; }
+    .url-copy {
+      flex-shrink: 0; width: 56px; border: none; border-left: 1px solid var(--border);
+      background: var(--surface-2); color: var(--dim); cursor: pointer; font-size: 14px;
+      transition: color 0.15s, background 0.15s;
+    }
+    .url-copy:hover { color: var(--gold); background: var(--bg); }
+    .url-copy.ok { color: var(--green); }
+
+    /* ── Tools ── */
+    .tool-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 10px; }
+    .tool {
+      border: 1px solid var(--border); border-radius: 8px; background: var(--surface); padding: 14px 16px;
+    }
+    .tool-nome {
+      display: flex; align-items: center; gap: 8px; font-size: 12.5px; color: var(--text); margin-bottom: 7px;
+    }
+    .tool-nome code { color: var(--gold); font-size: 12px; }
+    .tool-tag {
+      margin-left: auto; font-size: 8px; letter-spacing: 0.12em; text-transform: uppercase;
+      padding: 2px 7px; border-radius: 999px; font-weight: 600;
+    }
+    .tool-tag.leitura { background: var(--surface-2); color: var(--mute); }
+    .tool-tag.escrita { background: color-mix(in srgb, var(--gold) 18%, transparent); color: var(--gold); }
+    .tool-desc { font-size: 11px; line-height: 1.7; color: var(--mute); }
+    .tool-filtros { margin-top: 8px; font-size: 10px; color: var(--dim); line-height: 1.6; }
+    .tool-filtros b { color: var(--mute); font-weight: 400; }
+
+    /* ── Passo a passo / exemplos ── */
+    .passos { counter-reset: passo; margin: 0; padding: 0; list-style: none; }
+    .passo {
+      counter-increment: passo; position: relative; padding: 0 0 18px 40px;
+      font-size: 12px; line-height: 1.75; color: var(--dim);
+    }
+    .passo:last-child { padding-bottom: 0; }
+    .passo::before {
+      content: counter(passo); position: absolute; left: 0; top: 0;
+      width: 24px; height: 24px; border-radius: 50%;
+      background: var(--surface-2); border: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 10px; color: var(--gold); font-weight: 600;
+    }
+    .passo:not(:last-child)::after {
+      content: ''; position: absolute; left: 12px; top: 26px; bottom: 6px; width: 1px; background: var(--border);
+    }
+    .passo code { color: var(--text); background: var(--surface-2); padding: 1px 6px; border-radius: 3px; font-size: 11px; }
+    .passo strong { color: var(--text); font-weight: 500; }
+
+    .exemplos { display: flex; flex-direction: column; gap: 8px; }
+    .exemplo {
+      padding: 12px 15px; border-left: 2px solid var(--gold); background: var(--surface);
+      font-size: 12px; line-height: 1.7; color: var(--dim); font-style: italic;
+    }
+
+    /* ── Seções ── */
+    .sec { margin-bottom: 52px; }
+    .sec-title { font-family: var(--serif); font-style: italic; font-weight: 700; font-size: 22px; color: var(--text); margin-bottom: 8px; }
+    .sec-desc { font-size: 12px; line-height: 1.8; color: var(--mute); margin-bottom: 22px; max-width: 64ch; }
+    .sec-desc code { color: var(--dim); background: var(--surface); padding: 1px 5px; border-radius: 3px; font-size: 11px; }
+    .sec-desc strong { color: var(--dim); font-weight: 500; }
+
+    .notice {
+      display: flex; gap: 12px; padding: 14px 16px; margin-top: 20px;
+      border: 1px solid var(--border); border-radius: 8px;
+      background: var(--surface); font-size: 11.5px; line-height: 1.75; color: var(--mute);
+    }
+    .notice.alerta { border-color: color-mix(in srgb, var(--red) 30%, transparent); background: color-mix(in srgb, var(--red) 6%, transparent); color: var(--dim); }
+    .notice .fad { color: var(--gold); font-size: 14px; flex-shrink: 0; margin-top: 2px; }
+    .notice.alerta .fad { color: var(--red); }
+    .notice code { color: var(--dim); background: var(--surface-2); padding: 1px 5px; border-radius: 3px; font-size: 10.5px; }
+    .notice strong { color: var(--dim); font-weight: 500; }
+
+    .head { padding: 34px 0 26px; }
+    .head h1 {
+      font-family: var(--serif); font-weight: 700; font-style: italic;
+      font-size: clamp(34px, 7vw, 46px); line-height: 1; letter-spacing: -0.02em;
+    }
+    .head p { margin-top: 10px; font-size: 11px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--mute); }
+
+    .foot { margin-top: 60px; padding-top: 22px; border-top: 3px double var(--text); text-align: center; }
+    .foot-text { font-size: 10px; letter-spacing: 0.22em; text-transform: uppercase; color: var(--mute); }
+
+    .loading-ov { position: fixed; inset: 0; z-index: 1200; display: flex; align-items: center; justify-content: center; background: rgba(20,18,15,0.55); }
+    .spinner { width: 32px; height: 32px; border: 3px solid var(--border); border-top-color: var(--gold); border-radius: 50%; animation: spin 0.7s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ═══════════════════════════════════════════════════════════════════
+       SYSTEM SKIN — paleta sépia-quente do arquivo. Mesma reskin das
+       outras páginas do LifeOS, copiada (LIFEOS.md §2). É o fallback de
+       quando o <link> do tema não carrega; o tema escolhido vence por vir
+       depois dela no <head>.
+       ═══════════════════════════════════════════════════════════════════ */
+    :root {
+      --bg:        #14120f;
+      --surface:   #1c1a16;
+      --surface-2: #242018;
+      --border:    #2e2a24;
+      --text:      #ede8df;
+      --dim:       #b0a898;
+      --mute:      #6b6456;
+      --gold:      #c4913a;
+      --gold-wash: rgba(196, 145, 58, 0.10);
+      --border-mid: #3a352d;
+    }
+    html { background: var(--bg); }
+    .gate { background: radial-gradient(ellipse at 50% 28%, #1c1a16 0%, #14120f 72%); }
+    /* ═══ SYSTEM SKIN ▸ END ═══ */
+  </style>
+  <link rel="stylesheet" id="lifeos-tema" href="../assets/css/themes/lifeos/sepia.css">
+  <!-- Config da instância + tema. Precisam vir AQUI, nesta ordem e sem defer:
+       o <link> acima tem de ficar depois do <style> pra vencer o SYSTEM SKIN,
+       e tema.js tem de rodar antes da primeira pintura. Ver assets/js/tema.js. -->
+  <script src="../assets/js/lifeos-config.js"></script>
+  <script src="../assets/js/tema.js"></script>
+  <script src="../assets/js/blog.js"></script>
+</head>
+<body>
+
+<!-- Gate: esta página mostra a URL do conector COM o token embutido, então
+     precisa do mesmo gate mestre das outras. -->
+<div id="gate" class="gate">
+  <div class="gate-box">
+    <div class="gate-orn">✦ &nbsp; ✦ &nbsp; ✦</div>
+    <div class="gate-brand">LifeOS</div>
+    <form id="gate-form" autocomplete="off">
+      <div class="gate-label">acesso restrito · senha mestre</div>
+      <div class="gate-row" id="gate-row">
+        <input id="gate-input" type="password" placeholder="senha mestre" spellcheck="false" autocomplete="current-password">
+        <button id="gate-btn" type="submit"><i class="fad fa-arrow-right"></i></button>
+      </div>
+      <label class="gate-remember"><input type="checkbox" id="gate-remember"> lembrar neste navegador</label>
+      <div id="gate-error" class="gate-error"></div>
+    </form>
+    <div id="gate-checking" class="gate-checking" hidden>verificando sessão…</div>
+  </div>
+</div>
+
+<div id="app" class="wrap" hidden>
+
+  <div class="topbar">
+    <a href="lifeos.html" class="back"><i class="fad fa-arrow-left"></i> lifeos</a>
+    <button id="logout-btn" class="icon-btn" title="Sair" aria-label="Sair"><i class="fad fa-sign-out"></i></button>
+  </div>
+
+  <header class="head">
+    <h1>MCP</h1>
+    <p>conectar o LifeOS a uma IA</p>
+  </header>
+
+  <!-- ─────────── O QUE É ─────────── -->
+  <section class="sec">
+    <div class="sec-title">O que é isto</div>
+    <p class="sec-desc">
+      <strong>MCP</strong> (Model Context Protocol) é um padrão aberto que deixa um modelo de
+      linguagem consultar sistemas externos por conta própria. O LifeOS expõe um servidor MCP:
+      depois de conectado, a IA que você usa passa a <strong>ler o seu sistema inteiro</strong> —
+      notas, tarefas, projetos, eventos, manifestações e finanças — sem que você copie e cole nada.
+    </p>
+    <p class="sec-desc">
+      Na prática, você deixa de ser o intermediário. Em vez de abrir o LifeOS, procurar a nota,
+      copiar o trecho e colar no chat, você pergunta direto: <em>“o que eu já escrevi sobre
+      isso?”</em> — e a IA busca sozinha. É o que faz o LifeOS virar a memória externa de
+      verdade, em vez de mais um lugar onde as coisas ficam guardadas.
+    </p>
+  </section>
+
+  <!-- ─────────── URL ─────────── -->
+  <section class="sec">
+    <div class="sec-title">Seu endereço de conexão</div>
+    <p class="sec-desc">
+      Cole esta URL inteira no seu cliente MCP. <strong>O token de acesso faz parte dela</strong> —
+      é por isso que ela é longa, e é por isso que ela não deve ser compartilhada.
+    </p>
+
+    <div class="url-box">
+      <div class="url-val vazio" id="mcp-url">carregando…</div>
+      <button class="url-copy" id="mcp-copy" title="Copiar" aria-label="Copiar URL"><i class="fad fa-copy"></i></button>
+    </div>
+    <div class="sec-desc" style="margin-bottom:0" id="mcp-hint"></div>
+
+    <div class="notice alerta">
+      <i class="fad fa-shield-exclamation"></i>
+      <span>
+        <strong>Quem tem esta URL lê todo o seu LifeOS.</strong> O token está embutido no endereço
+        porque clientes MCP pessoais não oferecem um campo de cabeçalho — foi a única forma de
+        entrar o segredo uma vez só. Trate a URL como senha: não cole em chat público, issue ou
+        captura de tela. Para trocá-la, gere um valor novo
+        (<code>openssl rand -hex 32</code>) e atualize a chave <code>mcp_token</code>.
+      </span>
+    </div>
+  </section>
+
+  <!-- ─────────── COMO CONECTAR ─────────── -->
+  <section class="sec">
+    <div class="sec-title">Como conectar</div>
+    <p class="sec-desc">
+      O caminho abaixo é o do Claude. Outros clientes com suporte a MCP remoto
+      (Streamable HTTP) aceitam a mesma URL; só muda onde fica o campo.
+    </p>
+    <ol class="passos">
+      <li class="passo">Copie a URL acima no botão de copiar.</li>
+      <li class="passo">
+        No Claude, abra <strong>Settings</strong> → <strong>Connectors</strong> →
+        <strong>Add custom connector</strong>.
+      </li>
+      <li class="passo">
+        Dê um nome (ex.: <code>LifeOS</code>), cole a URL no campo de endereço e confirme.
+        Não há OAuth nem campo de senha — a autenticação já está na URL.
+      </li>
+      <li class="passo">
+        Pronto. Pergunte algo que só o seu sistema saiba responder para confirmar que
+        funcionou — as sugestões abaixo servem.
+      </li>
+    </ol>
+  </section>
+
+  <!-- ─────────── TOOLS ─────────── -->
+  <section class="sec">
+    <div class="sec-title">O que a IA consegue fazer</div>
+    <p class="sec-desc">
+      Sete ferramentas. <strong>Seis são de consulta e uma escreve</strong> — criar nota.
+      Nenhum outro domínio aceita escrita por aqui: é decisão de desenho, não limitação.
+      Uma IA que pode apagar a sua tarefa ou lançar uma movimentação financeira é um risco
+      que não compensa a conveniência.
+    </p>
+    <div class="tool-grid" id="tool-grid"></div>
+  </section>
+
+  <!-- ─────────── EXEMPLOS ─────────── -->
+  <section class="sec">
+    <div class="sec-title">Para experimentar</div>
+    <p class="sec-desc">
+      Os filtros se combinam, então vale pedir coisas específicas — a IA traduz a pergunta
+      nos filtros certos sozinha.
+    </p>
+    <div class="exemplos">
+      <div class="exemplo">“O que eu já escrevi sobre sono e sonhos? Me dá um resumo do que se repete.”</div>
+      <div class="exemplo">“Quais tarefas do projeto X estão em andamento e vencem nos próximos 15 dias?”</div>
+      <div class="exemplo">“Compare o que gastei em Crédito nos últimos três meses e aponte o que mais cresceu.”</div>
+      <div class="exemplo">“Lê minhas notas de Pesquisa deste ano e escreve uma nova nota conectando os temas.”</div>
+      <div class="exemplo">“Tem alguma manifestação parada que eu não toco há meses?”</div>
+    </div>
+    <div class="notice">
+      <i class="fad fa-lightbulb"></i>
+      <span>
+        A última é a mais interessante: ela <strong>lê várias notas e escreve uma nova</strong>,
+        usando <code>create_nota</code>. É o ciclo completo — o sistema alimenta a IA, e a IA
+        devolve trabalho para dentro do sistema.
+      </span>
+    </div>
+  </section>
+
+  <footer class="foot">
+    <span class="foot-text">✦ LifeOS</span>
+  </footer>
+</div>
+
+<div id="loading" class="loading-ov" hidden><div class="spinner"></div></div>
+
+<script src="../assets/js/mcp.js?v=20260921"></script>
+
+</body>
+</html>

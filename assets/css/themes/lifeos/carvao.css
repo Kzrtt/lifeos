@@ -1,0 +1,23 @@
+/* Tema: Carvão — grafite neutro, sem viés de matiz. O acento é um âmbar
+   dessaturado, pra que o cinza não puxe pra lugar nenhum. */
+:root {
+  --bg:         #121212;
+  --surface:    #1a1a1a;
+  --surface-2:  #222222;
+  --border:     #2c2c2c;
+  --border-mid: #383838;
+  --text:       #e8e8e8;
+  --dim:        #a6a6a6;
+  --mute:       #6a6a6a;
+  --text-muted: #6a6a6a;
+  --gold:       #b89b6a;
+  --gold-wash:  rgba(184, 155, 106, 0.10);
+  --accent:     #b89b6a;
+  --accent-dim: #73624a;
+  --green:      #4fb08a;
+  --red:        #d9636b;
+  --blue:       #6b8db8;
+}
+html { background: var(--bg); }
+.gate { background: radial-gradient(ellipse at 50% 28%, #1a1a1a 0%, #121212 72%); }
+.loading-ov { background: rgba(18, 18, 18, 0.55); }

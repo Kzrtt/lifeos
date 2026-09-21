@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="theme-color" content="#14120f">
+  <title>LifeOS · Senhas</title>
+  <link rel="icon" href="../assets/images/favicon.svg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,500;0,700;0,900;1,400&family=JetBrains+Mono:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../assets/css/icons.css">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    /* Tokens base — cópia do conjunto de lifeos.html (LIFEOS.md §2: padrões de
+       UI repetidos por cópia, não por arquivo compartilhado). A paleta final
+       vem do bloco SYSTEM SKIN no fim deste <style>. */
+    :root {
+      --bg:        #0c0e12;
+      --surface:   #14171d;
+      --surface-2: #1b1f27;
+      --border:    #262b34;
+      --text:      #e7e9ee;
+      --dim:       #9aa3b2;
+      --mute:      #5d6675;
+      --green:     #3fb98c;
+      --red:       #e5616a;
+      --gold:      #c9a96e;
+      --mono: 'JetBrains Mono', monospace;
+      --serif: 'Playfair Display', Georgia, serif;
+    }
+
+
+    /* Sem isto, `el.hidden = true` NÃO esconde .gate/.app: o atributo [hidden]
+       vale por uma regra do user-agent, e qualquer `display` declarado pelo
+       autor (`.gate { display: flex }`) vence. Mesma linha que lifeos.html,
+       financas.html, tarefas.html e notas.html já têm. */
+    [hidden] { display: none !important; }
+
+    html, body { height: 100%; }
+    body {
+      background: var(--bg); color: var(--text); font-family: var(--mono);
+      -webkit-font-smoothing: antialiased; line-height: 1.5;
+    }
+    .wrap { max-width: 860px; margin: 0 auto; padding: 0 20px 80px; }
+
+    /* ── Gate ── */
+    .gate {
+      position: fixed; inset: 0; z-index: 400; display: flex; align-items: center; justify-content: center;
+      padding: 24px; background: radial-gradient(ellipse at 50% 28%, #1c1a16 0%, #14120f 72%);
+    }
+    .gate-box { width: 100%; max-width: 380px; text-align: center; }
+    .gate-orn { font-size: 11px; letter-spacing: 0.5em; color: var(--mute); margin-bottom: 18px; }
+    .gate-brand {
+      font-family: var(--serif); font-weight: 900; font-style: italic;
+      font-size: clamp(44px, 11vw, 64px); line-height: 0.95; color: var(--text);
+      letter-spacing: -0.02em; margin-bottom: 36px;
+    }
+    .gate-label { font-size: 10px; letter-spacing: 0.32em; text-transform: uppercase; color: var(--mute); margin-bottom: 16px; }
+    .gate-row {
+      display: flex; border: 1px solid var(--border); border-radius: 6px; overflow: hidden;
+      transition: border-color 0.2s; background: var(--surface);
+    }
+    .gate-row:focus-within { border-color: var(--gold); }
+    .gate-row.shake { animation: shake 0.35s ease; }
+    @keyframes shake {
+      0%,100% { transform: translateX(0); }
+      20% { transform: translateX(-7px); }
+      60% { transform: translateX(7px); }
+      80% { transform: translateX(-3px); }
+    }
+    #gate-input {
+      flex: 1; min-width: 0; background: transparent; border: none; outline: none; padding: 15px 18px;
+      font-family: var(--mono); font-size: 16px; color: var(--text); letter-spacing: 0.12em; caret-color: var(--gold);
+    }
+    #gate-input::placeholder { color: var(--mute); }
+    #gate-btn {
+      background: transparent; border: none; border-left: 1px solid var(--border); color: var(--mute);
+      font-family: var(--mono); font-size: 18px; padding: 0 22px; cursor: pointer; transition: color 0.2s, background 0.2s;
+    }
+    #gate-btn:hover:not(:disabled) { color: var(--gold); background: var(--surface-2); }
+    #gate-btn:disabled { opacity: 0.4; cursor: default; }
+    .gate-remember {
+      display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 16px;
+      font-size: 10px; letter-spacing: 0.1em; color: var(--mute); text-transform: uppercase; cursor: pointer; user-select: none;
+    }
+    .gate-remember input { accent-color: var(--gold); cursor: pointer; width: 15px; height: 15px; }
+    .gate-error { margin-top: 16px; min-height: 14px; font-size: 10px; letter-spacing: 0.15em; text-transform: uppercase; color: var(--red); }
+    .gate-checking { margin-top: 8px; font-size: 11px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--mute); }
+
+    /* ── Topbar / cabeçalho ── */
+    .topbar {
+      display: flex; align-items: center; justify-content: space-between; gap: 10px;
+      padding: 18px 0 14px; border-bottom: 1px solid var(--border);
+    }
+    .back { font-size: 10px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--mute); text-decoration: none; transition: color 0.2s; white-space: nowrap; }
+    .back .fad { margin-right: 4px; }
+    .back:hover { color: var(--gold); }
+    .icon-btn {
+      width: 36px; height: 36px; flex-shrink: 0; display: flex; align-items: center; justify-content: center;
+      background: var(--surface); border: 1px solid var(--border); border-radius: 6px; color: var(--dim);
+      cursor: pointer; font-size: 15px; transition: color 0.15s, border-color 0.15s, background 0.15s;
+    }
+    .icon-btn:hover { color: var(--gold); border-color: var(--gold); background: var(--gold-wash); }
+
+    .head { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 16px; padding: 34px 0 26px; }
+    .head h1 {
+      font-family: var(--serif); font-weight: 700; font-style: italic;
+      font-size: clamp(34px, 7vw, 46px); line-height: 1; letter-spacing: -0.02em;
+    }
+    .head p { margin-top: 10px; font-size: 11px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--mute); }
+    .head-action {
+      display: inline-flex; align-items: center; gap: 8px; padding: 10px 16px;
+      background: transparent; border: 1px solid var(--border); border-radius: 6px;
+      color: var(--dim); font-family: var(--mono); font-size: 11px; letter-spacing: 0.1em;
+      cursor: pointer; transition: border-color 0.15s, color 0.15s, background 0.15s;
+    }
+    .head-action:hover { border-color: var(--gold); color: var(--gold); background: var(--gold-wash); }
+
+    /* ── Aviso ── */
+    .notice {
+      display: flex; gap: 12px; padding: 14px 16px; margin-bottom: 24px;
+      border: 1px solid color-mix(in srgb, var(--gold) 35%, transparent); border-radius: 8px;
+      background: var(--gold-wash); font-size: 11.5px; line-height: 1.7; color: var(--dim);
+    }
+    .notice .fad { color: var(--gold); font-size: 14px; flex-shrink: 0; margin-top: 2px; }
+
+    /* ── Lista de senhas ── */
+    .senha-list { display: flex; flex-direction: column; gap: 10px; }
+    .senha-card {
+      border: 1px solid var(--border); border-radius: 8px; background: var(--surface);
+      padding: 16px 18px; transition: border-color 0.15s;
+    }
+    .senha-card:hover { border-color: var(--border-mid, #3a352d); }
+    .senha-top { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+    .senha-label { font-size: 14px; color: var(--text); font-weight: 500; }
+    .senha-label.sem { color: var(--mute); font-style: italic; font-weight: 400; }
+    .senha-token {
+      font-size: 11px; color: var(--mute); background: var(--surface-2);
+      padding: 3px 9px; border-radius: 4px; letter-spacing: 0.06em;
+    }
+    .badge {
+      font-size: 9px; letter-spacing: 0.14em; text-transform: uppercase;
+      padding: 3px 9px; border-radius: 999px; font-weight: 600;
+    }
+    .badge-master { background: color-mix(in srgb, var(--gold) 18%, transparent); color: var(--gold); }
+    .badge-curta  { background: color-mix(in srgb, var(--red) 16%, transparent); color: var(--red); }
+    .senha-actions { margin-left: auto; display: flex; gap: 7px; }
+    .row-btn {
+      width: 30px; height: 30px; display: flex; align-items: center; justify-content: center;
+      background: transparent; border: 1px solid var(--border); border-radius: 5px;
+      color: var(--mute); cursor: pointer; font-size: 11px; transition: color 0.15s, border-color 0.15s;
+    }
+    .row-btn:hover { color: var(--gold); border-color: var(--gold); }
+    .row-btn.danger:hover { color: var(--red); border-color: var(--red); }
+    .row-btn.pending { color: var(--red); border-color: var(--red); }
+
+    .senha-pages { margin-top: 14px; padding-top: 13px; border-top: 1px solid var(--border); }
+    .senha-pages-label { font-size: 9px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--mute); margin-bottom: 9px; }
+    .page-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+    .page-chip {
+      display: inline-flex; align-items: center; gap: 7px; padding: 5px 10px;
+      background: var(--surface-2); border: 1px solid var(--border); border-radius: 999px;
+      font-size: 10.5px; color: var(--dim);
+    }
+    .page-chip button {
+      background: none; border: none; color: var(--mute); cursor: pointer;
+      font-size: 10px; padding: 0; line-height: 1; transition: color 0.15s;
+    }
+    .page-chip button:hover { color: var(--red); }
+    .page-chip.add { cursor: pointer; border-style: dashed; color: var(--mute); transition: color 0.15s, border-color 0.15s; }
+    .page-chip.add:hover { color: var(--gold); border-color: var(--gold); }
+    .senha-pages-empty { font-size: 10.5px; color: var(--mute); font-style: italic; }
+    .senha-pages-master { font-size: 10.5px; color: var(--mute); line-height: 1.7; }
+
+    .list-empty, .list-loading { padding: 50px 20px; text-align: center; font-size: 12px; color: var(--mute); }
+
+    /* ── Modal (padrão banner .pdet-* do hub) ── */
+    .modal {
+      position: fixed; inset: 0; z-index: 1000; display: flex; align-items: center; justify-content: center;
+      padding: 20px; background: rgba(6,8,11,0.78); opacity: 0; pointer-events: none; transition: opacity 0.2s ease;
+    }
+    .modal.open { opacity: 1; pointer-events: auto; }
+    .modal-panel {
+      width: 100%; max-width: 520px; max-height: 84vh; display: flex; flex-direction: column;
+      background: var(--surface); border-radius: 12px; overflow: hidden;
+    }
+    .modal-body {
+      overflow-y: auto; -webkit-overflow-scrolling: touch; padding: 0;
+      scrollbar-width: thin; scrollbar-color: rgba(255,255,255,0.14) transparent;
+    }
+    .pdet-banner {
+      position: relative; height: 132px; flex-shrink: 0; overflow: hidden;
+      display: flex; align-items: center; justify-content: center;
+      background: radial-gradient(circle at 50% 120%, var(--pdet-accent, var(--gold)) -40%, var(--surface-2) 68%);
+    }
+    .pdet-banner::before {
+      content: ''; position: absolute; inset: 0;
+      background: repeating-linear-gradient(135deg, rgba(255,255,255,0.028) 0 2px, transparent 2px 9px);
+    }
+    .pdet-banner::after {
+      content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 58%;
+      background: linear-gradient(to bottom, transparent, var(--surface));
+    }
+    .pdet-banner-icon {
+      position: relative; z-index: 1; width: 72px; height: 72px; border-radius: 18px;
+      display: flex; align-items: center; justify-content: center; font-size: 30px; line-height: 1;
+      background: var(--surface); border: 1px solid var(--border); color: var(--gold);
+      box-shadow: 0 10px 26px rgba(0,0,0,0.42);
+    }
+    .pdet-close {
+      position: absolute; top: 12px; right: 12px; z-index: 2;
+      width: 34px; height: 34px; display: flex; align-items: center; justify-content: center;
+      background: rgba(6,8,11,0.5); border: 1px solid var(--border); border-radius: 8px;
+      color: var(--dim); cursor: pointer; font-size: 13px; transition: color 0.15s, background 0.15s;
+    }
+    .pdet-close:hover { color: var(--gold); background: rgba(6,8,11,0.75); }
+    .pdet-head { padding: 2px 22px 0; text-align: center; flex-shrink: 0; }
+    .pdet-name { font-family: var(--serif); font-style: italic; font-weight: 700; font-size: 23px; line-height: 1.25; color: var(--text); }
+    .pdet-body-pad { padding: 18px 22px 22px; }
+
+    .edit-field { margin-bottom: 14px; }
+    .edit-field:last-of-type { margin-bottom: 0; }
+    .edit-label { display: block; font-size: 10px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--mute); margin-bottom: 6px; }
+    .edit-input {
+      width: 100%; background: var(--surface-2); border: 1px solid var(--border); border-radius: 6px;
+      padding: 10px 12px; font-family: var(--mono); font-size: 13px; color: var(--text); outline: none;
+      transition: border-color 0.15s;
+    }
+    .edit-input:focus { border-color: var(--gold); }
+    select.edit-input { cursor: pointer; }
+    .edit-check { display: flex; align-items: center; gap: 10px; font-size: 12.5px; color: var(--dim); cursor: pointer; user-select: none; }
+    .edit-check input { accent-color: var(--gold); cursor: pointer; width: 16px; height: 16px; }
+    .edit-hint { margin-top: 7px; font-size: 10.5px; line-height: 1.7; color: var(--mute); }
+    .edit-error { min-height: 14px; font-size: 11px; letter-spacing: 0.04em; color: var(--red); margin-top: 10px; }
+    .edit-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 18px; }
+    .edit-btn {
+      display: inline-flex; align-items: center; justify-content: center; gap: 7px;
+      font-family: var(--mono); font-size: 12px; letter-spacing: 0.04em; padding: 10px 18px;
+      border-radius: 6px; cursor: pointer; transition: border-color 0.15s, background 0.15s, color 0.15s;
+    }
+    .edit-btn-ghost { background: transparent; border: 1px solid var(--border); color: var(--dim); }
+    .edit-btn-ghost:hover { border-color: var(--gold); color: var(--text); }
+    .edit-btn-primary { background: var(--gold); border: 1px solid var(--gold); color: #14120f; font-weight: 500; }
+    .edit-btn-primary:hover { opacity: 0.9; }
+    .edit-btn-primary:disabled { opacity: 0.5; cursor: default; }
+
+    .foot { margin-top: 60px; padding-top: 22px; border-top: 3px double var(--text); text-align: center; }
+    .foot-text { font-size: 10px; letter-spacing: 0.22em; text-transform: uppercase; color: var(--mute); }
+
+    .loading-ov { position: fixed; inset: 0; z-index: 1200; display: flex; align-items: center; justify-content: center; background: rgba(20,18,15,0.55); }
+    .spinner { width: 32px; height: 32px; border: 3px solid var(--border); border-top-color: var(--gold); border-radius: 50%; animation: spin 0.7s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    @media (max-width: 560px) {
+      .senha-actions { margin-left: 0; width: 100%; justify-content: flex-end; }
+      .pdet-head, .pdet-body-pad { padding-left: 16px; padding-right: 16px; }
+    }
+
+    /* ═══════════════════════════════════════════════════════════════════
+       SYSTEM SKIN — paleta sépia-quente do arquivo. Mesma reskin das
+       outras páginas do LifeOS, copiada (LIFEOS.md §2). Reverter = apagar.
+       ═══════════════════════════════════════════════════════════════════ */
+    :root {
+      --bg:        #14120f;
+      --surface:   #1c1a16;
+      --surface-2: #242018;
+      --border:    #2e2a24;
+      --text:      #ede8df;
+      --dim:       #b0a898;
+      --mute:      #6b6456;
+      --gold:      #c4913a;
+      --gold-wash: rgba(196, 145, 58, 0.10);
+      --border-mid: #3a352d;
+    }
+    html { background: var(--bg); }
+    .gate { background: radial-gradient(ellipse at 50% 28%, #1c1a16 0%, #14120f 72%); }
+    /* ═══ SYSTEM SKIN ▸ END ═══ */
+  </style>
+  <link rel="stylesheet" id="lifeos-tema" href="../assets/css/themes/lifeos/sepia.css">
+  <!-- Config da instância + tema. Precisam vir AQUI, nesta ordem e sem defer:
+       o <link> acima tem de ficar depois do <style> pra vencer o SYSTEM SKIN,
+       e tema.js tem de rodar antes da primeira pintura. Ver assets/js/tema.js. -->
+  <script src="../assets/js/lifeos-config.js"></script>
+  <script src="../assets/js/tema.js"></script>
+  <script src="../assets/js/blog.js"></script>
+</head>
+<body>
+
+<!-- ───────────────────────── GATE ───────────────────────── -->
+<div id="gate" class="gate">
+  <div class="gate-box">
+    <div class="gate-orn">✦ &nbsp; ✦ &nbsp; ✦</div>
+    <div class="gate-brand">LifeOS</div>
+    <form id="gate-form" autocomplete="off">
+      <div class="gate-label">acesso restrito · senha mestre</div>
+      <div class="gate-row" id="gate-row">
+        <input id="gate-input" type="password" placeholder="senha mestre" spellcheck="false" autocomplete="current-password">
+        <button id="gate-btn" type="submit"><i class="fad fa-arrow-right"></i></button>
+      </div>
+      <label class="gate-remember"><input type="checkbox" id="gate-remember"> lembrar neste navegador</label>
+      <div id="gate-error" class="gate-error"></div>
+    </form>
+    <div id="gate-checking" class="gate-checking" hidden>verificando sessão…</div>
+  </div>
+</div>
+
+<!-- ───────────────────────── APP ───────────────────────── -->
+<div id="app" class="wrap" hidden>
+
+  <div class="topbar">
+    <a href="lifeos.html" class="back"><i class="fad fa-arrow-left"></i> lifeos</a>
+    <button id="logout-btn" class="icon-btn" title="Sair" aria-label="Sair"><i class="fad fa-sign-out"></i></button>
+  </div>
+
+  <header class="head">
+    <div>
+      <h1>Senhas</h1>
+      <p>acesso e escopo por página</p>
+    </div>
+    <button type="button" id="add-senha-btn" class="head-action"><i class="fad fa-plus"></i> Nova senha</button>
+  </header>
+
+  <div class="notice">
+    <i class="fad fa-info-circle"></i>
+    <span>
+      A senha <strong>mestre</strong> abre o LifeOS inteiro e qualquer página protegida do archive.
+      As demais só abrem as páginas concedidas a elas aqui. O valor de uma senha nunca é
+      exibido de volta — se esquecer, troque por uma nova.
+    </span>
+  </div>
+
+  <div id="senha-list" class="senha-list">
+    <div class="list-loading">carregando…</div>
+  </div>
+
+  <footer class="foot">
+    <span class="foot-text">✦ LifeOS</span>
+  </footer>
+</div>
+
+<!-- ───────────────── MODAL · CRIAR/EDITAR SENHA ───────────────── -->
+<div id="senha-modal" class="modal">
+  <div class="modal-panel">
+    <div class="pdet-banner">
+      <button type="button" class="pdet-close" id="senha-modal-close" aria-label="Fechar"><i class="fad fa-times"></i></button>
+      <div class="pdet-banner-icon"><i class="fad fa-key"></i></div>
+    </div>
+    <div class="modal-body">
+      <div class="pdet-head"><div class="pdet-name" id="senha-modal-title">Nova senha</div></div>
+      <div class="pdet-body-pad">
+        <form id="senha-form" autocomplete="off">
+          <div class="edit-field">
+            <label class="edit-label" for="senha-label-input">Nome</label>
+            <input id="senha-label-input" class="edit-input" type="text" placeholder="ex: leitura compartilhada" spellcheck="false">
+            <div class="edit-hint">Só para você identificar a senha nesta lista.</div>
+          </div>
+          <div class="edit-field">
+            <label class="edit-label" for="senha-token-input">Senha</label>
+            <input id="senha-token-input" class="edit-input" type="text" placeholder="senha de acesso" spellcheck="false" autocomplete="off">
+            <div class="edit-hint" id="senha-token-hint">Ao editar, deixe em branco para manter a senha atual.</div>
+          </div>
+          <div class="edit-field">
+            <label class="edit-check">
+              <input type="checkbox" id="senha-master-input">
+              <span>Senha mestre</span>
+            </label>
+            <div class="edit-hint">
+              Abre o LifeOS e todas as páginas protegidas, sem precisar de escopo.
+              Deve existir sempre ao menos uma.
+            </div>
+          </div>
+          <div id="senha-error" class="edit-error"></div>
+          <div class="edit-actions">
+            <button type="button" id="senha-cancel" class="edit-btn edit-btn-ghost">Cancelar</button>
+            <button type="submit" id="senha-save" class="edit-btn edit-btn-primary">Salvar</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ───────────────── MODAL · CONCEDER PÁGINA ───────────────── -->
+<div id="grant-modal" class="modal">
+  <div class="modal-panel">
+    <div class="pdet-banner">
+      <button type="button" class="pdet-close" id="grant-modal-close" aria-label="Fechar"><i class="fad fa-times"></i></button>
+      <div class="pdet-banner-icon"><i class="fad fa-file-lock"></i></div>
+    </div>
+    <div class="modal-body">
+      <div class="pdet-head"><div class="pdet-name" id="grant-modal-title">Conceder página</div></div>
+      <div class="pdet-body-pad">
+        <form id="grant-form" autocomplete="off">
+          <div class="edit-field">
+            <label class="edit-label" for="grant-page-select">Página</label>
+            <select id="grant-page-select" class="edit-input">
+              <option value="">— selecionar —</option>
+            </select>
+            <div class="edit-hint">
+              A lista vem do manifest do archive. Só faz efeito em páginas que
+              carregam <code>gate.js</code>.
+            </div>
+          </div>
+          <div id="grant-error" class="edit-error"></div>
+          <div class="edit-actions">
+            <button type="button" id="grant-cancel" class="edit-btn edit-btn-ghost">Cancelar</button>
+            <button type="submit" id="grant-save" class="edit-btn edit-btn-primary">Conceder</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="loading" class="loading-ov" hidden><div class="spinner"></div></div>
+
+<script src="../assets/js/manifest.js"></script>
+<script src="../assets/js/senhas.js?v=20260921"></script>
+
+</body>
+</html>

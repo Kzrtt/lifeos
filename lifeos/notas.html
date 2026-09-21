@@ -1,0 +1,788 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="theme-color" content="#14120f">
+  <title>LifeOS · Notas</title>
+  <link rel="icon" href="../assets/images/favicon.svg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,500;0,700;0,900;1,400&family=JetBrains+Mono:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../assets/css/icons.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/easymde@2.18.0/dist/easymde.min.css">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:        #0c0e12;
+      --surface:   #14171d;
+      --surface-2: #1b1f27;
+      --border:    #262b34;
+      --text:      #e7e9ee;
+      --dim:       #9aa3b2;
+      --mute:      #5d6675;
+      --green:     #3fb98c;
+      --red:       #e5616a;
+      --gold:      #c9a96e;
+      --blue:      #5b8def;
+      --mono: 'JetBrains Mono', monospace;
+      --serif: 'Playfair Display', Georgia, serif;
+      --border-mid: #2f3540;
+      --text-muted: #5d6675;
+      --accent-dim: #7a6a56;
+      --accent:     #c9a96e;
+    }
+
+    html, body { height: 100%; }
+    body {
+      background: var(--bg); color: var(--text); font-family: var(--mono);
+      -webkit-font-smoothing: antialiased; line-height: 1.5;
+      -webkit-text-size-adjust: 100%;
+    }
+    [hidden] { display: none !important; }
+
+    /* ───────────────────────── GATE ───────────────────────── */
+    .gate {
+      position: fixed; inset: 0; display: flex; align-items: center; justify-content: center;
+      padding: 24px; background: radial-gradient(ellipse at 50% 28%, #161a22 0%, #0c0e12 72%);
+    }
+    .gate-box { width: 100%; max-width: 380px; text-align: center; }
+    .gate-orn { font-size: 11px; letter-spacing: 0.5em; color: var(--mute); margin-bottom: 18px; }
+    .gate-brand {
+      font-family: var(--serif); font-weight: 900; font-style: italic;
+      font-size: clamp(44px, 11vw, 64px); line-height: 0.95; color: var(--text);
+      letter-spacing: -0.02em; margin-bottom: 36px;
+    }
+    .gate-label { font-size: 10px; letter-spacing: 0.32em; text-transform: uppercase; color: var(--mute); margin-bottom: 16px; }
+    .gate-row {
+      display: flex; border: 1px solid var(--border); border-radius: 6px; overflow: hidden;
+      transition: border-color 0.2s; background: var(--surface);
+    }
+    .gate-row:focus-within { border-color: var(--gold); }
+    #gate-input {
+      flex: 1; min-width: 0; background: transparent; border: none; outline: none; padding: 15px 18px;
+      font-family: var(--mono); font-size: 16px; color: var(--text); letter-spacing: 0.12em; caret-color: var(--gold);
+    }
+    #gate-input::placeholder { color: var(--mute); }
+    #gate-btn {
+      background: transparent; border: none; border-left: 1px solid var(--border); color: var(--mute);
+      font-family: var(--mono); font-size: 18px; padding: 0 22px; cursor: pointer; transition: color 0.2s, background 0.2s;
+    }
+    #gate-btn:hover:not(:disabled) { color: var(--gold); background: var(--surface-2); }
+    #gate-btn:disabled { opacity: 0.4; cursor: default; }
+    .gate-remember {
+      display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 16px;
+      font-size: 10px; letter-spacing: 0.1em; color: var(--mute); text-transform: uppercase; cursor: pointer; user-select: none;
+    }
+    .gate-remember input { accent-color: var(--gold); cursor: pointer; width: 15px; height: 15px; }
+    .gate-error { margin-top: 16px; min-height: 14px; font-size: 10px; letter-spacing: 0.15em; text-transform: uppercase; color: var(--red); }
+    .gate-checking { margin-top: 8px; font-size: 11px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--mute); }
+    .gate-row.shake { animation: shake 0.35s ease; }
+    @keyframes shake { 0%,100% { transform: translateX(0); } 20% { transform: translateX(-7px); } 60% { transform: translateX(7px); } 80% { transform: translateX(-3px); } }
+
+    /* ───────────────────────── APP ───────────────────────── */
+    .app { max-width: 1200px; margin: 0 auto; padding: 0 20px calc(64px + env(safe-area-inset-bottom)); }
+
+    .topbar { display: flex; align-items: center; justify-content: space-between; padding: 18px 0 14px; border-bottom: 1px solid var(--border); gap: 10px; }
+    .back { font-size: 10px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--mute); text-decoration: none; transition: color 0.2s; white-space: nowrap; }
+    .back .fad { margin-right: 4px; }
+    .back:hover { color: var(--gold); }
+    .topbar-actions { display: flex; align-items: center; gap: 10px; min-width: 0; }
+    .icon-btn {
+      width: 36px; height: 36px; flex-shrink: 0; display: flex; align-items: center; justify-content: center;
+      background: var(--surface); border: 1px solid var(--border); border-radius: 6px; color: var(--dim);
+      cursor: pointer; font-size: 15px; transition: color 0.15s, border-color 0.15s;
+    }
+    .icon-btn:hover { color: var(--gold); border-color: var(--gold); }
+    .icon-btn:disabled { opacity: 0.4; cursor: default; }
+    .fetched { font-size: 9.5px; letter-spacing: 0.06em; color: var(--mute); text-transform: uppercase; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    #refresh-btn.spinning { animation: notSpin 0.8s linear infinite; }
+    @keyframes notSpin { to { transform: rotate(360deg); } }
+
+    .head { display: flex; align-items: flex-end; justify-content: space-between; flex-wrap: wrap; gap: 18px; padding: 28px 0 20px; }
+    .head h1 { font-family: var(--serif); font-weight: 900; font-size: clamp(32px, 6vw, 52px); line-height: 0.95; letter-spacing: -0.02em; }
+    .head-sub { font-size: 10px; letter-spacing: 0.28em; text-transform: uppercase; color: var(--mute); margin-top: 8px; }
+
+    /* ── Barra de filtros: projeto (select) + busca (texto), mesma linha ── */
+    .filtros-bar { display: flex; align-items: flex-end; gap: 20px; flex-wrap: wrap; padding: 26px 2px 20px; }
+    .projeto-select-field { min-width: 220px; flex: 1.3; }
+    .busca-field { min-width: 200px; flex: 1; }
+    .projeto-select, .busca-input {
+      width: 100%; height: 48px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
+      padding: 0 16px; font-family: var(--mono); font-size: 14px; color: var(--text); outline: none;
+      transition: border-color 0.15s;
+    }
+    .projeto-select:focus, .busca-input:focus { border-color: var(--gold); }
+    .busca-input::placeholder { color: var(--mute); }
+    .projeto-select { cursor: pointer; }
+    .projeto-select option { background: var(--surface-2); color: var(--text); }
+    /* ── Duas famílias de tag visualmente distintas (3ª rodada, set/2026 —
+       pedido explícito do autor: a leitura dava a entender que Projeto era
+       "só mais uma tag" igual Tipo). Substituem a antiga .tag-proj
+       genérica, que servia pros dois — nunca fica um terceiro estilo
+       confuso convivendo com os outros dois (ver buildTipoTag/
+       buildProjetoTag em notas.js). 4ª rodada, set/2026 — correção de
+       estilo (pedido explícito do autor): texto colorido era "vibrante
+       demais" — agora é um PONTO colorido (--dot-color) + texto neutro
+       (--dim), sem fundo. Tag de projeto perdeu o ícone de pasta e a
+       borda grossa dourada — só não ter cor já diferencia de tipo, não
+       precisa de mais nenhum ornamento (nem ícone, nem borda pesada). ── */
+    .tag-tipo {
+      display: inline-flex; align-items: center; gap: 5px;
+      font-size: 9px; letter-spacing: 0.06em; text-transform: uppercase; font-weight: 500;
+      padding: 3px 9px; border-radius: 4px; border: 1px solid var(--border); color: var(--dim); white-space: nowrap;
+    }
+    .tag-tipo::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: var(--dot-color, var(--mute)); flex-shrink: 0; }
+    .tag-projeto {
+      display: inline-flex; align-items: center; font-size: 9px; letter-spacing: 0.04em;
+      padding: 3px 9px; border-radius: 4px; background: var(--surface-2); border: 1px solid var(--border);
+      color: var(--dim); white-space: nowrap;
+    }
+
+    .notas-empty { padding: 40px 0; text-align: center; color: var(--mute); font-size: 12px; letter-spacing: 0.04em; }
+
+    /* ── Filtro por tipo (badges) ── */
+    .filters { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 0 0 18px; }
+    .filters-label { font-size: 10px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--mute); margin-right: 4px; }
+    .chip { font-family: var(--mono); font-size: 12px; letter-spacing: 0.04em; padding: 7px 13px; border-radius: 999px; border: 1px solid var(--border); background: var(--surface-2); color: var(--dim); cursor: pointer; transition: background 0.15s, border-color 0.15s, color 0.15s; }
+    .chip:hover { border-color: var(--gold); color: var(--text); }
+    .chip.active { background: var(--gold); border-color: var(--gold); color: #14120f; font-weight: 500; }
+    .chip-clear { color: var(--red); border-style: dashed; }
+    .chip-clear:hover { border-color: var(--red); color: var(--red); }
+
+    .section-divider { position: relative; border-top: 1px solid var(--border); margin: 8px 0 24px; }
+
+    /* ── Lista (tabela) ── */
+    .card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 18px 18px 16px; margin: 0 0 20px; }
+    .table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+    table.notas-table { width: 100%; border-collapse: collapse; }
+    table.notas-table th { text-align: left; font-size: 9.5px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--mute); font-weight: 500; padding: 0 14px 12px; border-bottom: 1px solid var(--border); white-space: nowrap; }
+    table.notas-table th.r { text-align: right; }
+    table.notas-table td { padding: 12px 14px; border-bottom: 1px solid rgba(46,42,36,0.6); font-size: 12.5px; vertical-align: top; }
+    table.notas-table tr:last-child td { border-bottom: none; }
+    table.notas-table tr { cursor: pointer; }
+    table.notas-table tr:hover td { background: var(--gold-wash); }
+    .td-nota-name { color: var(--text); min-width: 200px; }
+    .td-nota-tags { display: flex; flex-wrap: wrap; gap: 4px; }
+    .td-nota-data { color: var(--dim); white-space: nowrap; text-align: right; }
+    .notas-table-empty { text-align: center; color: var(--mute); font-size: 11px; letter-spacing: 0.1em; padding: 20px 0; }
+
+    /* ── Chip picker genérico (tipo/projeto, single ou multi) ── */
+    .chip-picker { display: flex; flex-wrap: wrap; gap: 8px; }
+    .chip-opt {
+      font-family: var(--mono); font-size: 11px; letter-spacing: 0.03em;
+      background: var(--surface-2); border: 1px solid var(--border); color: var(--dim);
+      padding: 7px 12px; border-radius: 999px; cursor: pointer; transition: border-color 0.15s, color 0.15s, background 0.15s;
+    }
+    .chip-opt:hover { color: var(--text); }
+    .chip-opt.is-selected { background: var(--gold); border-color: var(--gold); color: #14120f; font-weight: 500; }
+
+    .foot { margin-top: 48px; padding-top: 24px; border-top: 1px solid var(--border); display: flex; align-items: center; justify-content: center; gap: 12px; font-size: 10px; letter-spacing: 0.25em; text-transform: uppercase; color: var(--mute); }
+    .foot .icon-btn { width: 28px; height: 28px; font-size: 12px; text-transform: none; letter-spacing: 0; }
+
+    /* ── Modal / formulário ── */
+    .edit-panel { max-width: 420px; }
+    .edit-field { margin-bottom: 14px; }
+    .edit-field:last-of-type { margin-bottom: 0; }
+    .edit-label { display: block; font-size: 10px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--mute); margin-bottom: 6px; }
+    .edit-input {
+      width: 100%; background: var(--surface-2); border: 1px solid var(--border); border-radius: 6px;
+      padding: 10px 12px; font-family: var(--mono); font-size: 13px; color: var(--text); outline: none;
+      transition: border-color 0.15s;
+    }
+    .edit-input:focus { border-color: var(--gold); }
+    .edit-error { min-height: 14px; font-size: 11px; letter-spacing: 0.04em; color: var(--red); margin-top: 10px; }
+    .edit-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 18px; }
+    /* Excluir/Editar texto do #nota-attrs-modal — 6ª rodada, set/2026,
+       pedido explícito do autor: viram icon-buttons (não botão-texto) e
+       ficam numa linha PRÓPRIA, separada de Cancelar/Salvar (nunca a
+       mesma linha). Reusa .icon-btn (mesmo padrão visual dos botões do
+       topbar) + um modificador -danger pro Excluir. Fica hidden inteira
+       ao criar (ver openAttrsModal em notas.js). */
+    .edit-actions-icons { display: flex; gap: 8px; padding-top: 14px; margin-top: 4px; border-top: 1px solid var(--border); }
+    .icon-btn-danger:hover { color: var(--red); border-color: var(--red); background: color-mix(in srgb, var(--red) 10%, transparent); }
+    /* Estado "confirmar?" do Excluir — mesmo padrão de .row-action-btn.
+       confirming em lifeos.html (ver LIFEOS.md §7): o botão cresce pra
+       caber o texto, já que normalmente é só um ícone quadrado. */
+    .icon-btn.confirming {
+      width: auto; padding: 0 10px; color: var(--red); border-color: var(--red); background: color-mix(in srgb, var(--red) 12%, transparent);
+      font-family: var(--mono); font-size: 10px; letter-spacing: 0.04em; white-space: nowrap;
+    }
+    .edit-btn { display: inline-flex; align-items: center; justify-content: center; text-decoration: none; font-family: var(--mono); font-size: 12px; letter-spacing: 0.04em; padding: 10px 18px; border-radius: 6px; cursor: pointer; transition: border-color 0.15s, background 0.15s, color 0.15s; }
+    .edit-btn-ghost { background: transparent; border: 1px solid var(--border); color: var(--dim); }
+    .edit-btn-ghost:hover { border-color: var(--gold); color: var(--text); }
+    .edit-btn-danger { background: transparent; border: 1px solid var(--red); color: var(--red); margin-right: auto; }
+    .edit-btn-danger:hover { background: color-mix(in srgb, var(--red) 10%, transparent); }
+    .edit-btn-primary { background: var(--gold); border: 1px solid var(--gold); color: #14120f; font-weight: 500; }
+    .edit-btn-primary:hover { opacity: 0.9; }
+    .edit-btn-primary:disabled { opacity: 0.5; cursor: default; }
+
+    .modal { position: fixed; inset: 0; z-index: 1000; display: flex; align-items: center; justify-content: center; padding: 20px; background: rgba(6,8,11,0.78); opacity: 0; pointer-events: none; transition: opacity 0.2s ease; }
+    .modal.open { opacity: 1; pointer-events: auto; }
+    .modal-panel { width: 100%; max-width: 560px; max-height: 86vh; display: flex; flex-direction: column; background: var(--surface); border: 1px solid var(--border-mid); border-radius: 12px; overflow: hidden; }
+    .modal-body {
+      overflow-y: auto; -webkit-overflow-scrolling: touch; padding: 18px 20px 20px;
+      scrollbar-width: thin; scrollbar-color: rgba(255,255,255,0.14) transparent;
+    }
+    .modal-body::-webkit-scrollbar { width: 5px; }
+    .modal-body::-webkit-scrollbar-track { background: transparent; }
+    .modal-body::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.14); border-radius: 999px; }
+    .modal-body::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.24); }
+
+    /* ── "Padrão banner" de modal — copiado de lifeos.html (nasceu no
+       #projeto-detail-modal do hub, hoje é o padrão de TODOS os modais do
+       hub — ver LIFEOS.md, commit 8bc5c00). notas.html é isolado (própria
+       cópia de CSS/JS, nunca importa de lifeos.html — ver LIFEOS.md §2),
+       então este bloco é uma CÓPIA, não um import. Substitui o antigo
+       .modal-head/.modal-title/.modal-close (barra de título plana). Sem
+       cor dinâmica por status/tipo aqui — ao contrário de evento/tarefa/
+       projeto no hub, uma nota não tem um único valor pra mapear cor 1:1
+       (Tipo é multi-select) — o accent fica fixo em --gold. ── */
+    .pdet-panel { max-width: 680px; }
+    /* Leitura é o modal com mais conteúdo do sistema inteiro — mais largo
+       que qualquer outro, pra ler confortavelmente sem virar uma coluna
+       estreita de texto. Atributos é só formulário curto (nome/tipo/
+       projeto/data), fica compacto. Conteúdo (EasyMDE) precisa de largura
+       pro editor, mas não tanto quanto a leitura. */
+    .pdet-panel.detail-panel { max-width: 860px; }
+    .pdet-panel.attrs-panel { max-width: 480px; }
+    .pdet-panel.content-panel { max-width: 760px; }
+    .pdet-panel .modal-body { padding: 0; }
+    /* Badge de data no canto superior esquerdo do banner de leitura —
+       simétrico ao .pdet-close (mesmo tratamento visual, canto oposto). */
+    .pdet-date-badge {
+      position: absolute; top: 12px; left: 12px; z-index: 2;
+      background: rgba(6,8,11,0.5); border: 1px solid var(--border); border-radius: 8px;
+      padding: 8px 12px; font-family: var(--mono); font-size: 11px; letter-spacing: 0.08em; color: var(--dim);
+    }
+    /* Agrupa "Tela cheia" + Fechar no canto superior direito do banner do
+       #detail-modal — 5ª rodada, set/2026, pedido explícito do autor: "Tela
+       cheia" deixa de ser um botão-texto no rodapé e passa a ser um
+       icon-button igual o de fechar, ao lado dele. Reusa .pdet-close (visual
+       idêntico) pros dois — só sobrescreve o position:absolute individual
+       porque agora é o wrapper que posiciona o par. */
+    .pdet-banner-top-actions { position: absolute; top: 12px; right: 12px; z-index: 2; display: flex; gap: 8px; }
+    .pdet-banner-top-actions .pdet-close { position: static; top: auto; right: auto; }
+    .pdet-banner {
+      position: relative; height: 132px; flex-shrink: 0; overflow: hidden;
+      display: flex; align-items: center; justify-content: center;
+      background: radial-gradient(circle at 50% 120%, var(--gold) -40%, var(--surface-2) 68%);
+    }
+    .pdet-banner::before {
+      content: ''; position: absolute; inset: 0;
+      background: repeating-linear-gradient(135deg, rgba(255,255,255,0.028) 0 2px, transparent 2px 9px);
+    }
+    .pdet-banner::after {
+      content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 58%;
+      background: linear-gradient(to bottom, transparent, var(--surface));
+    }
+    .pdet-banner-icon {
+      position: relative; z-index: 1; width: 72px; height: 72px; border-radius: 18px;
+      display: flex; align-items: center; justify-content: center; font-size: 34px; line-height: 1;
+      background: var(--surface); border: 1px solid var(--border);
+      box-shadow: 0 10px 26px rgba(0,0,0,0.42);
+    }
+    .pdet-close {
+      position: absolute; top: 12px; right: 12px; z-index: 2;
+      width: 34px; height: 34px; display: flex; align-items: center; justify-content: center;
+      background: rgba(6,8,11,0.5); border: 1px solid var(--border); border-radius: 8px;
+      color: var(--dim); cursor: pointer; font-size: 13px; transition: color 0.15s, background 0.15s;
+    }
+    .pdet-close:hover { color: var(--gold); background: rgba(6,8,11,0.75); }
+    .pdet-body-pad { padding: 16px 22px 20px; }
+    .pdet-head { padding: 2px 22px 0; text-align: center; flex-shrink: 0; }
+    .pdet-name { font-family: var(--serif); font-style: italic; font-weight: 700; font-size: 23px; line-height: 1.25; color: var(--text); }
+    @media (max-width: 560px) {
+      .pdet-banner { height: 104px; }
+      .pdet-banner-icon { width: 60px; height: 60px; font-size: 28px; border-radius: 15px; }
+      .pdet-name { font-size: 20px; }
+      .pdet-head, .pdet-body-pad { padding-left: 16px; padding-right: 16px; }
+    }
+
+    /* ── Toggle Lista/Cards — copiado de tarefas.html (.view-tabs/.view-tab,
+       ver LIFEOS.md §4). Mesma linha da barra de filtros. ── */
+    .view-tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; flex-shrink: 0; }
+    @media (max-width: 560px) { .view-tabs { width: 100%; } }
+    .view-tab {
+      display: flex; align-items: center; justify-content: center; gap: 8px; height: 48px; padding: 0 14px;
+      background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
+      color: var(--dim); font-family: var(--mono); font-size: 12px; letter-spacing: 0.03em;
+      cursor: pointer; text-align: left; white-space: nowrap; transition: border-color 0.15s, color 0.15s, background 0.15s;
+    }
+    .view-tab:hover { border-color: var(--gold); color: var(--text); }
+    .view-tab.active { background: var(--surface-2); border-color: var(--gold); color: var(--text); }
+    .view-tab-icon { font-size: 15px; color: var(--mute); flex-shrink: 0; transition: color 0.15s; }
+    .view-tab.active .view-tab-icon { color: var(--gold); }
+
+    /* ── Visão · Cards (default) — hierarquia em blocos separados com
+       respiro entre eles (nome → linha de Tipo → linha de Projeto →
+       divisor → snippet → rodapé), não tudo colado numa .nota-card-tags
+       única misturando os dois tipos de tag. SEM faixa colorida no topo
+       (removida na 4ª rodada, set/2026 — pedido explícito e enfático do
+       o autor contra esse tipo de "detalhe" em borda de card). ── */
+    /* 3 colunas fixas (pedido explícito do autor — era auto-fill, que cabia
+       4 nos ~1200px do .app) — mesmo padrão de .manif-grid no hub: 2
+       colunas ≤780px, 1 coluna ≤560px. */
+    .notas-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin: 0 0 20px; }
+    @media (max-width: 780px) { .notas-grid { grid-template-columns: repeat(2, 1fr); } }
+    @media (max-width: 560px) { .notas-grid { grid-template-columns: 1fr; } }
+    .nota-card {
+      display: flex; flex-direction: column; gap: 10px; background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px; padding: 16px 16px 14px; cursor: pointer; transition: transform 0.15s, border-color 0.15s;
+    }
+    .nota-card:hover { transform: translateY(-2px); border-color: var(--gold); }
+    .nota-card-name { font-family: var(--serif); font-style: italic; font-weight: 700; font-size: 15px; color: var(--text); line-height: 1.35; }
+    .nota-card-tags { display: flex; flex-wrap: wrap; gap: 4px; }
+    .nota-card-divider { border-top: 1px solid var(--border); margin: 2px 0; }
+    .nota-card-snippet { font-size: 12px; color: var(--dim); line-height: 1.55; flex: 1; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; }
+    .nota-card-snippet.is-empty { color: var(--mute); font-style: italic; }
+    /* Ícone-botões (Tela cheia / Editar) no lado OPOSTO da data — 4ª
+       rodada, set/2026, pedido explícito do autor. stopPropagation no
+       listener de clique evita que clicar neles também abra o detalhe. */
+    .nota-card-foot { display: flex; align-items: center; justify-content: space-between; margin-top: auto; padding-top: 8px; border-top: 1px solid var(--border); }
+    .nota-card-actions { display: flex; gap: 6px; }
+    .nota-card-action-btn {
+      width: 24px; height: 24px; display: flex; align-items: center; justify-content: center;
+      background: var(--surface-2); border: 1px solid var(--border); border-radius: 5px; color: var(--dim);
+      font-size: 10px; cursor: pointer; transition: color 0.15s, border-color 0.15s;
+    }
+    .nota-card-action-btn:hover { color: var(--gold); border-color: var(--gold); }
+    .nota-card-date { font-size: 10px; letter-spacing: 0.08em; color: var(--mute); text-transform: uppercase; }
+    .notas-grid-empty { grid-column: 1/-1; text-align: center; color: var(--mute); font-size: 12px; letter-spacing: 0.04em; padding: 40px 0; }
+
+    /* ── EasyMDE (CDN, ver LIFEOS.md §2 — mesmo padrão de CDN pinado que
+       marked/mermaid/Chart.js já usam no projeto) — reskin pra paleta do
+       archive; o tema default é claro/genérico e não combina com nada
+       aqui. Editor de verdade (toolbar, preview/side-by-side/fullscreen
+       embutidos) no lugar do textarea cru + toggle manual que existia
+       antes — leitura continua isolada no #detail-modal (.nota-content). ── */
+    .EasyMDEContainer { font-family: var(--mono); }
+    .EasyMDEContainer .CodeMirror {
+      background: var(--surface-2); border: 1px solid var(--border); border-top: none; border-radius: 0 0 6px 6px;
+      color: var(--text); font-family: var(--mono); font-size: 13px; line-height: 1.6;
+    }
+    .EasyMDEContainer .CodeMirror-cursor { border-left-color: var(--gold); }
+    .EasyMDEContainer .CodeMirror-selected, .EasyMDEContainer .CodeMirror-focused .CodeMirror-selected { background: color-mix(in srgb, var(--gold) 18%, transparent); }
+    .EasyMDEContainer .CodeMirror-gutters { background: var(--surface-2); border-right: 1px solid var(--border); }
+    .EasyMDEContainer .CodeMirror-placeholder { color: var(--mute) !important; }
+    .editor-toolbar { background: var(--surface-2); border: 1px solid var(--border); border-bottom: none; border-radius: 6px 6px 0 0; opacity: 1; }
+    .editor-toolbar button { color: var(--dim) !important; background: transparent; border-radius: 4px; }
+    .editor-toolbar button:hover, .editor-toolbar button.active { background: color-mix(in srgb, var(--gold) 14%, transparent) !important; border-color: transparent !important; color: var(--text) !important; }
+    .editor-toolbar i.separator { border-left: 1px solid var(--border); border-right: none; }
+    .editor-preview, .editor-preview-side {
+      background: var(--surface-2); color: var(--text); font-family: var(--mono); font-size: 13px; line-height: 1.6; border: 1px solid var(--border);
+    }
+    .editor-preview h1, .editor-preview h2, .editor-preview h3, .editor-preview h4,
+    .editor-preview-side h1, .editor-preview-side h2, .editor-preview-side h3, .editor-preview-side h4 {
+      font-family: var(--serif); font-style: italic; line-height: 1.3;
+    }
+    .editor-preview blockquote, .editor-preview-side blockquote { border-left: 2px solid var(--gold); color: var(--dim); }
+    .editor-preview code, .editor-preview-side code, .editor-preview pre, .editor-preview-side pre { background: rgba(0,0,0,0.28); }
+    .editor-preview table th, .editor-preview table td, .editor-preview-side table th, .editor-preview-side table td { border: 1px solid var(--border); }
+    .CodeMirror-fullscreen, .editor-preview-side { z-index: 1200; }
+
+    /* Tipo e Projeto em linhas separadas (.detail-meta-row), não mais um
+       único flex-wrap misturando os dois — mesma reestruturação de
+       .nota-card-tags. Divisória marca onde os atributos terminam e o
+       texto (conteúdo) começa — pedido explícito do autor, 4ª rodada. */
+    .detail-meta { display: flex; flex-direction: column; gap: 8px; }
+    .detail-meta-row { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+    .detail-meta .tag-tipo, .detail-meta .tag-projeto { font-size: 9.5px; }
+    .detail-divider { border-top: 1px solid var(--border); margin: 16px 0 18px; }
+    /* Rodapé de ações — FORA da área com scroll do modal-body (4ª rodada,
+       set/2026: corrige o bug de ter que rolar o texto inteiro pra
+       alcançar os botões, mesma correção espelhada em lifeos.html —
+       ver .detail-modal-foot lá, mesmo padrão agora nos dois lugares). */
+    .detail-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 10px; padding: 14px 22px; border-top: 1px solid var(--border); flex-shrink: 0; }
+    .nota-content { font-size: 14px; line-height: 1.7; color: var(--text); }
+    .nota-content:empty::before { content: 'sem conteúdo'; color: var(--mute); }
+    .nota-content h1, .nota-content h2, .nota-content h3, .nota-content h4 { font-family: var(--serif); font-style: italic; line-height: 1.3; margin: 20px 0 10px; }
+    .nota-content h1:first-child, .nota-content h2:first-child, .nota-content h3:first-child, .nota-content h4:first-child { margin-top: 0; }
+    .nota-content h1 { font-size: 26px; } .nota-content h2 { font-size: 22px; } .nota-content h3 { font-size: 18px; } .nota-content h4 { font-size: 15px; }
+    .nota-content p { margin: 0 0 14px; }
+    .nota-content ul, .nota-content ol { margin: 0 0 14px; padding-left: 22px; }
+    .nota-content li { margin-bottom: 5px; }
+    .nota-content a { color: var(--gold); }
+    .nota-content code { font-size: 13px; background: rgba(0,0,0,0.28); padding: 1px 5px; border-radius: 4px; }
+    .nota-content pre { background: rgba(0,0,0,0.28); border-radius: 6px; padding: 12px 14px; overflow-x: auto; margin: 0 0 14px; }
+    .nota-content pre code { background: none; padding: 0; }
+    .nota-content blockquote { border-left: 2px solid var(--gold); margin: 0 0 14px; padding-left: 14px; color: var(--dim); }
+    .nota-content table { width: 100%; border-collapse: collapse; margin: 0 0 14px; }
+    .nota-content th, .nota-content td { border: 1px solid var(--border); padding: 7px 11px; font-size: 13px; text-align: left; }
+    .nota-content hr { border: none; border-top: 1px solid var(--border); margin: 20px 0; }
+    .nota-content details { border: 1px solid var(--border); border-radius: 6px; padding: 10px 14px; margin: 0 0 14px; }
+    .nota-content summary { cursor: pointer; color: var(--dim); }
+    .nota-content > *:last-child { margin-bottom: 0; }
+    /* Variante pra #nota-leitura-view (tela cheia) — mesmas regras de
+       .nota-content acima (h1-h4/p/ul/a/code/pre/blockquote/table/hr/
+       details, aplicadas junto via as duas classes no mesmo elemento),
+       só tipografia maior — a página inteira tem espaço pra respirar, não
+       precisa competir com o resto de um modal de 860px. */
+    .nota-content-full { font-size: 16px; line-height: 1.8; }
+    .nota-content-full h1 { font-size: 30px; } .nota-content-full h2 { font-size: 25px; } .nota-content-full h3 { font-size: 20px; } .nota-content-full h4 { font-size: 17px; }
+
+    /* ── Tela cheia de leitura (#nota-leitura-view) — 3ª rodada, set/2026,
+       pedido explícito do autor: "uma tela para leitura, além do modal".
+       Não é uma página nova — é um MODO DE VIEW dentro da própria
+       notas.html (ver openLeituraView/closeLeituraView em notas.js), junto
+       de 'cards'/'lista': gate/boot/dados já existem em memória, criar um
+       arquivo novo duplicaria tudo isso só pra mostrar uma nota. Coluna de
+       prosa centrada, largura de leitura confortável — mesma linguagem
+       visual do resto do LifeOS (fundo escuro, --serif/--mono), com a
+       atenção tipográfica de uma entrada do Archive (sem herdar o papel
+       off-white, só o cuidado). URL ganha ?nota=<id> via history.pushState
+       (ver D.3 do plano) — permite favoritar/compartilhar o link direto e
+       usar o botão Voltar do navegador. ── */
+    /* Padding-top maior que antes (era 8px) — sem o botão "← Notas" próprio
+       (removido, ver #topbar-back-link) pra dar respiro entre o topbar e o
+       nome da nota. */
+    #nota-leitura-view { max-width: 720px; margin: 0 auto; padding: 32px 0 60px; }
+    .leitura-header { margin-bottom: 32px; }
+    .leitura-name { font-family: var(--serif); font-style: italic; font-weight: 900; font-size: clamp(28px, 5vw, 40px); line-height: 1.15; color: var(--text); letter-spacing: -0.01em; margin-bottom: 16px; }
+    .leitura-meta { display: flex; flex-direction: column; gap: 8px; }
+    .leitura-meta-row { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+    .leitura-date { font-family: var(--mono); font-size: 10.5px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--mute); }
+    .leitura-divider { border-top: 3px double var(--text); margin: 28px 0 32px; }
+    @media (max-width: 560px) {
+      .leitura-name { font-size: 26px; }
+      .nota-content-full { font-size: 15px; }
+    }
+
+    .loading-ov { position: fixed; inset: 0; z-index: 500; display: flex; align-items: center; justify-content: center; background: rgba(12,14,18,0.55); }
+    .spinner { width: 32px; height: 32px; border: 3px solid var(--border); border-top-color: var(--gold); border-radius: 50%; animation: spin 0.7s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    @media (max-width: 560px) {
+      .app { padding: 0 14px calc(56px + env(safe-area-inset-bottom)); }
+      .fetched { display: none; }
+      .modal { padding: 16px; align-items: center; }
+      .modal-panel, .modal-panel.detail-panel { max-width: 100%; max-height: 86vh; border-radius: 12px; }
+    }
+
+    /* ═══════════════════════════════════════════════════════════════════
+       SYSTEM SKIN — paleta sépia-quente do arquivo, mesma reskin aplicada
+       em index / galeria / financas / eventos / tarefas.
+       ═══════════════════════════════════════════════════════════════════ */
+    :root {
+      --bg:        #14120f;
+      --surface:   #1c1a16;
+      --surface-2: #242018;
+      --border:    #2e2a24;
+      --text:      #ede8df;
+      --dim:       #b0a898;
+      --mute:      #6b6456;
+      --gold:      #c4913a;
+      --gold-wash: rgba(196, 145, 58, 0.10);
+      --border-mid: #3a352d;
+      --text-muted: #6b6456;
+      --accent-dim: #7a6a56;
+      --accent:     #c4913a;
+    }
+    html { background: var(--bg); }
+    body { background: transparent; }
+    .ambient-field { position: fixed; inset: 0; z-index: -1; overflow: hidden; pointer-events: none; }
+    .ambient-glyph {
+      position: absolute; font-family: 'Playfair Display', serif; font-style: italic; color: var(--text);
+      opacity: 0; animation-name: ambientFade; animation-timing-function: ease-in-out; animation-iteration-count: infinite;
+      will-change: opacity, transform;
+    }
+    @keyframes ambientFade {
+      0%   { opacity: 0; transform: translateY(10px); }
+      50%  { opacity: var(--peak, 0.05); transform: translateY(-10px); }
+      100% { opacity: 0; transform: translateY(-24px); }
+    }
+    .gate { background: radial-gradient(ellipse at 50% 28%, #1c1a16 0%, #14120f 72%); }
+    .modal { background: rgba(8, 7, 6, 0.90); }
+    .loading-ov { background: rgba(20, 18, 15, 0.55); }
+    .head { border-bottom: 3px double var(--text); padding-bottom: 22px; }
+    .head h1 { font-style: italic; letter-spacing: -0.03em; }
+    .head-titles::before {
+      content: '✦ ✦ ✦';
+      display: block; font-family: var(--mono);
+      font-size: 10px; letter-spacing: 0.6em; color: var(--mute);
+      margin-bottom: 14px;
+    }
+    .foot { border-top: 3px double var(--text); }
+    .icon-btn:hover { background: var(--gold-wash); }
+    .projeto-select:hover, .busca-input:hover { background: var(--gold-wash); }
+    .chip:hover:not(.active) { background: var(--gold-wash); }
+    table.notas-table tr:hover td { background: var(--gold-wash); }
+    /* ═══ SYSTEM SKIN ▸ END ═══ */
+  </style>
+  <link rel="stylesheet" id="lifeos-tema" href="../assets/css/themes/lifeos/sepia.css">
+  <!-- Config da instância + tema. Precisam vir AQUI, nesta ordem e sem defer:
+       o <link> acima tem de ficar depois do <style> pra vencer o SYSTEM SKIN,
+       e tema.js tem de rodar antes da primeira pintura. Ver assets/js/tema.js. -->
+  <script src="../assets/js/lifeos-config.js"></script>
+  <script src="../assets/js/tema.js"></script>
+  <script src="../assets/js/blog.js"></script>
+</head>
+<body>
+
+<div class="ambient-field" id="ambient-field" aria-hidden="true"></div>
+
+<!-- ───────────────────────── GATE ───────────────────────── -->
+<div id="gate" class="gate">
+  <div class="gate-box">
+    <div class="gate-orn">✦ &nbsp; ✦ &nbsp; ✦</div>
+    <div class="gate-brand">Notas</div>
+    <form id="gate-form" autocomplete="off">
+      <div class="gate-label">acesso restrito · senha mestre</div>
+      <div class="gate-row" id="gate-row">
+        <input id="gate-input" type="password" placeholder="senha mestre" spellcheck="false" autocomplete="current-password">
+        <button id="gate-btn" type="submit"><i class="fad fa-arrow-right"></i></button>
+      </div>
+      <label class="gate-remember"><input type="checkbox" id="gate-remember"> lembrar neste navegador</label>
+      <div id="gate-error" class="gate-error"></div>
+    </form>
+    <div id="gate-checking" class="gate-checking" hidden>verificando sessão…</div>
+  </div>
+</div>
+
+<!-- ───────────────────────── APP ───────────────────────── -->
+<div id="app" class="app" hidden>
+
+  <div class="topbar">
+    <!-- Vira "← Notas" (fecha a view de leitura em vez de navegar) enquanto
+         #nota-leitura-view está ativa — ver showLeituraView/restoreListView
+         em notas.js. 4ª rodada, set/2026: substitui o botão "← Notas"
+         separado que existia só dentro da view (pedido explícito do autor:
+         "poderia ser substituído o botão de voltar do topo"). -->
+    <a href="lifeos.html" class="back" id="topbar-back-link"><i class="fad fa-arrow-left"></i> <span id="topbar-back-label">LifeOS</span></a>
+    <div class="topbar-actions">
+      <span id="fetched-at" class="fetched"></span>
+      <button id="add-nota-btn" class="icon-btn" title="Nova nota" aria-label="Nova nota"><i class="fad fa-plus"></i></button>
+      <button id="refresh-btn" class="icon-btn" title="Re-sincronizar" aria-label="Atualizar"><i class="fad fa-sync"></i></button>
+      <button id="logout-btn" class="icon-btn" title="Sair" aria-label="Sair"><i class="fad fa-sign-out"></i></button>
+    </div>
+  </div>
+
+  <header class="head" id="notas-head">
+    <div class="head-titles">
+      <h1>Notas</h1>
+      <p class="head-sub">Registros &amp; contexto</p>
+    </div>
+  </header>
+
+  <section class="filtros-bar" id="notas-filtros-bar">
+    <div class="projeto-select-field">
+      <label class="edit-label" for="projeto-select">Projeto</label>
+      <select id="projeto-select" class="projeto-select"></select>
+    </div>
+    <div class="busca-field">
+      <label class="edit-label" for="busca-input">Buscar por nome</label>
+      <input type="text" id="busca-input" class="busca-input" placeholder="digite pra filtrar…" autocomplete="off">
+    </div>
+    <div class="view-tabs" id="notas-view-tabs">
+      <button class="view-tab active" data-view="cards" type="button"><i class="fad fa-th-large view-tab-icon"></i> Cards</button>
+      <button class="view-tab" data-view="lista" type="button"><i class="fad fa-list view-tab-icon"></i> Lista</button>
+    </div>
+  </section>
+
+  <div id="tipo-filters" class="filters" hidden></div>
+
+  <div class="notas-grid" id="notas-cards-view"></div>
+
+  <section class="card" id="notas-lista-view" hidden>
+    <div class="table-wrap">
+      <table class="notas-table">
+        <thead><tr><th>Nome</th><th>Tipo</th><th>Projeto(s)</th><th class="r">Data</th></tr></thead>
+        <tbody id="notas-tbody"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ───────────────────────── VIEW · LEITURA (tela cheia) ─────────────────────────
+       Ver comentário grande no CSS (#nota-leitura-view). Populada por
+       openLeituraView(id) em notas.js — nunca fica visível junto de
+       .notas-grid/#notas-lista-view (mutuamente exclusivas via hidden).
+       Sem botão de voltar próprio — o link "← LifeOS" do topbar assume
+       esse papel enquanto esta view está ativa (ver #topbar-back-link). -->
+  <div id="nota-leitura-view" hidden>
+    <div class="leitura-header">
+      <div class="leitura-name" id="leitura-name">—</div>
+      <div class="leitura-meta" id="leitura-meta"></div>
+    </div>
+    <div class="leitura-divider"></div>
+    <div class="nota-content nota-content-full" id="leitura-content"></div>
+    <div class="detail-actions">
+      <button type="button" id="leitura-delete" class="edit-btn edit-btn-danger">Excluir</button>
+      <button type="button" id="leitura-edit-attrs" class="edit-btn edit-btn-ghost">Editar atributos</button>
+      <button type="button" id="leitura-edit-content" class="edit-btn edit-btn-ghost">Editar texto</button>
+    </div>
+  </div>
+
+  <footer class="foot" id="notas-foot">
+    <span class="foot-text">✦ LifeOS · LifeOS · Notas · LifeOS · 2026</span>
+  </footer>
+</div>
+
+<!-- ───────────────────────── MODAL · DETALHE (leitura) ─────────────────────────
+     "Padrão banner" (.pdet-*, ver CSS) — mesmo padrão de todos os modais do
+     hub (LIFEOS.md, commit 8bc5c00), aplicado aqui como cópia isolada. Ícone
+     fixo (livro aberto) — uma nota não tem um único status/tipo pra mapear
+     cor dinâmica (Tipo é multi-select), então sem --pdet-accent por item.
+     Data no canto superior esquerdo do banner (.pdet-date-badge, simétrico
+     ao .pdet-close) — pedido explícito do autor, em vez de mais uma tag ao
+     lado de Tipo/Projeto no corpo.
+
+     5ª rodada, set/2026 — pedido explícito do autor: este modal serve SÓ
+     leitura agora, sem rodapé de ações. "Tela cheia" é o único destino
+     daqui, e vira icon-button ao lado do Fechar (.pdet-banner-top-actions)
+     em vez de botão-texto no rodapé. Excluir/Editar atributos/Editar texto
+     saíram de aqui — centralizados no #nota-attrs-modal (ver comentário lá):
+     "deixa tudo bem centralizado" nas palavras do autor. Quem chega via
+     Lista (tabela) alcança edição indo primeiro pra Tela cheia (que mantém
+     seus próprios Excluir/Editar, ver #nota-leitura-view) ou pelos
+     icon-buttons do card na visão Cards. -->
+<div id="detail-modal" class="modal" role="dialog" aria-modal="true">
+  <div class="modal-panel pdet-panel detail-panel">
+    <div class="pdet-banner">
+      <div class="pdet-date-badge" id="detail-banner-date" hidden></div>
+      <div class="pdet-banner-top-actions">
+        <button type="button" id="detail-fullscreen" class="pdet-close" aria-label="Tela cheia"><i class="fad fa-expand"></i></button>
+        <button type="button" id="detail-modal-close" class="pdet-close" aria-label="Fechar"><i class="fad fa-times"></i></button>
+      </div>
+      <div class="pdet-banner-icon"><i class="fad fa-book-open"></i></div>
+    </div>
+    <div class="modal-body">
+      <div class="pdet-head"><div class="pdet-name" id="detail-modal-title">Nota</div></div>
+      <div class="pdet-body-pad">
+        <div class="detail-meta" id="detail-modal-meta"></div>
+        <div class="detail-divider"></div>
+        <div class="nota-content" id="detail-modal-content"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ───────────────────────── MODAL · NOTA · ATRIBUTOS (criar/editar) ─────────────────────────
+     Só nome/tipo/projetos/data — nunca o conteúdo, que mora exclusivamente
+     no #nota-content-modal abaixo (pedido explícito do autor: 3 modais bem
+     separados — leitura, atributos, texto). Fluxo de criação: salvar aqui
+     cria a nota (sem conteúdo) e encadeia direto pra abertura do
+     #nota-content-modal, pra escrever o corpo na sequência sem precisar
+     reabrir nada (ver onAttrsSubmit em notas.js).
+
+     5ª rodada, set/2026 — pedido explícito do autor: Excluir e o atalho pra
+     "Editar texto" centralizam AQUI (não mais no #detail-modal de leitura,
+     que agora só lê). 6ª rodada, set/2026 — mais um pedido explícito:
+     viram icon-buttons (`.icon-btn`/`.icon-btn-danger`, ver CSS) em vez de
+     botão-texto, e ganharam linha PRÓPRIA (`.edit-actions-icons`,
+     `#nota-attrs-icon-actions`) — nunca a mesma linha de Cancelar/Salvar.
+     A linha inteira fica `hidden` ao criar (`EDIT_NOTA_ID` null — não faz
+     sentido excluir/editar o texto de uma nota que não existe ainda, ver
+     `openAttrsModal` em `notas.js`) e aparece no fim do formulário ao
+     editar, acima da linha de Cancelar/Salvar, separada por uma
+     divisória. -->
+
+<div id="nota-attrs-modal" class="modal" role="dialog" aria-modal="true">
+  <div class="modal-panel pdet-panel attrs-panel">
+    <div class="pdet-banner">
+      <button type="button" id="nota-attrs-modal-close" class="pdet-close" aria-label="Fechar"><i class="fad fa-times"></i></button>
+      <div class="pdet-banner-icon"><i class="fad fa-tags"></i></div>
+    </div>
+    <div class="modal-body">
+      <div class="pdet-head"><div class="pdet-name" id="nota-attrs-modal-title">Nova nota</div></div>
+      <form id="nota-attrs-form" class="pdet-body-pad" autocomplete="off">
+        <div class="edit-field">
+          <label class="edit-label" for="nota-nome">Nome</label>
+          <input type="text" id="nota-nome" class="edit-input" maxlength="300" autocomplete="off">
+        </div>
+        <div class="edit-field">
+          <label class="edit-label">Tipo</label>
+          <div class="chip-picker" id="nota-tipo-picker"></div>
+        </div>
+        <div class="edit-field">
+          <label class="edit-label">Projetos <span style="text-transform:none;letter-spacing:0;color:var(--mute);">(opcional, só projetos Em Progresso)</span></label>
+          <div class="chip-picker" id="nota-projeto-picker"></div>
+        </div>
+        <div class="edit-field">
+          <label class="edit-label" for="nota-data">Data (opcional)</label>
+          <input type="date" id="nota-data" class="edit-input">
+        </div>
+        <div id="nota-attrs-error" class="edit-error"></div>
+        <div class="edit-actions-icons" id="nota-attrs-icon-actions" hidden>
+          <button type="button" id="nota-attrs-edit-content" class="icon-btn" aria-label="Editar texto"><i class="fad fa-pen-nib"></i></button>
+          <button type="button" id="nota-attrs-delete" class="icon-btn icon-btn-danger" aria-label="Excluir nota"><i class="fad fa-trash"></i></button>
+        </div>
+        <div class="edit-actions">
+          <button type="button" id="nota-attrs-cancel" class="edit-btn edit-btn-ghost">Cancelar</button>
+          <button type="submit" id="nota-attrs-save" class="edit-btn edit-btn-primary">Salvar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- ───────────────────────── MODAL · NOTA · TEXTO (edição de conteúdo) ─────────────────────────
+     Exclusivo pro corpo em markdown via EasyMDE (CDN, ver CSS/notas.js) —
+     toolbar, Pré-visualizar/Lado-a-lado/Tela cheia embutidos no próprio
+     editor (initNotaEditor/destroyNotaEditor em notas.js). Só existe pra
+     nota que já tem id (nunca aberto direto do zero — ver fluxo de criação
+     no #nota-attrs-modal acima). -->
+<div id="nota-content-modal" class="modal" role="dialog" aria-modal="true">
+  <div class="modal-panel pdet-panel content-panel">
+    <div class="pdet-banner">
+      <button type="button" id="nota-content-modal-close" class="pdet-close" aria-label="Fechar"><i class="fad fa-times"></i></button>
+      <div class="pdet-banner-icon"><i class="fad fa-pen-nib"></i></div>
+    </div>
+    <div class="modal-body">
+      <div class="pdet-head"><div class="pdet-name" id="nota-content-modal-title">Nota</div></div>
+      <form id="nota-content-form" class="pdet-body-pad" autocomplete="off">
+        <div class="edit-field">
+          <label class="edit-label">Conteúdo <span style="text-transform:none;letter-spacing:0;color:var(--mute);">(markdown, opcional — barra de ferramentas com Pré-visualizar/Lado-a-lado/Tela cheia)</span></label>
+          <textarea id="nota-conteudo" placeholder="# título, **negrito**, listas, links…"></textarea>
+        </div>
+        <div id="nota-content-error" class="edit-error"></div>
+        <div class="edit-actions">
+          <button type="button" id="nota-content-cancel" class="edit-btn edit-btn-ghost">Cancelar</button>
+          <button type="submit" id="nota-content-save" class="edit-btn edit-btn-primary">Salvar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- ───────────────────────── LOADING ───────────────────────── -->
+<div id="loading" class="loading-ov" hidden><div class="spinner"></div></div>
+
+<script src="https://cdn.jsdelivr.net/npm/marked@12.0.2/marked.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/easymde@2.18.0/dist/easymde.min.js"></script>
+<script src="../assets/js/notas.js?v=20260918f"></script>
+<script src="../assets/js/back-to-top.js?v=20260617"></script>
+
+<script>
+(function buildAmbientField() {
+  'use strict';
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  var field = document.getElementById('ambient-field');
+  if (!field) return;
+  var GLYPHS = [
+    'ψ', 'Ω', 'Σ', 'Φ', 'α', 'β', 'γ', 'δ', 'θ', 'λ', 'μ', 'ξ', 'π', 'τ', 'ω', 'ρ', 'ν', 'ι', 'κ',
+    '☿', '☽', '☉', '♀', '♂', '♃', '♄', '⛢', '♆', '✦', '✧', '⟡', '◈', '⌖', '⬗', '☯', '✵', '✶', '✳', '⚝'
+  ];
+  var count = window.innerWidth < 640 ? 85 : 170;
+  var frag = document.createDocumentFragment();
+  for (var i = 0; i < count; i++) {
+    var el = document.createElement('span');
+    el.className = 'ambient-glyph';
+    el.textContent = GLYPHS[Math.floor(Math.random() * GLYPHS.length)];
+    el.style.left = (Math.random() * 100) + '%';
+    el.style.top = (Math.random() * 100) + '%';
+    el.style.fontSize = (16 + Math.random() * 38) + 'px';
+    el.style.setProperty('--peak', (0.016 + Math.random() * 0.03).toFixed(3));
+    var dur = 3 + Math.random() * 5;
+    el.style.animationDuration = dur + 's';
+    el.style.animationDelay = (-Math.random() * dur) + 's';
+    frag.appendChild(el);
+  }
+  field.appendChild(frag);
+})();
+</script>
+
+</body>
+</html>

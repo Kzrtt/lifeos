@@ -1,0 +1,870 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="theme-color" content="#14120f">
+  <title>LifeOS · Finanças</title>
+  <link rel="icon" href="../assets/images/favicon.svg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,500;0,700;0,900;1,400&family=JetBrains+Mono:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../assets/css/icons.css">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:        #0c0e12;
+      --surface:   #14171d;
+      --surface-2: #1b1f27;
+      --border:    #262b34;
+      --text:      #e7e9ee;
+      --dim:       #9aa3b2;
+      --mute:      #5d6675;
+      --green:     #3fb98c;
+      --red:       #e5616a;
+      --gold:      #c9a96e;
+      --blue:      #5b8def;
+      --mono: 'JetBrains Mono', monospace;
+      --serif: 'Playfair Display', Georgia, serif;
+      /* aliases consumidos por back-to-top.js */
+      --border-mid: #2f3540;
+      --text-muted: #5d6675;
+      --accent-dim: #7a6a56;
+      --accent:     #c9a96e;
+    }
+
+    html, body { height: 100%; }
+    body {
+      background: var(--bg); color: var(--text); font-family: var(--mono);
+      -webkit-font-smoothing: antialiased; line-height: 1.5;
+      -webkit-text-size-adjust: 100%;
+    }
+    [hidden] { display: none !important; }
+
+    /* ───────────────────────── GATE ───────────────────────── */
+    .gate {
+      position: fixed; inset: 0; display: flex; align-items: center; justify-content: center;
+      padding: 24px; background: radial-gradient(ellipse at 50% 28%, #161a22 0%, #0c0e12 72%);
+    }
+    .gate-box { width: 100%; max-width: 380px; text-align: center; }
+    .gate-orn { font-size: 11px; letter-spacing: 0.5em; color: var(--mute); margin-bottom: 18px; }
+    .gate-brand {
+      font-family: var(--serif); font-weight: 900; font-style: italic;
+      font-size: clamp(44px, 11vw, 64px); line-height: 0.95; color: var(--text);
+      letter-spacing: -0.02em; margin-bottom: 36px;
+    }
+    .gate-label { font-size: 10px; letter-spacing: 0.32em; text-transform: uppercase; color: var(--mute); margin-bottom: 16px; }
+    .gate-row {
+      display: flex; border: 1px solid var(--border); border-radius: 6px; overflow: hidden;
+      transition: border-color 0.2s; background: var(--surface);
+    }
+    .gate-row:focus-within { border-color: var(--gold); }
+    #gate-input {
+      flex: 1; min-width: 0; background: transparent; border: none; outline: none; padding: 15px 18px;
+      font-family: var(--mono); font-size: 16px; color: var(--text); letter-spacing: 0.12em; caret-color: var(--gold);
+    }
+    #gate-input::placeholder { color: var(--mute); }
+    #gate-btn {
+      background: transparent; border: none; border-left: 1px solid var(--border); color: var(--mute);
+      font-family: var(--mono); font-size: 18px; padding: 0 22px; cursor: pointer; transition: color 0.2s, background 0.2s;
+    }
+    #gate-btn:hover:not(:disabled) { color: var(--gold); background: var(--surface-2); }
+    #gate-btn:disabled { opacity: 0.4; cursor: default; }
+    .gate-remember {
+      display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 16px;
+      font-size: 10px; letter-spacing: 0.1em; color: var(--mute); text-transform: uppercase; cursor: pointer; user-select: none;
+    }
+    .gate-remember input { accent-color: var(--gold); cursor: pointer; width: 15px; height: 15px; }
+    .gate-error { margin-top: 16px; min-height: 14px; font-size: 10px; letter-spacing: 0.15em; text-transform: uppercase; color: var(--red); }
+    .gate-checking { margin-top: 8px; font-size: 11px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--mute); }
+    .gate-row.shake { animation: shake 0.35s ease; }
+    @keyframes shake { 0%,100% { transform: translateX(0); } 20% { transform: translateX(-7px); } 60% { transform: translateX(7px); } 80% { transform: translateX(-3px); } }
+
+    /* ───────────────────────── APP ───────────────────────── */
+    .app { max-width: 1080px; margin: 0 auto; padding: 0 20px calc(64px + env(safe-area-inset-bottom)); }
+
+    .topbar { display: flex; align-items: center; justify-content: space-between; padding: 18px 0 14px; border-bottom: 1px solid var(--border); gap: 10px; }
+    .back { font-size: 10px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--mute); text-decoration: none; transition: color 0.2s; white-space: nowrap; }
+    .back .fad { margin-right: 4px; }
+    .back:hover { color: var(--gold); }
+    .topbar-actions { display: flex; align-items: center; gap: 10px; min-width: 0; }
+    .fetched { font-size: 9.5px; letter-spacing: 0.06em; color: var(--mute); text-transform: uppercase; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .icon-btn {
+      width: 36px; height: 36px; flex-shrink: 0; display: flex; align-items: center; justify-content: center;
+      background: var(--surface); border: 1px solid var(--border); border-radius: 6px; color: var(--dim);
+      cursor: pointer; font-size: 15px; transition: color 0.15s, border-color 0.15s;
+    }
+    .icon-btn:hover { color: var(--gold); border-color: var(--gold); }
+    .icon-btn:disabled { opacity: 0.4; cursor: default; }
+    #refresh-btn.spinning { animation: spin 0.8s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .head { display: flex; align-items: flex-end; justify-content: space-between; flex-wrap: wrap; gap: 18px; padding: 28px 0 20px; }
+    .head h1 { font-family: var(--serif); font-weight: 900; font-size: clamp(32px, 6vw, 52px); line-height: 0.95; letter-spacing: -0.02em; }
+    .head-sub { font-size: 10px; letter-spacing: 0.28em; text-transform: uppercase; color: var(--mute); margin-top: 8px; }
+    .monthnav { display: flex; align-items: center; gap: 6px; }
+    .mbtn {
+      width: 42px; height: 42px; flex-shrink: 0; display: flex; align-items: center; justify-content: center;
+      background: var(--surface); border: 1px solid var(--border); border-radius: 8px; color: var(--dim);
+      cursor: pointer; font-size: 15px; line-height: 1; transition: color 0.15s, border-color 0.15s;
+    }
+    .mbtn:hover:not(:disabled) { color: var(--gold); border-color: var(--gold); }
+    .mbtn:active:not(:disabled) { background: var(--surface-2); }
+    .mbtn:disabled { opacity: 0.28; cursor: default; }
+    .month-label { min-width: 168px; text-align: center; font-size: 14px; font-weight: 500; letter-spacing: 0.06em; color: var(--text); text-transform: capitalize; }
+
+    /* ── KPIs ── */
+    .kpis { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-top: 12px; }
+    .kpi { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 18px 20px; border-left-width: 3px; }
+    .kpi-in  { border-left-color: var(--green); }
+    .kpi-out { border-left-color: var(--red); }
+    .kpi-bal { border-left-color: var(--blue); }
+    .kpi-cap { font-size: 10px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--mute); margin-bottom: 10px; }
+    .kpi-value { font-size: clamp(22px, 6vw, 30px); font-weight: 600; letter-spacing: -0.01em; font-variant-numeric: tabular-nums; color: var(--text); }
+    .kpi-value.pos { color: var(--green); }
+    .kpi-value.neg { color: var(--red); }
+    .kpi-subvalue { margin-top: 7px; font-size: 11.5px; letter-spacing: 0.02em; color: var(--mute); font-variant-numeric: tabular-nums; }
+    .kpi-subvalue .kpi-subvalue-num { color: var(--dim); font-weight: 500; }
+
+    .count-note { font-size: 10px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--mute); margin: 16px 0 4px; }
+    .empty { margin-top: 24px; padding: 56px 20px; text-align: center; border: 1px dashed var(--border); border-radius: 10px; font-size: 13px; letter-spacing: 0.06em; color: var(--mute); text-transform: capitalize; }
+
+    /* ── Cards / charts (alturas idênticas) ── */
+    .charts { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 14px; align-items: stretch; }
+    .card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 18px 18px 16px; display: flex; flex-direction: column; min-width: 0; }
+    #dash-content > .charts + .card, #dash-content > .card + .card { margin-top: 16px; }
+    .card-title { font-size: 10px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--dim); margin-bottom: 16px; min-height: 1.1em; }
+    .card-title .hint { color: var(--mute); text-transform: none; letter-spacing: 0.04em; font-size: 9px; }
+    .chart-wrap { position: relative; min-height: 260px; flex: 1 1 auto; }
+    .chart-wrap.tall { min-height: 300px; }
+    .chart-empty { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--mute); }
+
+    /* ── Recorrências ── */
+    .rec-meta { font-size: 10px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--mute); margin-bottom: 14px; }
+    .rec-group { border: 1px solid var(--border); border-radius: 8px; margin-bottom: 8px; overflow: hidden; background: var(--surface-2); }
+    .rec-group:last-child { margin-bottom: 0; }
+    .rec-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 14px; }
+    .rec-head.clickable { cursor: pointer; }
+    .rec-head.clickable:hover { background: rgba(255,255,255,0.02); }
+    .rec-head-left { display: flex; align-items: center; gap: 8px 10px; flex-wrap: wrap; min-width: 0; }
+    .rec-chev { color: var(--mute); font-size: 8px; transition: transform 0.15s; }
+    .rec-group.collapsed .rec-chev { transform: rotate(-90deg); }
+    .rec-group.collapsed .rec-items { display: none; }
+    .rec-name { color: var(--text); font-size: 13px; font-weight: 500; word-break: break-word; }
+    .rec-count { font-size: 10px; color: var(--gold); letter-spacing: 0.08em; border: 1px solid color-mix(in srgb, var(--gold) 30%, transparent); border-radius: 4px; padding: 1px 6px; flex-shrink: 0; }
+    .rec-breakdown { font-size: 10px; color: var(--mute); letter-spacing: 0.05em; }
+    .rec-head-right { display: flex; align-items: center; gap: 12px; flex-shrink: 0; }
+    .rec-date { font-size: 11px; color: var(--mute); }
+    .rec-total { font-size: 13px; font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
+    .rec-total.pos { color: var(--green); }
+    .rec-total.neg { color: var(--red); }
+    .rec-items { border-top: 1px solid var(--border); padding: 6px 14px 10px; }
+    .rec-item { display: flex; align-items: center; gap: 12px; padding: 6px 0; border-bottom: 1px solid rgba(38,43,52,0.5); }
+    .rec-item:last-child { border-bottom: none; }
+    .rec-item-date { font-size: 11px; color: var(--dim); width: 42px; flex-shrink: 0; }
+    .rec-item-tags { flex: 1; display: flex; flex-wrap: wrap; gap: 4px; min-width: 0; }
+    .rec-item-val { font-size: 12px; font-weight: 600; font-variant-numeric: tabular-nums; flex-shrink: 0; white-space: nowrap; }
+    .rec-item-val.pos { color: var(--green); }
+    .rec-item-val.neg { color: var(--red); }
+
+    /* ── Fatura projetada ── */
+    #fatura-card { border-left: 3px solid var(--gold); }
+    #fatura-mes-passado-card { border-left: 3px solid var(--blue); }
+    .badge-proj { display: inline-block; font-size: 8px; letter-spacing: 0.1em; color: var(--bg); background: var(--gold); border-radius: 3px; padding: 1px 5px; vertical-align: middle; }
+    .fatura-hint { font-size: 10px; letter-spacing: 0.04em; color: var(--mute); margin-bottom: 12px; line-height: 1.5; text-transform: none; }
+    .fatura-total { color: var(--gold) !important; }
+    .fatura-item-name { flex: 1; min-width: 0; color: var(--dim); font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .fatura-status { font-size: 11px; letter-spacing: 0.03em; color: var(--dim); margin-bottom: 12px; }
+    .fatura-status-ok { color: var(--green); }
+    .fatura-adiantado-note { font-size: 10px; letter-spacing: 0.04em; color: var(--blue); padding: 8px 14px; border-top: 1px solid var(--border); background: color-mix(in srgb, var(--blue) 6%, transparent); }
+
+    /* ── Divisória entre gráficos e listagens ── */
+    .section-divider { border-top: 1px solid var(--border); margin: 28px 0 0; }
+
+    /* ── Tabs de visualização (Transações / Recorrências / futuras) ── */
+    .view-tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 20px 0 16px; }
+    .view-tab {
+      display: flex; align-items: center; gap: 10px; padding: 14px 16px;
+      background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
+      color: var(--dim); font-family: var(--mono); font-size: 12.5px; letter-spacing: 0.03em;
+      cursor: pointer; text-align: left; transition: border-color 0.15s, color 0.15s, background 0.15s;
+    }
+    .view-tab:hover { border-color: var(--gold); color: var(--text); }
+    .view-tab.active { background: var(--surface-2); border-color: var(--gold); color: var(--text); }
+    .view-tab-icon { font-size: 16px; color: var(--mute); flex-shrink: 0; transition: color 0.15s; }
+    .view-tab.active .view-tab-icon { color: var(--gold); }
+
+    /* ── Busca por descrição (filtra Transações e Recorrências) ── */
+    .search-row { margin: 0 0 16px; }
+    .search-box {
+      display: flex; align-items: center; gap: 10px;
+      background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
+      padding: 0 14px; transition: border-color 0.15s;
+    }
+    .search-box:focus-within { border-color: var(--gold); }
+    .search-icon { font-size: 12px; color: var(--mute); flex-shrink: 0; }
+    .search-input {
+      flex: 1; min-width: 0; background: transparent; border: none; outline: none;
+      padding: 12px 0; font-family: var(--mono); font-size: 13px; color: var(--text);
+      letter-spacing: 0.02em; caret-color: var(--gold);
+    }
+    .search-input::placeholder { color: var(--mute); }
+    .search-clear {
+      background: transparent; border: none; color: var(--mute); cursor: pointer;
+      font-size: 12px; padding: 6px; flex-shrink: 0; transition: color 0.15s;
+    }
+    .search-clear:hover { color: var(--gold); }
+
+    /* ── Toggle do donut (Ambos / Entradas / Saídas) ── */
+    .donut-toggle { display: flex; gap: 6px; margin-bottom: 14px; flex-wrap: wrap; align-items: center; }
+    .donut-toggle-btn {
+      font-family: var(--mono); font-size: 11px; letter-spacing: 0.05em; padding: 6px 12px;
+      border-radius: 999px; border: 1px solid var(--border); background: var(--surface-2); color: var(--dim);
+      cursor: pointer; transition: background 0.15s, border-color 0.15s, color 0.15s;
+    }
+    .donut-toggle-btn:hover { border-color: var(--gold); color: var(--text); }
+    .donut-toggle-btn.active { background: var(--gold); border-color: var(--gold); color: #14120f; font-weight: 500; }
+    .donut-credito-toggle {
+      display: flex; align-items: center; gap: 6px; margin-left: auto;
+      font-family: var(--mono); font-size: 11px; letter-spacing: 0.04em; color: var(--dim);
+      cursor: pointer; user-select: none;
+    }
+    .donut-credito-toggle input { accent-color: var(--gold); cursor: pointer; width: 13px; height: 13px; }
+    .donut-credito-toggle:hover { color: var(--text); }
+
+    /* ── Saldo de abertura ── */
+    .abertura-note { font-size: 11px; letter-spacing: 0.04em; color: var(--blue); margin: -4px 0 14px; }
+
+    /* ── Filtros (badges) ── */
+    .filters { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 16px; }
+    .filters-label { font-size: 10px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--mute); margin-right: 4px; }
+    .chip { font-family: var(--mono); font-size: 12px; letter-spacing: 0.04em; padding: 7px 13px; border-radius: 999px; border: 1px solid var(--border); background: var(--surface-2); color: var(--dim); cursor: pointer; transition: background 0.15s, border-color 0.15s, color 0.15s; }
+    .chip:hover { border-color: var(--gold); color: var(--text); }
+    .chip.active { background: var(--gold); border-color: var(--gold); color: #14120f; font-weight: 500; }
+    .chip-clear { color: var(--red); border-style: dashed; }
+    .chip-clear:hover { border-color: var(--red); color: var(--red); }
+
+    /* ── Linha de análise ── */
+    .analysis { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; margin-top: 16px; padding: 14px 16px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface-2); }
+    .an-key { font-size: 9px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--mute); }
+    .an-val { font-size: 12px; font-variant-numeric: tabular-nums; color: var(--dim); }
+    .an-val.pos { color: var(--green); }
+    .an-val.neg { color: var(--red); }
+
+    /* ── Tabela ── */
+    .table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+    table.tx { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+    table.tx th { text-align: left; font-size: 9.5px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--mute); font-weight: 500; padding: 0 14px 12px; border-bottom: 1px solid var(--border); white-space: nowrap; }
+    table.tx th.r, table.tx td.td-valor { text-align: right; }
+    table.tx td { padding: 12px 14px; border-bottom: 1px solid rgba(38,43,52,0.6); font-size: 12.5px; vertical-align: top; }
+    table.tx tr:last-child td { border-bottom: none; }
+    table.tx tr:hover td { background: rgba(255,255,255,0.015); }
+    .td-date { color: var(--dim); white-space: nowrap; }
+    .td-name { color: var(--text); min-width: 140px; }
+    /* .td-valor é o <td> em si — precisa continuar display:table-cell (o
+       default) pra esticar com a altura da linha (que cresce quando as tags
+       de .td-tipo quebram em 2 linhas); um <td> com display:flex direto
+       nele NÃO estica junto, deixando um vão/linha visível embaixo da
+       célula quando alguma outra célula da mesma linha é mais alta. O flex
+       (valor + ações lado a lado) mora só no wrapper interno .td-valor-wrap. */
+    .td-valor { font-weight: 600; white-space: nowrap; }
+    .td-valor.pos { color: var(--green); }
+    .td-valor.neg { color: var(--red); }
+    .td-valor-wrap { display: inline-flex; align-items: center; }
+    .td-valor-num { white-space: nowrap; }
+    /* Ações da linha (editar/excluir) — só na tabela de transações, só
+       desktop (ver breakpoint 720px abaixo), reveladas no hover da linha
+       (não só ícones soltos: icon buttons reais, com chrome visível). O
+       lápis abre #edit-modal (valor/data/tags); a lixeira pede confirmação
+       inline de dois cliques (ver .row-action-btn.confirming) antes de
+       chamar o delete — sem modal/confirm() nativo.
+       Sem hover, ocupa ZERO espaço (max-width:0 + overflow:hidden) — o
+       texto do valor não fica esperando um espaço vazio; só quando a linha
+       ganha hover é que o valor é empurrado pra esquerda pra abrir espaço
+       pros botões na ponta direita (max-width abre + margin-left entra). */
+    .row-actions {
+      display: inline-flex; gap: 5px; flex-shrink: 0; align-items: center;
+      max-width: 0; margin-left: 0; opacity: 0; overflow: hidden;
+      transition: max-width 0.15s ease, margin-left 0.15s ease, opacity 0.12s ease;
+    }
+    table.tx tr:hover .row-actions { max-width: 180px; margin-left: 8px; opacity: 1; }
+    .row-action-btn {
+      width: 26px; height: 26px; flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center;
+      background: var(--surface); border: 1px solid var(--border); border-radius: 6px;
+      color: var(--dim); font-size: 11px; cursor: pointer; transition: color 0.15s, border-color 0.15s, background 0.15s;
+    }
+    .row-action-btn:hover { color: var(--gold); border-color: var(--gold); background: var(--gold-wash); }
+    .row-action-btn.row-action-danger:hover { color: var(--red); border-color: var(--red); background: color-mix(in srgb, var(--red) 10%, transparent); }
+    .row-action-btn.confirming {
+      width: auto; padding: 0 10px; color: var(--red); border-color: var(--red); background: color-mix(in srgb, var(--red) 12%, transparent);
+      font-family: var(--mono); font-size: 10px; letter-spacing: 0.04em; white-space: nowrap;
+    }
+    .row-action-btn:disabled { opacity: 0.6; cursor: default; }
+    @media (max-width: 720px) { .row-actions { display: none; } }
+    .tx-empty { text-align: center; color: var(--mute); font-size: 11px; letter-spacing: 0.1em; padding: 20px 0; }
+    tr.tx-date-header td { padding: 10px 14px; background: var(--surface-2); border-bottom: 1px solid var(--border); }
+    table.tx tr.tx-date-header:hover td { background: var(--surface-2); }
+    .tx-date-header-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+    .tx-date-header-date { font-size: 10px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--dim); font-weight: 600; white-space: nowrap; }
+    .tx-date-header-sums { display: flex; align-items: center; margin-left: auto; font-size: 10.5px; font-weight: 600; font-variant-numeric: tabular-nums; }
+    .tx-date-header-val { padding: 0 10px; }
+    .tx-date-header-val:first-child { padding-left: 0; }
+    .tx-date-header-val:not(:first-child) { border-left: 1px solid var(--border); }
+    .tx-date-header-val.pos { color: var(--green); }
+    .tx-date-header-val.neg { color: var(--red); }
+
+    .tag { display: inline-block; font-size: 9px; letter-spacing: 0.08em; text-transform: uppercase; padding: 2px 7px; border-radius: 4px; border: 1px solid var(--border); color: var(--dim); margin: 0 4px 4px 0; white-space: nowrap; }
+    .tag-entrada { color: var(--green); border-color: color-mix(in srgb, var(--green) 40%, transparent); }
+    .tag-saida   { color: var(--red);   border-color: color-mix(in srgb, var(--red) 40%, transparent); }
+    .tag-credito, .tag-debito, .tag-pix, .tag-vale, .tag-boleto { color: var(--gold); border-color: color-mix(in srgb, var(--gold) 32%, transparent); }
+
+    .foot { margin-top: 48px; padding-top: 24px; border-top: 1px solid var(--border); display: flex; align-items: center; justify-content: center; gap: 12px; font-size: 10px; letter-spacing: 0.25em; text-transform: uppercase; color: var(--mute); }
+    .foot .icon-btn { width: 28px; height: 28px; font-size: 12px; text-transform: none; letter-spacing: 0; }
+
+    /* ── Modal de ajuda ── */
+    .help-panel { max-width: 640px; }
+    .help-section { margin-bottom: 20px; }
+    .help-section:last-child { margin-bottom: 0; }
+    .help-section-title { font-size: 10px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--gold); margin-bottom: 8px; }
+    .help-section p { font-size: 12.5px; line-height: 1.65; color: var(--dim); margin-bottom: 8px; }
+    .help-section p:last-child { margin-bottom: 0; }
+    .help-section strong { color: var(--text); font-weight: 600; }
+    .help-section .tag { font-size: 8.5px; }
+
+    /* ── Modal de edição (lápis · valor/data/tags, tudo opcional) ── */
+    .edit-panel { max-width: 380px; }
+    .edit-field { margin-bottom: 14px; }
+    .edit-field:last-of-type { margin-bottom: 0; }
+    .edit-label { display: block; font-size: 10px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--mute); margin-bottom: 6px; }
+    .edit-input {
+      width: 100%; background: var(--surface-2); border: 1px solid var(--border); border-radius: 6px;
+      padding: 10px 12px; font-family: var(--mono); font-size: 13px; color: var(--text); outline: none;
+      transition: border-color 0.15s;
+    }
+    .edit-input:focus { border-color: var(--gold); }
+    .edit-error { min-height: 14px; font-size: 11px; letter-spacing: 0.04em; color: var(--red); margin-top: 10px; }
+    .edit-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 18px; }
+    .edit-btn { font-family: var(--mono); font-size: 12px; letter-spacing: 0.04em; padding: 10px 18px; border-radius: 6px; cursor: pointer; transition: border-color 0.15s, background 0.15s, color 0.15s; }
+    .edit-btn-ghost { background: transparent; border: 1px solid var(--border); color: var(--dim); }
+    .edit-btn-ghost:hover { border-color: var(--gold); color: var(--text); }
+    .edit-btn-primary { background: var(--gold); border: 1px solid var(--gold); color: #14120f; font-weight: 500; }
+    .edit-btn-primary:hover { opacity: 0.9; }
+    .edit-btn-primary:disabled { opacity: 0.5; cursor: default; }
+
+    /* ── Modal ── */
+    .modal { position: fixed; inset: 0; z-index: 1000; display: flex; align-items: center; justify-content: center; padding: 20px; background: rgba(6,8,11,0.78); opacity: 0; pointer-events: none; transition: opacity 0.2s ease; }
+    .modal.open { opacity: 1; pointer-events: auto; }
+    .modal-panel { width: 100%; max-width: 560px; max-height: 86vh; display: flex; flex-direction: column; background: var(--surface); border: 1px solid var(--border-mid); border-radius: 12px; overflow: hidden; }
+    .modal-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; padding: 18px 20px 14px; border-bottom: 1px solid var(--border); }
+    .modal-title { font-family: var(--serif); font-style: italic; font-size: 20px; color: var(--text); }
+    .modal-sub { font-size: 10px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--mute); margin-top: 4px; }
+    .modal-close { width: 36px; height: 36px; flex-shrink: 0; background: transparent; border: 1px solid var(--border); border-radius: 6px; color: var(--dim); cursor: pointer; font-size: 13px; }
+    .modal-close:hover { color: var(--gold); border-color: var(--gold); }
+    .modal-body { overflow-y: auto; -webkit-overflow-scrolling: touch; padding: 8px 20px 18px; }
+    .modal-summary { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--border); }
+
+    /* ── Loading overlay ── */
+    .loading-ov { position: fixed; inset: 0; z-index: 500; display: flex; align-items: center; justify-content: center; background: rgba(12,14,18,0.55); }
+    .spinner { width: 32px; height: 32px; border: 3px solid var(--border); border-top-color: var(--gold); border-radius: 50%; animation: spin 0.7s linear infinite; }
+
+    /* ── Mobile ── */
+    @media (max-width: 720px) {
+      .kpis { grid-template-columns: 1fr; }
+      .charts { grid-template-columns: 1fr; }
+      .head { align-items: flex-start; }
+      .monthnav { width: 100%; justify-content: space-between; }
+      .month-label { min-width: 0; flex: 1; }
+    }
+    @media (max-width: 560px) {
+      .app { padding: 0 14px calc(56px + env(safe-area-inset-bottom)); }
+      .kpi { padding: 16px 16px; }
+      .card { padding: 16px 14px 14px; }
+      .chart-wrap { min-height: 240px; }
+      .chart-wrap.tall { min-height: 260px; }
+      .rec-head { padding: 11px 12px; gap: 8px; }
+      .rec-items { padding: 6px 12px 10px; }
+      table.tx td { padding: 11px 12px; font-size: 12px; }
+      .modal { padding: 16px; align-items: center; }
+      .modal-panel { max-width: 100%; max-height: 86vh; border-radius: 12px; }
+      .fetched { display: none; }
+    }
+
+    /* ═══════════════════════════════════════════════════════════════════
+       SYSTEM SKIN ▸ START
+       Reskin puramente visual: alinha /financas à identidade do arquivo
+       (index / galeria / sobre) — paleta sépia-quente, dourado #c4913a,
+       réguas 3px double no masthead e no rodapé, ✦ nas divisórias, hovers
+       com lavagem dourada. Cantos ficam arredondados (raio original do
+       dashboard); em vez do filete lateral colorido, o accent dos cards
+       migra para o rótulo, como os cards do index. NÃO toca markup, JS,
+       dados nem os gráficos (as cores dos charts são literais em
+       financas.js e ficam intactas).
+       Reverter = apagar este bloco inteiro (START → END). Nada mais.
+       ═══════════════════════════════════════════════════════════════════ */
+    :root {
+      /* identidade remapeada para o sistema (tema escuro do arquivo) */
+      --bg:        #14120f;
+      --surface:   #1c1a16;
+      --surface-2: #242018;
+      --border:    #2e2a24;
+      --text:      #ede8df;
+      --dim:       #b0a898;
+      --mute:      #6b6456;
+      --gold:      #c4913a;
+      --gold-wash: rgba(196, 145, 58, 0.10);
+      /* --green / --red / --blue: mantidos — cor de dado, compartilhada
+         com os gráficos (que não mudam) */
+      /* aliases consumidos por back-to-top.js / .modal-panel */
+      --border-mid: #3a352d;
+      --text-muted: #6b6456;
+      --accent-dim: #7a6a56;
+      --accent:     #c4913a;
+    }
+
+    /* fundo no <html> (não no <body>) p/ o campo ambiente aparecer atrás
+       do conteúdo, igual index / galeria / sobre */
+    html { background: var(--bg); }
+    body { background: transparent; }
+
+    /* campo ambiente — glifos à deriva, idêntico ao resto do arquivo */
+    .ambient-field { position: fixed; inset: 0; z-index: -1; overflow: hidden; pointer-events: none; }
+    .ambient-glyph {
+      position: absolute; font-family: 'Playfair Display', serif; font-style: italic; color: var(--text);
+      opacity: 0; animation-name: ambientFade; animation-timing-function: ease-in-out; animation-iteration-count: infinite;
+      will-change: opacity, transform;
+    }
+    @keyframes ambientFade {
+      0%   { opacity: 0; transform: translateY(10px); }
+      50%  { opacity: var(--peak, 0.05); transform: translateY(-10px); }
+      100% { opacity: 0; transform: translateY(-24px); }
+    }
+
+    /* superfícies quentes onde havia hex frio hardcoded */
+    .gate { background: radial-gradient(ellipse at 50% 28%, #1c1a16 0%, #14120f 72%); }
+    .modal { background: rgba(8, 7, 6, 0.90); }
+    .loading-ov { background: rgba(20, 18, 15, 0.55); }
+
+    /* cantos: preservados nos raios originais do financas — o dashboard
+       continua arredondado; só index / galeria / sobre adotam o corte
+       reto editorial */
+
+    /* masthead: ✦ ✦ ✦ + régua dupla sob o título */
+    .head { border-bottom: 3px double var(--text); padding-bottom: 22px; }
+    .head h1 { font-style: italic; letter-spacing: -0.03em; }
+    .head-titles::before {
+      content: '✦ ✦ ✦';
+      display: block; font-family: var(--mono);
+      font-size: 10px; letter-spacing: 0.6em; color: var(--mute);
+      margin-bottom: 14px;
+    }
+
+    /* rodapé: régua dupla, como index / galeria / sobre */
+    .foot { border-top: 3px double var(--text); }
+
+    /* divisória de seção: ✦ dourado pousado no filete */
+    .section-divider { position: relative; margin: 40px 0 4px; }
+    .section-divider::before {
+      content: '✦';
+      position: absolute; top: -7px; left: 50%; transform: translateX(-50%);
+      background: var(--bg); padding: 0 12px;
+      color: var(--gold); font-size: 10px;
+    }
+
+    /* sem filete lateral colorido nos cards — o accent migra para o rótulo,
+       como os cards do index (categoria tingida em vez de barra à esquerda).
+       Borda uniforme em todos os lados. */
+    .kpi { border-left-width: 1px; border-left-color: var(--border); }
+    #fatura-card,
+    #fatura-mes-passado-card { border-left: 1px solid var(--border); }
+
+    /* rótulo do KPI vira chip tingido — carrega a cor semântica que estava
+       no filete (entrada / saída / saldo) */
+    .kpi-cap {
+      display: inline-block; padding: 4px 9px; border-radius: 5px;
+      color: color-mix(in srgb, var(--kpi-accent, var(--mute)) 62%, var(--text) 38%);
+      background: color-mix(in srgb, var(--kpi-accent, var(--mute)) 15%, transparent);
+    }
+    .kpi-in  { --kpi-accent: var(--green); }
+    .kpi-out { --kpi-accent: var(--red); }
+    .kpi-bal { --kpi-accent: var(--blue); }
+
+    /* faturas: a cor vai para o título (gold = projeção, blue = a que fecha agora) */
+    #fatura-card .card-title { color: color-mix(in srgb, var(--gold) 55%, var(--dim) 45%); }
+    #fatura-mes-passado-card .card-title { color: color-mix(in srgb, var(--blue) 50%, var(--dim) 50%); }
+
+    /* hovers com lavagem dourada (padrão do sistema) */
+    .icon-btn:hover { background: var(--gold-wash); }
+    .view-tab:hover { background: var(--gold-wash); }
+    .chip:hover { background: var(--gold-wash); }
+    .donut-toggle-btn:hover { background: var(--gold-wash); }
+    .rec-head.clickable:hover { background: var(--gold-wash); }
+    table.tx tr:hover td { background: color-mix(in srgb, var(--gold) 5%, transparent); }
+
+    /* filetes internos: do azul-frio para o sépia-quente */
+    .rec-count { border-color: color-mix(in srgb, var(--gold) 30%, transparent); }
+    .tag-credito, .tag-debito, .tag-pix, .tag-vale, .tag-boleto { border-color: color-mix(in srgb, var(--gold) 32%, transparent); }
+    .rec-item { border-bottom-color: rgba(46, 42, 36, 0.60); }
+    table.tx td { border-bottom-color: rgba(46, 42, 36, 0.70); }
+    /* ═══ SYSTEM SKIN ▸ END ═══ */
+  </style>
+  <link rel="stylesheet" id="lifeos-tema" href="../assets/css/themes/lifeos/sepia.css">
+  <!-- Config da instância + tema. Precisam vir AQUI, nesta ordem e sem defer:
+       o <link> acima tem de ficar depois do <style> pra vencer o SYSTEM SKIN,
+       e tema.js tem de rodar antes da primeira pintura. Ver assets/js/tema.js. -->
+  <script src="../assets/js/lifeos-config.js"></script>
+  <script src="../assets/js/tema.js"></script>
+  <script src="../assets/js/blog.js"></script>
+</head>
+<body>
+
+<!-- SYSTEM SKIN · campo ambiente (remover junto com o bloco no <style> e o script no rodapé) -->
+<div class="ambient-field" id="ambient-field" aria-hidden="true"></div>
+
+<!-- ───────────────────────── GATE ───────────────────────── -->
+<div id="gate" class="gate">
+  <div class="gate-box">
+    <div class="gate-orn">✦ &nbsp; ✦ &nbsp; ✦</div>
+    <div class="gate-brand">Finanças</div>
+    <form id="gate-form" autocomplete="off">
+      <div class="gate-label">acesso restrito · senha mestre</div>
+      <div class="gate-row" id="gate-row">
+        <input id="gate-input" type="password" placeholder="senha mestre" spellcheck="false" autocomplete="current-password">
+        <button id="gate-btn" type="submit"><i class="fad fa-arrow-right"></i></button>
+      </div>
+      <label class="gate-remember"><input type="checkbox" id="gate-remember"> lembrar neste navegador</label>
+      <div id="gate-error" class="gate-error"></div>
+    </form>
+    <div id="gate-checking" class="gate-checking" hidden>verificando sessão…</div>
+  </div>
+</div>
+
+<!-- ───────────────────────── APP ───────────────────────── -->
+<div id="app" class="app" hidden>
+
+  <div class="topbar">
+    <a href="lifeos.html" class="back"><i class="fad fa-arrow-left"></i> LifeOS</a>
+    <div class="topbar-actions">
+      <span id="fetched-at" class="fetched"></span>
+      <button id="create-btn" class="icon-btn" title="Nova movimentação" aria-label="Nova movimentação">
+        <i class="fad fa-plus"></i>
+      </button>
+      <button id="export-btn" class="icon-btn" title="Exportar / compartilhar o mês (.csv)" aria-label="Exportar CSV do mês" hidden>
+        <i class="fad fa-download"></i>
+      </button>
+      <button id="refresh-btn" class="icon-btn" title="Re-sincronizar" aria-label="Atualizar"><i class="fad fa-sync"></i></button>
+      <button id="logout-btn" class="icon-btn" title="Sair" aria-label="Sair"><i class="fad fa-sign-out"></i></button>
+    </div>
+  </div>
+
+  <header class="head">
+    <div class="head-titles">
+      <h1>Finanças</h1>
+      <p class="head-sub">Movimentações</p>
+    </div>
+    <div class="monthnav" id="monthnav">
+      <button id="prev-month" class="mbtn" aria-label="Mês anterior"><i class="fad fa-chevron-left"></i></button>
+      <div class="month-label" id="month-label">—</div>
+      <button id="next-month" class="mbtn" aria-label="Próximo mês"><i class="fad fa-chevron-right"></i></button>
+    </div>
+  </header>
+
+  <section class="kpis">
+    <div class="kpi kpi-in"><div class="kpi-cap">Entradas</div><div class="kpi-value pos" id="kpi-entradas">—</div><div class="kpi-subvalue" id="kpi-entradas-abertura" hidden>saldo de abertura <span class="kpi-subvalue-num" id="kpi-entradas-abertura-val">—</span></div></div>
+    <div class="kpi kpi-out"><div class="kpi-cap">Saídas</div><div class="kpi-value neg" id="kpi-saidas">—</div><div class="kpi-subvalue" id="kpi-saidas-credito" hidden>com crédito <span class="kpi-subvalue-num" id="kpi-saidas-credito-val">—</span></div></div>
+    <div class="kpi kpi-bal"><div class="kpi-cap">Saldo do mês</div><div class="kpi-value" id="kpi-saldo">—</div><div class="kpi-subvalue" id="kpi-saldo-variacao" hidden>variação do mês <span class="kpi-subvalue-num" id="kpi-saldo-variacao-val">—</span></div></div>
+  </section>
+
+  <div class="count-note" id="count-note"></div>
+
+  <div id="empty-state" class="empty" hidden></div>
+
+  <div id="dash-content">
+    <section class="card" id="fatura-mes-passado-card">
+      <div class="card-title">Fatura deste mês <span class="hint">· fecha agora, projetada no mês passado</span></div>
+      <div id="fatura-mes-passado"></div>
+    </section>
+
+    <section class="card" id="fatura-card">
+      <div class="card-title">Fatura projetada <span class="badge-proj">projeção</span> <span class="hint">· competência de crédito</span></div>
+      <div id="fatura-projetada"></div>
+    </section>
+
+    <section class="charts">
+      <div class="card">
+        <div class="card-title">Por meio de pagamento <span class="hint">· toque numa fatia</span></div>
+        <div class="donut-toggle" id="donut-toggle">
+          <button class="donut-toggle-btn active" data-mode="saida" type="button">Saídas</button>
+          <button class="donut-toggle-btn" data-mode="entrada" type="button">Entradas</button>
+          <button class="donut-toggle-btn" data-mode="ambos" type="button">Ambos</button>
+          <label class="donut-credito-toggle"><input type="checkbox" id="donut-exclude-credito"> desconsiderar Crédito</label>
+        </div>
+        <div class="chart-wrap"><canvas id="chart-donut"></canvas><div id="donut-empty" class="chart-empty" hidden>sem saídas neste mês</div></div>
+      </div>
+      <div class="card">
+        <div class="card-title">Fluxo diário <span class="hint">· toque num dia</span></div>
+        <div class="chart-wrap"><canvas id="chart-fluxo"></canvas></div>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="card-title">Saldo acumulado no mês</div>
+      <div id="saldo-abertura-note" class="abertura-note" hidden></div>
+      <div class="chart-wrap tall"><canvas id="chart-saldo"></canvas></div>
+    </section>
+
+    <div class="section-divider"></div>
+
+    <div class="view-tabs">
+      <button class="view-tab active" data-view="transacoes" type="button">
+        <i class="fad fa-receipt view-tab-icon"></i> Transações do mês
+      </button>
+      <button class="view-tab" data-view="recorrencias" type="button">
+        <i class="fad fa-repeat view-tab-icon"></i> Recorrências
+      </button>
+    </div>
+
+    <div class="search-row">
+      <div class="search-box">
+        <i class="fad fa-search search-icon"></i>
+        <input type="text" id="search-input" class="search-input" placeholder="Buscar por descrição…" autocomplete="off" spellcheck="false">
+        <button id="search-clear" class="search-clear" type="button" aria-label="Limpar busca" hidden><i class="fad fa-times"></i></button>
+      </div>
+    </div>
+
+    <section class="card view-panel" id="view-transacoes" data-view-panel="transacoes">
+      <div class="card-title">Transações do mês</div>
+      <div id="filters" class="filters"></div>
+      <div class="table-wrap">
+        <table class="tx">
+          <thead><tr><th>Data</th><th>Descrição</th><th>Tipo</th><th class="r">Valor</th></tr></thead>
+          <tbody id="tx-tbody"></tbody>
+        </table>
+      </div>
+      <div id="analysis" class="analysis" hidden></div>
+    </section>
+
+    <section class="card view-panel" id="view-recorrencias" data-view-panel="recorrencias" hidden>
+      <div class="card-title">Recorrências <span class="hint">· agrupado por descrição</span></div>
+      <div id="rec-filters" class="filters"></div>
+      <div id="recorrencias"></div>
+    </section>
+  </div>
+
+  <footer class="foot">
+    <span class="foot-text">✦ LifeOS · Finanças · LifeOS · 2026</span>
+    <button id="help-btn" class="icon-btn" title="Como funciona" aria-label="Como funciona"><i class="fad fa-question-circle"></i></button>
+  </footer>
+</div>
+
+<!-- ───────────────────────── MODAL ───────────────────────── -->
+<div id="modal" class="modal" role="dialog" aria-modal="true">
+  <div class="modal-panel">
+    <div class="modal-head">
+      <div>
+        <div id="modal-title" class="modal-title"></div>
+        <div id="modal-sub" class="modal-sub"></div>
+      </div>
+      <button id="modal-close" class="modal-close" aria-label="Fechar"><i class="fad fa-times"></i></button>
+    </div>
+    <div id="modal-body" class="modal-body"></div>
+  </div>
+</div>
+
+<!-- ───────────────────────── HELP MODAL ───────────────────────── -->
+<div id="help-modal" class="modal" role="dialog" aria-modal="true">
+  <div class="modal-panel help-panel">
+    <div class="modal-head">
+      <div>
+        <div class="modal-title">Como funciona</div>
+        <div class="modal-sub">a lógica por trás de cada card, e as tags que a alimentam</div>
+      </div>
+      <button id="help-modal-close" class="modal-close" aria-label="Fechar"><i class="fad fa-times"></i></button>
+    </div>
+    <div class="modal-body help-body">
+      <div class="help-section">
+        <div class="help-section-title">Tags da movimentação</div>
+        <p>Toda movimentação tem uma <strong>direção</strong>: <span class="tag tag-entrada">Entrada</span> (dinheiro que entra) ou <span class="tag tag-saida">Saida</span> (dinheiro que sai).</p>
+        <p>Uma saída pode ter, opcionalmente, um <strong>meio de pagamento</strong>: <span class="tag tag-credito">Crédito</span> <span class="tag tag-debito">Débito</span> <span class="tag tag-pix">Pix</span> <span class="tag tag-vale">Vale</span> <span class="tag tag-boleto">Boleto</span>. Sem nenhuma dessas, ela cai em <span class="tag">Sem meio</span> — é o caso típico do pagamento da fatura.</p>
+        <p>Uma <span class="tag tag-saida">Saida</span> <span class="tag">Sem meio</span> com "fatura" na descrição é tratada como pagamento de fatura (ver "Faturas" abaixo).</p>
+      </div>
+
+      <div class="help-section">
+        <div class="help-section-title">Saldo × saídas (regime de caixa)</div>
+        <p>Uma compra em <span class="tag tag-credito">Crédito</span> não sai do caixa no mês em que é feita — vira fatura futura. Por isso <strong>não entra no Saldo</strong> nem no gráfico de saldo acumulado, mas <strong>entra no KPI de Saídas</strong> (o dinheiro vai sair, só que depois), e também no donut, fluxo diário, tabela e recorrências. No donut, o checkbox "desconsiderar Crédito" tira essas compras da conta — útil pra ver só o que de fato saiu do caixa neste mês.</p>
+        <p><strong>Saldo do mês</strong> = saldo de abertura (o que sobrou dos meses anteriores) + entradas realizadas − saídas de caixa realizadas (crédito fica de fora). Uma movimentação com data futura já entra nos KPIs de Entradas/Saídas, mas só passa a contar pro Saldo quando a data chegar.</p>
+      </div>
+
+      <div class="help-section">
+        <div class="help-section-title">Faturas (3 cards)</div>
+        <p><strong>Fatura deste mês:</strong> as compras em <span class="tag tag-credito">Crédito</span> do mês passado que fecham agora.</p>
+        <p><strong>Fatura projetada:</strong> as compras em <span class="tag tag-credito">Crédito</span> deste mês, projetadas para a fatura de cada mês futuro. A fatura fecha no último dia do mês — compra antes do último dia cai no mês seguinte; no último dia, cai dois meses à frente.</p>
+        <p><strong>Débito por pagamento:</strong> pagamentos de fatura (ver acima) abatem o total da "Fatura deste mês" — o card mostra em quantos pagamentos e quanto falta, ou se já quitou. Pagando a mais, o excedente vira <strong>adiantamento</strong> da fatura projetada seguinte, já com o valor atual dela descontado.</p>
+        <p><strong>Adiantamento explícito:</strong> isso só funciona sozinho quando a soma dos pagamentos do mês já <em>ultrapassa</em> o total da fatura atual. Se você paga a fatura atual parcialmente de propósito e reserva uma parte à parte pra próxima (ex.: fatura de R$1.906,21, paga R$1.466,21 e mais R$150 pra próxima), a soma nunca ultrapassa o total sozinha. Nesse caso, nomeie o pagamento com a palavra <strong>"adiantamento"</strong> além de "fatura" (ex.: "Adiantamento fatura setembro") — ele pula inteiro a fatura que fecha agora e vai direto pro excedente da próxima, mesmo com a atual ainda em aberto.</p>
+      </div>
+
+      <div class="help-section">
+        <div class="help-section-title">Por meio de pagamento (donut)</div>
+        <p>Três modos: <strong>Saídas</strong> (padrão), <strong>Entradas</strong> e <strong>Ambos</strong> (soma os dois lados em valor absoluto — atividade total do canal, não o líquido). Tocar numa fatia abre a lista de transações daquele meio, respeitando o modo escolhido.</p>
+      </div>
+
+      <div class="help-section">
+        <div class="help-section-title">Fluxo diário &amp; saldo acumulado</div>
+        <p><strong>Fluxo diário:</strong> entradas e saídas de cada dia do mês.</p>
+        <p><strong>Saldo acumulado:</strong> saldo de caixa dia a dia, começando do saldo de abertura (o que sobrou dos meses anteriores).</p>
+      </div>
+
+      <div class="help-section">
+        <div class="help-section-title">Transações &amp; recorrências</div>
+        <p><strong>Transações do mês:</strong> lista completa, filtrável por direção e meio, agrupada por dia — cada cabeçalho de data mostra entradas, saídas e a diferença daquele dia.</p>
+        <p><strong>Recorrências:</strong> agrupa as movimentações por descrição, mostrando quantas vezes cada uma aparece e o saldo líquido acumulado.</p>
+      </div>
+
+      <div class="help-section">
+        <div class="help-section-title">Exportar</div>
+        <p>O botão de export gera um <strong>.csv</strong> do mês corrente. No iPhone, abre o compartilhamento nativo pra mandar direto pra outro app; no desktop, baixa o arquivo.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ───────────────────────── EDIT MODAL ───────────────────────── -->
+<div id="edit-modal" class="modal" role="dialog" aria-modal="true">
+  <div class="modal-panel edit-panel">
+    <div class="modal-head">
+      <div>
+        <div class="modal-title">Editar movimentação</div>
+        <div id="edit-modal-sub" class="modal-sub"></div>
+      </div>
+      <button id="edit-modal-close" class="modal-close" aria-label="Fechar"><i class="fad fa-times"></i></button>
+    </div>
+    <div class="modal-body">
+      <form id="edit-form" autocomplete="off">
+        <div class="edit-field">
+          <label class="edit-label" for="edit-date">Data</label>
+          <input type="date" id="edit-date" class="edit-input">
+        </div>
+        <div class="edit-field">
+          <label class="edit-label" for="edit-valor">Valor</label>
+          <input type="number" id="edit-valor" class="edit-input" step="0.01" min="0" inputmode="decimal">
+        </div>
+        <div class="edit-field">
+          <label class="edit-label" for="edit-direcao">Direção</label>
+          <select id="edit-direcao" class="edit-input">
+            <option value="Entrada">Entrada</option>
+            <option value="Saida">Saída</option>
+          </select>
+        </div>
+        <div class="edit-field">
+          <label class="edit-label" for="edit-meio">Meio de pagamento</label>
+          <select id="edit-meio" class="edit-input">
+            <option value="">— nenhum —</option>
+            <option value="Crédito">Crédito</option>
+            <option value="Débito">Débito</option>
+            <option value="Pix">Pix</option>
+            <option value="Vale">Vale</option>
+            <option value="Boleto">Boleto</option>
+          </select>
+        </div>
+        <div id="edit-error" class="edit-error"></div>
+        <div class="edit-actions">
+          <button type="button" id="edit-cancel" class="edit-btn edit-btn-ghost">Cancelar</button>
+          <button type="submit" id="edit-save" class="edit-btn edit-btn-primary">Salvar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- ───────────────────────── CREATE MODAL ───────────────────────── -->
+<div id="create-modal" class="modal" role="dialog" aria-modal="true">
+  <div class="modal-panel edit-panel">
+    <div class="modal-head">
+      <div>
+        <div class="modal-title">Nova movimentação</div>
+        <div class="modal-sub">todos os campos são obrigatórios</div>
+      </div>
+      <button id="create-modal-close" class="modal-close" aria-label="Fechar"><i class="fad fa-times"></i></button>
+    </div>
+    <div class="modal-body">
+      <form id="create-form" autocomplete="off">
+        <div class="edit-field">
+          <label class="edit-label" for="create-nome">Descrição</label>
+          <input type="text" id="create-nome" class="edit-input" maxlength="200" autocomplete="off">
+        </div>
+        <div class="edit-field">
+          <label class="edit-label" for="create-date">Data</label>
+          <input type="date" id="create-date" class="edit-input">
+        </div>
+        <div class="edit-field">
+          <label class="edit-label" for="create-valor">Valor</label>
+          <input type="number" id="create-valor" class="edit-input" step="0.01" min="0" inputmode="decimal">
+        </div>
+        <div class="edit-field">
+          <label class="edit-label" for="create-direcao">Direção</label>
+          <select id="create-direcao" class="edit-input">
+            <option value="Saida">Saída</option>
+            <option value="Entrada">Entrada</option>
+          </select>
+        </div>
+        <div class="edit-field">
+          <label class="edit-label" for="create-meio">Meio de pagamento</label>
+          <select id="create-meio" class="edit-input">
+            <option value="">— nenhum —</option>
+            <option value="Crédito">Crédito</option>
+            <option value="Débito">Débito</option>
+            <option value="Pix">Pix</option>
+            <option value="Vale">Vale</option>
+            <option value="Boleto">Boleto</option>
+          </select>
+        </div>
+        <div id="create-error" class="edit-error"></div>
+        <div class="edit-actions">
+          <button type="button" id="create-cancel" class="edit-btn edit-btn-ghost">Cancelar</button>
+          <button type="submit" id="create-save" class="edit-btn edit-btn-primary">Salvar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- ───────────────────────── LOADING ───────────────────────── -->
+<div id="loading" class="loading-ov" hidden><div class="spinner"></div></div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.6/dist/chart.umd.min.js"></script>
+<script src="../assets/js/financas.js?v=20260916f"></script>
+<script src="../assets/js/back-to-top.js?v=20260617"></script>
+
+<!-- SYSTEM SKIN · campo ambiente — mesmo efeito de index / galeria / sobre -->
+<script>
+(function buildAmbientField() {
+  'use strict';
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  var field = document.getElementById('ambient-field');
+  if (!field) return;
+  var GLYPHS = [
+    'ψ', 'Ω', 'Σ', 'Φ', 'α', 'β', 'γ', 'δ', 'θ', 'λ', 'μ', 'ξ', 'π', 'τ', 'ω', 'ρ', 'ν', 'ι', 'κ',
+    '☿', '☽', '☉', '♀', '♂', '♃', '♄', '⛢', '♆', '✦', '✧', '⟡', '◈', '⌖', '⬗', '☯', '✵', '✶', '✳', '⚝'
+  ];
+  var count = window.innerWidth < 640 ? 85 : 170;
+  var frag = document.createDocumentFragment();
+  for (var i = 0; i < count; i++) {
+    var el = document.createElement('span');
+    el.className = 'ambient-glyph';
+    el.textContent = GLYPHS[Math.floor(Math.random() * GLYPHS.length)];
+    el.style.left = (Math.random() * 100) + '%';
+    el.style.top = (Math.random() * 100) + '%';
+    el.style.fontSize = (16 + Math.random() * 38) + 'px';
+    el.style.setProperty('--peak', (0.016 + Math.random() * 0.03).toFixed(3));
+    var dur = 3 + Math.random() * 5;
+    el.style.animationDuration = dur + 's';
+    el.style.animationDelay = (-Math.random() * dur) + 's';
+    frag.appendChild(el);
+  }
+  field.appendChild(frag);
+})();
+</script>
+
+</body>
+</html>

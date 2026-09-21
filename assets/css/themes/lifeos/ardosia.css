@@ -1,0 +1,23 @@
+/* Tema: Ardósia — azul-acinzentado frio com acento gelo. O mais sóbrio do
+   conjunto: o acento quase não puxa matiz, só clareia. */
+:root {
+  --bg:         #10141a;
+  --surface:    #171d25;
+  --surface-2:  #1f2630;
+  --border:     #2a323d;
+  --border-mid: #36404d;
+  --text:       #e3e8ee;
+  --dim:        #9fadbd;
+  --mute:       #5e6b7a;
+  --text-muted: #5e6b7a;
+  --gold:       #7fa8cc;
+  --gold-wash:  rgba(127, 168, 204, 0.10);
+  --accent:     #7fa8cc;
+  --accent-dim: #4d6980;
+  --green:      #4bb391;
+  --red:        #de6470;
+  --blue:       #6f9fd8;
+}
+html { background: var(--bg); }
+.gate { background: radial-gradient(ellipse at 50% 28%, #171d25 0%, #10141a 72%); }
+.loading-ov { background: rgba(16, 20, 26, 0.55); }

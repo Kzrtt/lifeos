@@ -1,0 +1,38 @@
+/* Tema do blog: Indigo — Índigo — papel lavanda, acento violeta.
+ *
+ * Paleta CLARA. Os nomes de token aqui são os da capa e da galeria
+ * (--ink, --rule, --bg-card), que NÃO são os do painel (--text, --border,
+ * --surface) — por isso os temas do blog vivem numa pasta própria.
+ *
+ * Entra por um <link> depois do <style> inline da página; `assets/js/tema.js`
+ * só troca o href. Ver LIFEOS.md §12.
+ */
+:root {
+  --bg:         #f0eff7;
+  --bg-card:    #f9f8fd;
+  --bg-hover:   #ffffff;
+  --ink:        #16141f;
+  --ink-dim:    #5f5878;
+  --ink-mute:   #a8a2bd;
+  --rule:       #d4d0e2;
+  --gold:       #61469b;
+  --gold-wash:  rgba(97, 70, 155, 0.06);
+  --scrim:      rgba(18, 17, 28, 0.94);
+}
+
+/* Versão escura — a MESMA paleta do painel (themes/lifeos/indigo.css),
+ * só com os nomes de token da capa. `html.dark` é a classe que o botão
+ * de sol/lua da capa liga; ela vence o `:root` acima por especificidade,
+ * e este arquivo vence o `html.dark` inline da página por vir depois. */
+html.dark {
+  --bg:         #12111c;
+  --bg-card:    #1a1826;
+  --bg-hover:   #232031;
+  --ink:        #e6e3f0;
+  --ink-dim:    #a8a2c0;
+  --ink-mute:   #645e7d;
+  --rule:       #2e2b40;
+  --gold:       #a58ed6;
+  --gold-wash:  rgba(165, 142, 214, 0.10);
+  --scrim:      rgba(18, 17, 28, 0.94);
+}

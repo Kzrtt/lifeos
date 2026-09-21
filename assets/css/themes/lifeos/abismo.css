@@ -1,0 +1,23 @@
+/* Tema: Abismo — quase preto, contraste alto, acento ciano frio. O mais
+   escuro do conjunto; bom para ambiente sem luz. */
+:root {
+  --bg:         #08090b;
+  --surface:    #0e1013;
+  --surface-2:  #15181c;
+  --border:     #1f2329;
+  --border-mid: #2b3038;
+  --text:       #f0f2f5;
+  --dim:        #a4adb8;
+  --mute:       #5a636e;
+  --text-muted: #5a636e;
+  --gold:       #57b8c4;
+  --gold-wash:  rgba(87, 184, 196, 0.10);
+  --accent:     #57b8c4;
+  --accent-dim: #366e76;
+  --green:      #45bd97;
+  --red:        #e35f6b;
+  --blue:       #5e9bd6;
+}
+html { background: var(--bg); }
+.gate { background: radial-gradient(ellipse at 50% 28%, #0e1013 0%, #08090b 72%); }
+.loading-ov { background: rgba(8, 9, 11, 0.55); }

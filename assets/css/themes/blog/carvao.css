@@ -1,0 +1,38 @@
+/* Tema do blog: Carvao — Carvão — papel cinza neutro, sem viés de matiz.
+ *
+ * Paleta CLARA. Os nomes de token aqui são os da capa e da galeria
+ * (--ink, --rule, --bg-card), que NÃO são os do painel (--text, --border,
+ * --surface) — por isso os temas do blog vivem numa pasta própria.
+ *
+ * Entra por um <link> depois do <style> inline da página; `assets/js/tema.js`
+ * só troca o href. Ver LIFEOS.md §12.
+ */
+:root {
+  --bg:         #f2f2f2;
+  --bg-card:    #fafafa;
+  --bg-hover:   #ffffff;
+  --ink:        #171717;
+  --ink-dim:    #5e5e5e;
+  --ink-mute:   #a8a8a8;
+  --rule:       #d4d4d4;
+  --gold:       #8a7143;
+  --gold-wash:  rgba(138, 113, 67, 0.06);
+  --scrim:      rgba(18, 18, 18, 0.94);
+}
+
+/* Versão escura — a MESMA paleta do painel (themes/lifeos/carvao.css),
+ * só com os nomes de token da capa. `html.dark` é a classe que o botão
+ * de sol/lua da capa liga; ela vence o `:root` acima por especificidade,
+ * e este arquivo vence o `html.dark` inline da página por vir depois. */
+html.dark {
+  --bg:         #121212;
+  --bg-card:    #1a1a1a;
+  --bg-hover:   #222222;
+  --ink:        #e8e8e8;
+  --ink-dim:    #a6a6a6;
+  --ink-mute:   #6a6a6a;
+  --rule:       #2c2c2c;
+  --gold:       #b89b6a;
+  --gold-wash:  rgba(184, 155, 106, 0.10);
+  --scrim:      rgba(18, 18, 18, 0.94);
+}

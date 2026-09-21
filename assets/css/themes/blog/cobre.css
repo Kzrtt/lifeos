@@ -1,0 +1,38 @@
+/* Tema do blog: Cobre — Cobre — papel terroso, acento de cobre oxidado.
+ *
+ * Paleta CLARA. Os nomes de token aqui são os da capa e da galeria
+ * (--ink, --rule, --bg-card), que NÃO são os do painel (--text, --border,
+ * --surface) — por isso os temas do blog vivem numa pasta própria.
+ *
+ * Entra por um <link> depois do <style> inline da página; `assets/js/tema.js`
+ * só troca o href. Ver LIFEOS.md §12.
+ */
+:root {
+  --bg:         #f6f1eb;
+  --bg-card:    #fdf9f5;
+  --bg-hover:   #ffffff;
+  --ink:        #1b1410;
+  --ink-dim:    #6d5747;
+  --ink-mute:   #b5a292;
+  --rule:       #ddcdbd;
+  --gold:       #9c5527;
+  --gold-wash:  rgba(156, 85, 39, 0.06);
+  --scrim:      rgba(22, 17, 13, 0.94);
+}
+
+/* Versão escura — a MESMA paleta do painel (themes/lifeos/cobre.css),
+ * só com os nomes de token da capa. `html.dark` é a classe que o botão
+ * de sol/lua da capa liga; ela vence o `:root` acima por especificidade,
+ * e este arquivo vence o `html.dark` inline da página por vir depois. */
+html.dark {
+  --bg:         #16110d;
+  --bg-card:    #1e1813;
+  --bg-hover:   #27201a;
+  --ink:        #eee4d8;
+  --ink-dim:    #bca894;
+  --ink-mute:   #766451;
+  --rule:       #342a22;
+  --gold:       #cc7f4f;
+  --gold-wash:  rgba(204, 127, 79, 0.10);
+  --scrim:      rgba(22, 17, 13, 0.94);
+}

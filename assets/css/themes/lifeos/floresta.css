@@ -1,0 +1,22 @@
+/* Tema: Floresta — verde profundo com acento de latão. */
+:root {
+  --bg:         #0e1411;
+  --surface:    #151d19;
+  --surface-2:  #1c2621;
+  --border:     #263129;
+  --border-mid: #334037;
+  --text:       #e4ebe6;
+  --dim:        #a2b1a7;
+  --mute:       #5f6f65;
+  --text-muted: #5f6f65;
+  --gold:       #b9a05a;
+  --gold-wash:  rgba(185, 160, 90, 0.10);
+  --accent:     #b9a05a;
+  --accent-dim: #6f6540;
+  --green:      #4cc194;
+  --red:        #e06a6a;
+  --blue:       #5f93c4;
+}
+html { background: var(--bg); }
+.gate { background: radial-gradient(ellipse at 50% 28%, #151d19 0%, #0e1411 72%); }
+.loading-ov { background: rgba(14, 20, 17, 0.55); }

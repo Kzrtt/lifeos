@@ -1,0 +1,38 @@
+/* Tema do blog: Abismo — Abismo — papel branco, contraste alto, acento ciano.
+ *
+ * Paleta CLARA. Os nomes de token aqui são os da capa e da galeria
+ * (--ink, --rule, --bg-card), que NÃO são os do painel (--text, --border,
+ * --surface) — por isso os temas do blog vivem numa pasta própria.
+ *
+ * Entra por um <link> depois do <style> inline da página; `assets/js/tema.js`
+ * só troca o href. Ver LIFEOS.md §12.
+ */
+:root {
+  --bg:         #f7f8f9;
+  --bg-card:    #ffffff;
+  --bg-hover:   #ffffff;
+  --ink:        #0b0d0f;
+  --ink-dim:    #4d555d;
+  --ink-mute:   #98a1aa;
+  --rule:       #d3d8dd;
+  --gold:       #1f6f7a;
+  --gold-wash:  rgba(31, 111, 122, 0.06);
+  --scrim:      rgba(8, 9, 11, 0.94);
+}
+
+/* Versão escura — a MESMA paleta do painel (themes/lifeos/abismo.css),
+ * só com os nomes de token da capa. `html.dark` é a classe que o botão
+ * de sol/lua da capa liga; ela vence o `:root` acima por especificidade,
+ * e este arquivo vence o `html.dark` inline da página por vir depois. */
+html.dark {
+  --bg:         #08090b;
+  --bg-card:    #0e1013;
+  --bg-hover:   #15181c;
+  --ink:        #f0f2f5;
+  --ink-dim:    #a4adb8;
+  --ink-mute:   #5a636e;
+  --rule:       #1f2329;
+  --gold:       #57b8c4;
+  --gold-wash:  rgba(87, 184, 196, 0.10);
+  --scrim:      rgba(8, 9, 11, 0.94);
+}

@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="theme-color" content="#14120f">
+  <title>LifeOS · Temas</title>
+  <link rel="icon" href="../assets/images/favicon.svg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,500;0,700;0,900;1,400&family=JetBrains+Mono:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../assets/css/icons.css">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    /* Tokens base — cópia do conjunto de lifeos.html (LIFEOS.md §2: padrões de
+       UI repetidos por cópia, não por arquivo compartilhado). A paleta final
+       vem do bloco SYSTEM SKIN abaixo e, depois dele, do <link> do tema. */
+    :root {
+      --bg:        #0c0e12;
+      --surface:   #14171d;
+      --surface-2: #1b1f27;
+      --border:    #262b34;
+      --text:      #e7e9ee;
+      --dim:       #9aa3b2;
+      --mute:      #5d6675;
+      --green:     #3fb98c;
+      --red:       #e5616a;
+      --gold:      #c9a96e;
+      --mono: 'JetBrains Mono', monospace;
+      --serif: 'Playfair Display', Georgia, serif;
+    }
+
+
+    /* Sem isto, `el.hidden = true` NÃO esconde .gate/.app: o atributo [hidden]
+       vale por uma regra do user-agent, e qualquer `display` declarado pelo
+       autor (`.gate { display: flex }`) vence. Mesma linha que lifeos.html,
+       financas.html, tarefas.html e notas.html já têm. */
+    [hidden] { display: none !important; }
+
+    html, body { height: 100%; }
+    body {
+      background: var(--bg); color: var(--text); font-family: var(--mono);
+      -webkit-font-smoothing: antialiased; line-height: 1.5;
+    }
+    .wrap { max-width: 900px; margin: 0 auto; padding: 0 20px 80px; }
+
+    /* ── Topbar / cabeçalho ── */
+    .topbar {
+      display: flex; align-items: center; justify-content: space-between; gap: 10px;
+      padding: 18px 0 14px; border-bottom: 1px solid var(--border);
+    }
+    .back { font-size: 10px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--mute); text-decoration: none; transition: color 0.2s; white-space: nowrap; }
+    .back .fad { margin-right: 4px; }
+    .back:hover { color: var(--gold); }
+
+    .head { padding: 34px 0 26px; }
+    .head h1 {
+      font-family: var(--serif); font-weight: 700; font-style: italic;
+      font-size: clamp(34px, 7vw, 46px); line-height: 1; letter-spacing: -0.02em;
+    }
+    .head p { margin-top: 10px; font-size: 11px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--mute); }
+
+    /* ── Seções ── */
+    .sec { margin-bottom: 52px; }
+    .sec-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 12px; margin-bottom: 8px; }
+    .sec-title { font-family: var(--serif); font-style: italic; font-weight: 700; font-size: 22px; color: var(--text); }
+    .sec-tag {
+      font-size: 9px; letter-spacing: 0.16em; text-transform: uppercase;
+      padding: 3px 9px; border-radius: 999px; background: var(--surface-2); color: var(--mute);
+    }
+    .sec-desc { font-size: 12px; line-height: 1.8; color: var(--mute); margin-bottom: 22px; max-width: 62ch; }
+    .sec-desc code { color: var(--dim); background: var(--surface); padding: 1px 5px; border-radius: 3px; font-size: 11px; }
+
+    /* ── Grade de temas ── */
+    .tema-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 14px; }
+
+    .tema-card {
+      position: relative; border: 1px solid var(--border); border-radius: 10px;
+      background: var(--surface); overflow: hidden; cursor: pointer; text-align: left;
+      font-family: var(--mono); color: inherit; padding: 0;
+      transition: border-color 0.15s, transform 0.15s;
+    }
+    .tema-card:hover { border-color: var(--gold); transform: translateY(-2px); }
+    .tema-card.is-active { border-color: var(--gold); }
+    .tema-card.is-active::after {
+      content: ''; position: absolute; inset: 0; border-radius: 10px;
+      border: 1px solid var(--gold); pointer-events: none;
+    }
+
+    /* Amostra: pinta com as cores do PRÓPRIO tema, não com as da página —
+       por isso os valores vêm inline no HTML gerado por temas.js, e não de
+       var(). Uma amostra que usasse var() mostraria o tema atual em todos os
+       cards, que é exatamente o que ela não pode fazer. */
+    .tema-preview { height: 96px; position: relative; display: flex; align-items: flex-end; gap: 6px; padding: 12px; }
+    .tema-preview-bar { height: 8px; border-radius: 2px; flex: 1; }
+    .tema-preview-dot {
+      position: absolute; top: 12px; left: 12px; width: 26px; height: 26px;
+      border-radius: 7px; display: flex; align-items: center; justify-content: center; font-size: 12px;
+    }
+    .tema-preview-lines { position: absolute; top: 16px; left: 48px; right: 12px; display: flex; flex-direction: column; gap: 5px; }
+    .tema-preview-line { height: 5px; border-radius: 2px; }
+
+    .tema-info { padding: 13px 15px 15px; border-top: 1px solid var(--border); }
+    .tema-nome { font-size: 13.5px; color: var(--text); font-weight: 500; }
+    .tema-desc { font-size: 10.5px; line-height: 1.6; color: var(--mute); margin-top: 4px; }
+    .tema-badges { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; min-height: 18px; }
+    .tema-badge {
+      font-size: 8.5px; letter-spacing: 0.12em; text-transform: uppercase;
+      padding: 3px 8px; border-radius: 999px; font-weight: 600;
+    }
+    .tema-badge.ativo  { background: color-mix(in srgb, var(--gold) 18%, transparent); color: var(--gold); }
+    .tema-badge.padrao { background: var(--surface-2); color: var(--mute); }
+
+    /* ── Aviso / rodapé de seção ── */
+    .notice {
+      display: flex; gap: 12px; padding: 14px 16px; margin-top: 20px;
+      border: 1px solid var(--border); border-radius: 8px;
+      background: var(--surface); font-size: 11.5px; line-height: 1.75; color: var(--mute);
+    }
+    .notice .fad { color: var(--gold); font-size: 14px; flex-shrink: 0; margin-top: 2px; }
+    .notice code { color: var(--dim); background: var(--surface-2); padding: 1px 5px; border-radius: 3px; font-size: 10.5px; }
+    .notice strong { color: var(--dim); font-weight: 500; }
+
+    .reset-row { margin-top: 18px; }
+    .reset-btn {
+      display: inline-flex; align-items: center; gap: 8px; padding: 9px 15px;
+      background: transparent; border: 1px solid var(--border); border-radius: 6px;
+      color: var(--mute); font-family: var(--mono); font-size: 11px; letter-spacing: 0.08em;
+      cursor: pointer; transition: border-color 0.15s, color 0.15s;
+    }
+    .reset-btn:hover:not(:disabled) { border-color: var(--gold); color: var(--gold); }
+    .reset-btn:disabled { opacity: 0.4; cursor: default; }
+
+    /* ── Paleta do blog (referência) ── */
+    .accent-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 8px; }
+    .accent-row {
+      display: flex; align-items: center; gap: 10px; padding: 10px 13px;
+      background: var(--surface); border: 1px solid var(--border); border-radius: 7px; font-size: 11.5px;
+    }
+    .accent-dot { width: 13px; height: 13px; border-radius: 3px; flex-shrink: 0; }
+    .accent-nome { color: var(--dim); }
+    .accent-hex { margin-left: auto; color: var(--mute); font-size: 10px; }
+
+    .foot { margin-top: 60px; padding-top: 22px; border-top: 3px double var(--text); text-align: center; }
+    .foot-text { font-size: 10px; letter-spacing: 0.22em; text-transform: uppercase; color: var(--mute); }
+
+    @media (max-width: 560px) {
+      .tema-grid { grid-template-columns: 1fr; }
+      .accent-grid { grid-template-columns: 1fr 1fr; }
+    }
+
+    /* ═══════════════════════════════════════════════════════════════════
+       SYSTEM SKIN — paleta sépia-quente do arquivo. Mesma reskin das
+       outras páginas do LifeOS, copiada (LIFEOS.md §2). É o fallback de
+       quando o <link> do tema não carrega; o tema escolhido vence por vir
+       depois dela no <head>.
+       ═══════════════════════════════════════════════════════════════════ */
+    :root {
+      --bg:        #14120f;
+      --surface:   #1c1a16;
+      --surface-2: #242018;
+      --border:    #2e2a24;
+      --text:      #ede8df;
+      --dim:       #b0a898;
+      --mute:      #6b6456;
+      --gold:      #c4913a;
+      --gold-wash: rgba(196, 145, 58, 0.10);
+      --border-mid: #3a352d;
+    }
+    html { background: var(--bg); }
+    /* ═══ SYSTEM SKIN ▸ END ═══ */
+  </style>
+  <link rel="stylesheet" id="lifeos-tema" href="../assets/css/themes/lifeos/sepia.css">
+  <!-- Config da instância + tema. Precisam vir AQUI, nesta ordem e sem defer:
+       o <link> acima tem de ficar depois do <style> pra vencer o SYSTEM SKIN,
+       e tema.js tem de rodar antes da primeira pintura. Ver assets/js/tema.js. -->
+  <script src="../assets/js/lifeos-config.js"></script>
+  <script src="../assets/js/tema.js"></script>
+  <script src="../assets/js/blog.js"></script>
+</head>
+<body>
+
+<!-- Sem gate: esta tela não lê nem escreve nada no backend. A escolha de tema
+     vive no localStorage deste navegador, então não há dado a proteger — e um
+     gate aqui só atrapalharia o teste local. -->
+<div class="wrap">
+
+  <div class="topbar">
+    <a href="lifeos.html" class="back"><i class="fad fa-arrow-left"></i> lifeos</a>
+  </div>
+
+  <header class="head">
+    <h1>Temas</h1>
+    <p>aparência do sistema</p>
+  </header>
+
+  <!-- ─────────────── TEMAS DO LIFEOS ─────────────── -->
+  <section class="sec">
+    <div class="sec-head">
+      <span class="sec-title">Paleta</span>
+      <span class="sec-tag">painel + capa</span>
+    </div>
+    <p class="sec-desc">
+      Uma escolha só, aplicada em dois lugares: as páginas do <strong>LifeOS</strong> e a
+      <strong>capa do arquivo</strong> (index, legacy e galeria). Cada tema tem duas versões —
+      escura no painel, clara na capa — porque o mesmo ouro que brilha sobre fundo escuro
+      fica ilegível sobre papel. As entradas em <code>pages/</code> não são afetadas: cada
+      uma mantém a paleta própria.
+    </p>
+    <p class="sec-desc">
+      Trocar aqui vale para <strong>este navegador</strong> e tem efeito imediato. O padrão
+      da instância continua sendo o definido em <code>lifeos-config.js</code>.
+    </p>
+
+    <div class="tema-grid" id="tema-grid"></div>
+
+    <div class="reset-row">
+      <button type="button" id="reset-btn" class="reset-btn">
+        <i class="fad fa-rotate-left"></i> Voltar ao padrão da instância
+      </button>
+    </div>
+
+    <div class="notice">
+      <i class="fad fa-lightbulb"></i>
+      <span>
+        Para criar um tema: copie <strong>dois</strong> arquivos com o mesmo nome —
+        <code>assets/css/themes/lifeos/sepia.css</code> (escuro, tokens do painel) e
+        <code>assets/css/themes/blog/sepia.css</code> (claro, tokens da capa: <code>--ink</code>,
+        <code>--rule</code>, <code>--bg-card</code>). Depois registre o slug em
+        <code>TEMAS</code> no topo de <code>assets/js/temas.js</code> e na lista branca de
+        <code>assets/js/tema.js</code>.
+        <strong>Todo tema precisa definir o conjunto inteiro de tokens</strong> —
+        um token faltando herda o da página e mistura duas paletas.
+      </span>
+    </div>
+  </section>
+
+  <!-- ─────────────── PALETA DO BLOG ─────────────── -->
+  <section class="sec">
+    <div class="sec-head">
+      <span class="sec-title">Cards do archive</span>
+      <span class="sec-tag">blog</span>
+    </div>
+    <p class="sec-desc">
+      Não confunda com o de cima. O campo <code>theme</code> de cada entrada do manifest
+      não é um tema visual: ele escolhe só a <strong>cor da barra lateral do card</strong>
+      no index, e é independente da paleta escolhida acima. Um valor fora desta lista cai
+      silenciosamente no fallback <code>identidade</code>.
+    </p>
+
+    <div class="accent-grid" id="accent-grid"></div>
+
+    <div class="notice">
+      <i class="fad fa-circle-info"></i>
+      <span>
+        Esta lista é <strong>referência, não edição</strong>. O mapa vive chapado em
+        três lugares — <code>index.html</code>, <code>assets/js/index.js</code> (que
+        serve o <code>legacy.html</code>) e <code>assets/js/publicar.js</code> — e
+        mudar uma cor exige commit nos três. Unificar isso num arquivo de dados só,
+        e então torná-lo editável por aqui, é trabalho separado: mexe no render do
+        index, que é a capa pública do archive.
+      </span>
+    </div>
+  </section>
+
+  <footer class="foot">
+    <span class="foot-text">✦ LifeOS</span>
+  </footer>
+</div>
+
+<script src="../assets/js/temas.js?v=20260921"></script>
+
+</body>
+</html>

@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0">
+  <link rel="icon" href="../assets/images/icon.png">
+  <title>Acesso restrito</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;0,900;1,400&family=JetBrains+Mono:wght@400;500&family=EB+Garamond:ital,wght@0,400;1,400&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:       #07080C;
+      --text:     #E8E0D4;
+      --text-dim: #A09080;
+      --text-mute:#5A5249;
+      --border:   #191720;
+      --accent:   #8BAEC4;
+      --accent-dim:#2A3A50;
+    }
+
+    html, body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'EB Garamond', Georgia, serif;
+      min-height: 100vh;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    body {
+      background-image:
+        radial-gradient(ellipse at 30% 20%, rgba(139,174,196,0.06) 0%, transparent 55%),
+        radial-gradient(ellipse at 70% 80%, rgba(139,174,196,0.04) 0%, transparent 45%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem;
+    }
+
+    .container {
+      max-width: 520px;
+      width: 100%;
+      text-align: center;
+    }
+
+    .glyph {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.62rem;
+      letter-spacing: 0.25em;
+      color: var(--accent-dim);
+      text-transform: uppercase;
+      margin-bottom: 2rem;
+    }
+
+    h1 {
+      font-family: 'Playfair Display', Georgia, serif;
+      font-size: clamp(2rem, 5vw, 3.2rem);
+      font-weight: 900;
+      line-height: 1.1;
+      color: var(--text);
+      margin-bottom: 1.5rem;
+    }
+
+    h1 em {
+      font-style: italic;
+      color: var(--accent);
+    }
+
+    .message {
+      font-size: 1.05rem;
+      line-height: 1.85;
+      color: var(--text-dim);
+      margin-bottom: 2.5rem;
+    }
+
+    .divider {
+      width: 40px;
+      height: 1px;
+      background: var(--border);
+      margin: 0 auto 2.5rem;
+    }
+
+    .hint {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.6rem;
+      letter-spacing: 0.14em;
+      color: var(--text-mute);
+      text-transform: uppercase;
+      line-height: 1.8;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="glyph">Arquivo</div>
+
+    <h1>Conteúdo <em>restrito</em></h1>
+
+    <p class="message">
+      Esta página só pode ser acessada através de um link direto de quem a compartilhou.
+      Se você recebeu um link, certifique-se de abrir o endereço original sem modificações.
+    </p>
+
+    <div class="divider"></div>
+
+    <p class="hint">
+      acesso via link direto &nbsp;·&nbsp; sem navegação disponível
+    </p>
+  </div>
+</body>
+</html>

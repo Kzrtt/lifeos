@@ -1,0 +1,38 @@
+/* Tema do blog: Noite — Noite — papel azul-frio, acento de aço.
+ *
+ * Paleta CLARA. Os nomes de token aqui são os da capa e da galeria
+ * (--ink, --rule, --bg-card), que NÃO são os do painel (--text, --border,
+ * --surface) — por isso os temas do blog vivem numa pasta própria.
+ *
+ * Entra por um <link> depois do <style> inline da página; `assets/js/tema.js`
+ * só troca o href. Ver LIFEOS.md §12.
+ */
+:root {
+  --bg:         #eef1f6;
+  --bg-card:    #f8fafd;
+  --bg-hover:   #ffffff;
+  --ink:        #14181f;
+  --ink-dim:    #5a6474;
+  --ink-mute:   #a2abbb;
+  --rule:       #ccd4e0;
+  --gold:       #8a6d3a;
+  --gold-wash:  rgba(138, 109, 58, 0.06);
+  --scrim:      rgba(12, 14, 18, 0.94);
+}
+
+/* Versão escura — a MESMA paleta do painel (themes/lifeos/noite.css),
+ * só com os nomes de token da capa. `html.dark` é a classe que o botão
+ * de sol/lua da capa liga; ela vence o `:root` acima por especificidade,
+ * e este arquivo vence o `html.dark` inline da página por vir depois. */
+html.dark {
+  --bg:         #0c0e12;
+  --bg-card:    #14171d;
+  --bg-hover:   #1b1f27;
+  --ink:        #e7e9ee;
+  --ink-dim:    #9aa3b2;
+  --ink-mute:   #5d6675;
+  --rule:       #262b34;
+  --gold:       #c9a96e;
+  --gold-wash:  rgba(201, 169, 110, 0.10);
+  --scrim:      rgba(12, 14, 18, 0.94);
+}

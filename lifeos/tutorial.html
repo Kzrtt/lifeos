@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="theme-color" content="#14120f">
+  <title>LifeOS · Como funciona</title>
+  <link rel="icon" href="../assets/images/favicon.svg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,500;0,700;0,900;1,400&family=JetBrains+Mono:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../assets/css/icons.css">
+  <style>
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    /* Tokens base — cópia do conjunto de lifeos.html (LIFEOS.md §2: padrões de
+       UI repetidos por cópia, não por arquivo compartilhado). A paleta final
+       vem do bloco SYSTEM SKIN no fim deste <style>. */
+    :root {
+      --bg:        #0c0e12;
+      --surface:   #14171d;
+      --surface-2: #1b1f27;
+      --border:    #262b34;
+      --text:      #e7e9ee;
+      --dim:       #9aa3b2;
+      --mute:      #5d6675;
+      --green:     #3fb98c;
+      --red:       #e5616a;
+      --gold:      #c9a96e;
+      --mono: 'JetBrains Mono', monospace;
+      --serif: 'Playfair Display', Georgia, serif;
+    }
+
+
+    /* Sem isto, `el.hidden = true` NÃO esconde .gate/.app: o atributo [hidden]
+       vale por uma regra do user-agent, e qualquer `display` declarado pelo
+       autor (`.gate { display: flex }`) vence. Mesma linha que lifeos.html,
+       financas.html, tarefas.html e notas.html já têm. */
+    [hidden] { display: none !important; }
+
+    html, body { height: 100%; }
+    body {
+      background: var(--bg); color: var(--text); font-family: var(--mono);
+      -webkit-font-smoothing: antialiased; line-height: 1.5;
+    }
+    .wrap { max-width: 860px; margin: 0 auto; padding: 0 20px 80px; }
+
+    /* ── Topbar / cabeçalho ── */
+    .topbar {
+      display: flex; align-items: center; justify-content: space-between; gap: 10px;
+      padding: 18px 0 14px; border-bottom: 1px solid var(--border);
+    }
+    .back { font-size: 10px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--mute); text-decoration: none; transition: color 0.2s; white-space: nowrap; }
+    .back .fad { margin-right: 4px; }
+    .back:hover { color: var(--gold); }
+    .icon-btn {
+      width: 36px; height: 36px; flex-shrink: 0; display: flex; align-items: center; justify-content: center;
+      background: var(--surface); border: 1px solid var(--border); border-radius: 6px; color: var(--dim);
+      cursor: pointer; font-size: 15px; transition: color 0.15s, border-color 0.15s, background 0.15s;
+    }
+    .icon-btn:hover { color: var(--gold); border-color: var(--gold); background: var(--gold-wash); }
+
+    .head { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 16px; padding: 34px 0 26px; }
+    .head h1 {
+      font-family: var(--serif); font-weight: 700; font-style: italic;
+      font-size: clamp(34px, 7vw, 46px); line-height: 1; letter-spacing: -0.02em;
+    }
+    .head p { margin-top: 10px; font-size: 11px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--mute); }
+    .head-action {
+      display: inline-flex; align-items: center; gap: 8px; padding: 10px 16px;
+      background: transparent; border: 1px solid var(--border); border-radius: 6px;
+      color: var(--dim); font-family: var(--mono); font-size: 11px; letter-spacing: 0.1em;
+      cursor: pointer; transition: border-color 0.15s, color 0.15s, background 0.15s;
+    }
+    .head-action:hover { border-color: var(--gold); color: var(--gold); background: var(--gold-wash); }
+
+
+    /* ── Índice lateral (vira topo no mobile) ── */
+    .layout { display: grid; grid-template-columns: 190px 1fr; gap: 48px; align-items: start; }
+    .indice { position: sticky; top: 24px; }
+    .indice-label { font-size: 9px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--mute); margin-bottom: 12px; }
+    .indice a {
+      display: block; padding: 6px 0; font-size: 11.5px; color: var(--mute);
+      text-decoration: none; border-left: 2px solid transparent; padding-left: 12px;
+      transition: color 0.15s, border-color 0.15s;
+    }
+    .indice a:hover { color: var(--gold); border-left-color: var(--gold); }
+
+    /* ── Seções ── */
+    .sec { margin-bottom: 64px; scroll-margin-top: 24px; }
+    .sec-num { font-size: 10px; letter-spacing: 0.24em; color: var(--gold); margin-bottom: 10px; }
+    .sec-title {
+      font-family: var(--serif); font-style: italic; font-weight: 700;
+      font-size: clamp(24px, 4vw, 30px); line-height: 1.2; color: var(--text); margin-bottom: 18px;
+    }
+    .sec p { font-size: 13.5px; line-height: 1.9; color: var(--dim); margin-bottom: 16px; max-width: 68ch; }
+    .sec p:last-child { margin-bottom: 0; }
+    .sec strong { color: var(--text); font-weight: 500; }
+    .sec em { color: var(--text); font-style: italic; }
+    .sec code { color: var(--gold); background: var(--surface); padding: 1px 6px; border-radius: 3px; font-size: 12px; }
+    .sec ul { margin: 0 0 16px; padding-left: 0; list-style: none; max-width: 68ch; }
+    .sec ul li {
+      position: relative; padding-left: 22px; margin-bottom: 10px;
+      font-size: 13px; line-height: 1.85; color: var(--dim);
+    }
+    .sec ul li::before { content: '✦'; position: absolute; left: 0; top: 0; color: var(--gold); font-size: 9px; }
+
+    .destaque {
+      border-left: 2px solid var(--gold); padding: 4px 0 4px 20px; margin: 22px 0;
+      font-family: var(--serif); font-style: italic; font-size: 17px; line-height: 1.6; color: var(--text);
+      max-width: 60ch;
+    }
+
+    /* ── Grade de módulos ── */
+    .mod-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 10px; margin-top: 8px; }
+    .mod {
+      border: 1px solid var(--border); border-radius: 8px; background: var(--surface);
+      padding: 16px 17px; text-decoration: none; display: block; transition: border-color 0.15s;
+    }
+    a.mod:hover { border-color: var(--gold); }
+    .mod-top { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+    .mod-top .fad { color: var(--gold); font-size: 15px; }
+    .mod-nome { font-size: 13.5px; color: var(--text); }
+    .mod-desc { font-size: 11.5px; line-height: 1.7; color: var(--mute); }
+
+    .notice {
+      display: flex; gap: 12px; padding: 15px 17px; margin-top: 20px;
+      border: 1px solid var(--border); border-radius: 8px;
+      background: var(--surface); font-size: 12px; line-height: 1.8; color: var(--mute); max-width: 68ch;
+    }
+    .notice .fad { color: var(--gold); font-size: 14px; flex-shrink: 0; margin-top: 3px; }
+    .notice strong { color: var(--dim); font-weight: 500; }
+    .notice code { color: var(--dim); background: var(--surface-2); padding: 1px 5px; border-radius: 3px; font-size: 11px; }
+
+    .head { padding: 40px 0 34px; }
+    .head h1 {
+      font-family: var(--serif); font-weight: 700; font-style: italic;
+      font-size: clamp(36px, 8vw, 52px); line-height: 1; letter-spacing: -0.02em;
+    }
+    .head p { margin-top: 14px; font-size: 13.5px; line-height: 1.8; color: var(--mute); max-width: 60ch; }
+
+    .foot { margin-top: 70px; padding-top: 22px; border-top: 3px double var(--text); text-align: center; }
+    .foot-text { font-size: 10px; letter-spacing: 0.22em; text-transform: uppercase; color: var(--mute); }
+
+    @media (max-width: 820px) {
+      .layout { grid-template-columns: 1fr; gap: 28px; }
+      .indice { position: static; border-bottom: 1px solid var(--border); padding-bottom: 18px; }
+      .indice-inner { display: flex; flex-wrap: wrap; gap: 6px 16px; }
+      .indice a { border-left: none; padding: 0; }
+      .indice a:hover { border-left-color: transparent; }
+    }
+
+    /* ═══════════════════════════════════════════════════════════════════
+       SYSTEM SKIN — paleta sépia-quente do arquivo. Mesma reskin das
+       outras páginas do LifeOS, copiada (LIFEOS.md §2).
+       ═══════════════════════════════════════════════════════════════════ */
+    :root {
+      --bg:        #14120f;
+      --surface:   #1c1a16;
+      --surface-2: #242018;
+      --border:    #2e2a24;
+      --text:      #ede8df;
+      --dim:       #b0a898;
+      --mute:      #6b6456;
+      --gold:      #c4913a;
+      --gold-wash: rgba(196, 145, 58, 0.10);
+      --border-mid: #3a352d;
+    }
+    html { background: var(--bg); }
+    /* ═══ SYSTEM SKIN ▸ END ═══ */
+  </style>
+  <link rel="stylesheet" id="lifeos-tema" href="../assets/css/themes/lifeos/sepia.css">
+  <!-- Config da instância + tema. Precisam vir AQUI, nesta ordem e sem defer:
+       o <link> acima tem de ficar depois do <style> pra vencer o SYSTEM SKIN,
+       e tema.js tem de rodar antes da primeira pintura. Ver assets/js/tema.js. -->
+  <script src="../assets/js/lifeos-config.js"></script>
+  <script src="../assets/js/tema.js"></script>
+  <script src="../assets/js/blog.js"></script>
+</head>
+<body>
+
+<!-- Sem gate: esta página é só texto explicativo, não lê nem escreve dado
+     nenhum. Um gate aqui não protegeria nada e atrapalharia quem chega pra
+     entender o sistema antes de configurá-lo. -->
+<div class="wrap">
+
+  <div class="topbar">
+    <a href="lifeos.html" class="back"><i class="fad fa-arrow-left"></i> lifeos</a>
+  </div>
+
+  <header class="head">
+    <h1>Como funciona</h1>
+    <p>
+      O que este sistema é, por que ele existe, e o que dá pra fazer com ele
+      depois de instalado.
+    </p>
+  </header>
+
+  <div class="layout">
+
+    <nav class="indice">
+      <div class="indice-label">Índice</div>
+      <div class="indice-inner">
+        <a href="#intuito">O intuito</a>
+        <a href="#descarregar">Descarregar a mente</a>
+        <a href="#modulos">Os módulos</a>
+        <a href="#html">Por que HTML cru</a>
+        <a href="#ia">O sistema com IA</a>
+        <a href="#config">Configurar</a>
+        <a href="#comecar">Por onde começar</a>
+      </div>
+    </nav>
+
+    <main>
+
+      <!-- ─────────── 1 ─────────── -->
+      <section class="sec" id="intuito">
+        <div class="sec-num">01</div>
+        <div class="sec-title">O intuito</div>
+        <p>
+          Este projeto é duas coisas coladas: um <strong>arquivo público</strong> — páginas
+          HTML independentes, publicadas de graça no GitHub Pages — e um
+          <strong>painel privado</strong>, o LifeOS, onde a vida que alimenta esse arquivo é
+          gerida.
+        </p>
+        <p>
+          A separação importa. O arquivo é o que você mostra: ensaios, mapas, diagramas, o
+          que quer que sobreviva. O LifeOS é o que sustenta: as tarefas, as notas, o dinheiro,
+          o calendário, os objetivos de longo prazo. Um alimenta o outro, mas só um é público.
+        </p>
+        <div class="destaque">
+          Nada aqui depende de assinatura mensal, de um servidor que você aluga,
+          ou de uma empresa continuar existindo.
+        </div>
+        <p>
+          O custo de manter isso no ar é <strong>zero</strong> na prática: GitHub Pages é
+          gratuito para repositórios públicos, e o plano free do Supabase cobre folgadamente
+          o uso de uma pessoa. Não há build, não há framework, não há pipeline. Um
+          <code>git push</code> publica.
+        </p>
+      </section>
+
+      <!-- ─────────── 2 ─────────── -->
+      <section class="sec" id="descarregar">
+        <div class="sec-num">02</div>
+        <div class="sec-title">Tirar o armazenamento do cérebro</div>
+        <p>
+          A ideia por trás do LifeOS é velha e simples: <strong>a cabeça é boa para pensar e
+          ruim para guardar.</strong> Lembrar de pagar uma conta, de qual era mesmo aquele
+          livro, de quanto se gastou no mês — nada disso exige inteligência, só exige
+          retenção. E retenção ocupa espaço que fazia falta em outro lugar.
+        </p>
+        <p>
+          Enquanto uma tarefa vive só na memória, ela cobra atenção em intervalos aleatórios:
+          na fila do mercado, no meio de uma conversa, às três da manhã. Ela volta porque a
+          cabeça não tem como saber que já foi resolvida. Escrever em um lugar confiável
+          desliga esse alarme.
+        </p>
+        <div class="destaque">
+          O ganho não é lembrar de mais coisas. É parar de precisar lembrar.
+        </div>
+        <p>
+          Por isso o sistema cobre domínios que normalmente ficam em cinco aplicativos
+          diferentes. Não é ambição de fazer tudo — é que memória fragmentada em cinco lugares
+          continua sendo memória que você carrega, porque você ainda precisa lembrar
+          <em>em qual dos cinco</em> aquilo estava.
+        </p>
+        <p>
+          E o segundo ganho aparece depois: material acumulado num lugar só vira algo que dá
+          para <strong>consultar e cruzar</strong>. Seis meses de notas viram um corpo de
+          texto onde se procura um padrão. Um ano de movimentações vira uma resposta sobre
+          para onde o dinheiro realmente vai.
+        </p>
+      </section>
+
+      <!-- ─────────── 3 ─────────── -->
+      <section class="sec" id="modulos">
+        <div class="sec-num">03</div>
+        <div class="sec-title">Os módulos</div>
+        <p>
+          Seis áreas. O hub mostra o resumo de todas; cada uma tem a sua tela própria quando
+          precisa de trabalho de verdade.
+        </p>
+        <div class="mod-grid">
+          <a class="mod" href="lifeos.html">
+            <div class="mod-top"><i class="fad fa-grid-2"></i><span class="mod-nome">Hub</span></div>
+            <div class="mod-desc">A visão geral: calendário, tarefas do dia, saldo, notas recentes, manifestações.</div>
+          </a>
+          <a class="mod" href="financas.html">
+            <div class="mod-top"><i class="fad fa-wallet"></i><span class="mod-nome">Finanças</span></div>
+            <div class="mod-desc">Entradas e saídas, projeção de fatura de crédito, comparação entre meses.</div>
+          </a>
+          <a class="mod" href="tarefas.html">
+            <div class="mod-top"><i class="fad fa-tasks"></i><span class="mod-nome">Tarefas e Projetos</span></div>
+            <div class="mod-desc">Kanban e lista. Toda tarefa pertence a um projeto — é o que impede virar caixa de entrada infinita.</div>
+          </a>
+          <a class="mod" href="notas.html">
+            <div class="mod-top"><i class="fad fa-book"></i><span class="mod-nome">Notas</span></div>
+            <div class="mod-desc">Markdown, vinculado a um ou mais projetos. É a matéria-prima do arquivo público.</div>
+          </a>
+          <div class="mod">
+            <div class="mod-top"><i class="fad fa-calendar-alt"></i><span class="mod-nome">Eventos</span></div>
+            <div class="mod-desc">Calendário, dentro do próprio hub. Compromissos com hora marcada, separados das tarefas.</div>
+          </div>
+          <div class="mod">
+            <div class="mod-top"><i class="fad fa-sparkles"></i><span class="mod-nome">Manifestações</span></div>
+            <div class="mod-desc">Objetivos de longo prazo — o que você quer que seja verdade daqui a um ano.</div>
+          </div>
+        </div>
+        <div class="notice">
+          <i class="fad fa-diagram-project"></i>
+          <span>
+            <strong>Projeto é o eixo.</strong> Tarefas exigem um; notas podem ter vários;
+            eventos podem ter um. É esse vínculo que deixa perguntar “o que existe sobre X?”
+            e receber de volta as tarefas, as notas e os compromissos juntos.
+          </span>
+        </div>
+      </section>
+
+      <!-- ─────────── 4 ─────────── -->
+      <section class="sec" id="html">
+        <div class="sec-num">04</div>
+        <div class="sec-title">Por que HTML cru</div>
+        <p>
+          O arquivo público não usa framework, gerador de site estático ou tema. Cada entrada é
+          <strong>um arquivo HTML com o seu próprio CSS dentro</strong>. Isso parece um passo
+          atrás e é justamente o contrário.
+        </p>
+        <p>
+          Num gerador de site, toda página é obrigada a caber no molde do tema. Você escreve
+          markdown e recebe de volta o mesmo layout de sempre. Serve para um blog; é uma
+          camisa de força quando a página <em>é</em> o argumento.
+        </p>
+        <ul>
+          <li>Um diagrama que precisa de cores próprias — a página inteira se reorganiza em volta dele.</li>
+          <li>Uma linha do tempo que só funciona na horizontal, com escala não-linear.</li>
+          <li>Uma entrada que pede fundo claro quando todo o resto do arquivo é escuro.</li>
+          <li>Uma tabela interativa, um mapa, um pequeno jogo que explica um conceito.</li>
+        </ul>
+        <p>
+          Nada disso precisa de permissão. Você abre o arquivo e escreve. E porque cada página
+          é autossuficiente, <strong>nenhuma pode quebrar outra</strong> — não existe CSS global
+          a ser alterado por engano, nem dependência a atualizar. Uma página escrita hoje abre
+          igual daqui a dez anos.
+        </p>
+        <div class="destaque">
+          O preço é repetir estrutura entre páginas. O retorno é que nenhuma página
+          é refém das outras.
+        </div>
+        <p>
+          O <code>manifest.json</code> é o que costura tudo: a capa lê esse arquivo e monta a
+          listagem sozinha. Você nunca edita a capa à mão — publica a página, a entrada entra
+          no manifest, o índice se atualiza.
+        </p>
+      </section>
+
+      <!-- ─────────── 5 ─────────── -->
+      <section class="sec" id="ia">
+        <div class="sec-num">05</div>
+        <div class="sec-title">O sistema junto com IA</div>
+        <p>
+          É aqui que as duas metades se encontram, e é a parte mais fácil de subestimar.
+        </p>
+        <p>
+          <strong>A IA lê o seu sistema.</strong> O LifeOS expõe um servidor
+          <a href="mcp.html" style="color:var(--gold)">MCP</a> — cole uma URL no seu cliente e a
+          IA passa a consultar suas notas, tarefas, projetos, eventos e finanças por conta
+          própria. Você para de copiar e colar contexto. Pergunta “o que eu já escrevi sobre
+          isso?” e recebe uma resposta baseada no que você de fato escreveu, não no que o
+          modelo imagina.
+        </p>
+        <p>
+          <strong>A IA escreve as páginas.</strong> Porque uma entrada é só HTML, uma IA
+          consegue produzir uma inteira — diagrama, layout, estilo — a partir de um texto seu.
+          Não há API a aprender, nem convenção de tema a respeitar: é HTML. A tela
+          <a href="publicar.html" style="color:var(--gold)">Publicar</a> recebe o arquivo pronto
+          e faz o commit.
+        </p>
+        <p>
+          <strong>A IA melhora o próprio sistema.</strong> O código é HTML, CSS e JavaScript sem
+          build — o que significa que pedir “adiciona um gráfico de gastos por categoria” é um
+          pedido que uma IA consegue atender de ponta a ponta, sem ambiente para montar antes.
+          Os arquivos em <code>docs/</code> existem para isso: são o contexto que faz uma IA
+          entender o projeto antes de mexer nele.
+        </p>
+        <div class="notice">
+          <i class="fad fa-circle-info"></i>
+          <span>
+            O ciclo completo: você vive e registra no LifeOS → a IA lê pelo MCP e ajuda a
+            pensar → o que valeu a pena vira uma página do arquivo → e a própria IA escreve
+            essa página. <strong>O sistema deixa de ser onde as coisas ficam guardadas e passa
+            a ser de onde o trabalho sai.</strong>
+          </span>
+        </div>
+      </section>
+
+      <!-- ─────────── 6 ─────────── -->
+      <section class="sec" id="config">
+        <div class="sec-num">06</div>
+        <div class="sec-title">Configurar</div>
+        <p>
+          Tudo abaixo fica no menu do hub — o botão no canto superior direito.
+        </p>
+        <div class="mod-grid">
+          <a class="mod" href="senhas.html">
+            <div class="mod-top"><i class="fad fa-key"></i><span class="mod-nome">Senhas</span></div>
+            <div class="mod-desc">A senha mestre abre tudo. Senhas extras abrem só as páginas do arquivo que você conceder a elas.</div>
+          </a>
+          <a class="mod" href="publicar.html">
+            <div class="mod-top"><i class="fad fa-upload"></i><span class="mod-nome">Publicar</span></div>
+            <div class="mod-desc">Envia uma entrada nova pro arquivo. A aba Token é onde se cadastra o acesso ao GitHub.</div>
+          </a>
+          <a class="mod" href="temas.html">
+            <div class="mod-top"><i class="fad fa-palette"></i><span class="mod-nome">Temas</span></div>
+            <div class="mod-desc">Nove paletas para o painel. Criar a sua é copiar um arquivo CSS e trocar os valores.</div>
+          </a>
+          <a class="mod" href="mcp.html">
+            <div class="mod-top"><i class="fad fa-plug"></i><span class="mod-nome">MCP</span></div>
+            <div class="mod-desc">A URL para conectar o sistema à sua IA, e o que ela passa a conseguir fazer.</div>
+          </a>
+        </div>
+        <div class="notice">
+          <i class="fad fa-triangle-exclamation"></i>
+          <span>
+            <strong>Troque a senha mestre antes de qualquer outra coisa.</strong> Uma instalação
+            nova nasce com uma senha padrão — ela existe só para você conseguir entrar na
+            primeira vez. Enquanto não for trocada, qualquer pessoa que conheça o projeto entra
+            no seu painel.
+          </span>
+        </div>
+      </section>
+
+      <!-- ─────────── 7 ─────────── -->
+      <section class="sec" id="comecar">
+        <div class="sec-num">07</div>
+        <div class="sec-title">Por onde começar</div>
+        <p>
+          A ordem abaixo evita o erro mais comum, que é tentar preencher o sistema inteiro num
+          fim de semana e abandoná-lo na terça.
+        </p>
+        <ul>
+          <li><strong>Troque a senha mestre.</strong> Em Senhas. É a única coisa realmente urgente.</li>
+          <li><strong>Crie dois ou três projetos.</strong> Só os que você já tem de verdade — projeto é o eixo de todo o resto, e inventar projeto vazio só gera lista morta.</li>
+          <li><strong>Use as tarefas por uma semana</strong> antes de mexer em mais nada. Se o hábito não pegar aqui, não pega no resto.</li>
+          <li><strong>Depois, as notas.</strong> É o módulo que rende com o tempo: só faz sentido quando há material acumulado.</li>
+          <li><strong>Conecte o MCP</strong> quando já houver algo para a IA encontrar. Conectar num sistema vazio não mostra nada.</li>
+          <li><strong>Finanças por último.</strong> Exige constância diária e é o mais fácil de abandonar — deixe para quando o resto já for rotina.</li>
+        </ul>
+        <div class="destaque">
+          A primeira página do arquivo pode esperar. O painel precisa virar hábito antes
+          de ter o que publicar.
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <footer class="foot">
+    <span class="foot-text">✦ LifeOS</span>
+  </footer>
+</div>
+
+</body>
+</html>

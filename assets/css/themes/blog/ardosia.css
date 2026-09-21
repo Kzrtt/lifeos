@@ -1,0 +1,38 @@
+/* Tema do blog: Ardosia — Ardósia — papel frio, acento azul profundo.
+ *
+ * Paleta CLARA. Os nomes de token aqui são os da capa e da galeria
+ * (--ink, --rule, --bg-card), que NÃO são os do painel (--text, --border,
+ * --surface) — por isso os temas do blog vivem numa pasta própria.
+ *
+ * Entra por um <link> depois do <style> inline da página; `assets/js/tema.js`
+ * só troca o href. Ver LIFEOS.md §12.
+ */
+:root {
+  --bg:         #eef1f5;
+  --bg-card:    #f8fafc;
+  --bg-hover:   #ffffff;
+  --ink:        #13181e;
+  --ink-dim:    #566270;
+  --ink-mute:   #9faabb;
+  --rule:       #cbd4de;
+  --gold:       #3f6b87;
+  --gold-wash:  rgba(63, 107, 135, 0.07);
+  --scrim:      rgba(16, 20, 26, 0.94);
+}
+
+/* Versão escura — a MESMA paleta do painel (themes/lifeos/ardosia.css),
+ * só com os nomes de token da capa. `html.dark` é a classe que o botão
+ * de sol/lua da capa liga; ela vence o `:root` acima por especificidade,
+ * e este arquivo vence o `html.dark` inline da página por vir depois. */
+html.dark {
+  --bg:         #10141a;
+  --bg-card:    #171d25;
+  --bg-hover:   #1f2630;
+  --ink:        #e3e8ee;
+  --ink-dim:    #9fadbd;
+  --ink-mute:   #5e6b7a;
+  --rule:       #2a323d;
+  --gold:       #7fa8cc;
+  --gold-wash:  rgba(127, 168, 204, 0.10);
+  --scrim:      rgba(16, 20, 26, 0.94);
+}

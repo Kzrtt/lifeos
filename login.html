@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LifeOS · Acesso</title>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;1,300;1,400&family=Fira+Code:wght@300;400&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html {
+      height: 100%;
+    }
+
+    body {
+      min-height: 100%;
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 80px;
+      padding: 56px 24px 100px;
+      background: #0a0a0f;
+      background-image:
+        repeating-linear-gradient(
+          0deg,
+          transparent,
+          transparent 27px,
+          rgba(200,180,140,0.025) 27px,
+          rgba(200,180,140,0.025) 28px
+        );
+    }
+
+    /* ── TOPO ── */
+    .gate-top {
+      text-align: center;
+      width: 100%;
+    }
+
+    .gate-ornament {
+      font-family: 'Fira Code', monospace;
+      font-size: 11px;
+      color: #6f6c84;
+      letter-spacing: 0.5em;
+      margin-bottom: 12px;
+    }
+
+    .gate-title {
+      font-family: 'Cormorant Garamond', Georgia, serif;
+      font-weight: 300;
+      font-size: clamp(52px, 10vw, 80px);
+      font-style: italic;
+      color: #d8d4cc;
+      letter-spacing: -0.02em;
+      line-height: 0.95;
+    }
+
+    .gate-arch {
+      font-family: 'Fira Code', monospace;
+      font-size: 10px;
+      color: #6f6c84;
+      letter-spacing: 0.55em;
+      text-transform: uppercase;
+      margin-top: 22px;
+    }
+
+    /* ── FORM ── */
+    .gate-middle {
+      width: 100%;
+      max-width: 380px;
+      text-align: center;
+    }
+
+    .gate-label {
+      font-family: 'Fira Code', monospace;
+      font-size: 10px;
+      color: #807d97;
+      letter-spacing: 0.35em;
+      text-transform: uppercase;
+      margin-bottom: 18px;
+    }
+
+    .gate-form {
+      display: flex;
+      border: 1px solid #2e2b3c;
+      border-radius: 3px;
+      overflow: hidden;
+      transition: border-color 0.25s;
+    }
+    .gate-form:focus-within { border-color: #b09765; }
+    .gate-form.gate-shake { animation: gate-shake 0.35s ease; }
+
+    @keyframes gate-shake {
+      0%,100% { transform: translateX(0); }
+      20%      { transform: translateX(-7px); }
+      60%      { transform: translateX(7px); }
+      80%      { transform: translateX(-3px); }
+    }
+
+    #gate-input {
+      flex: 1;
+      background: #0e0e16;
+      border: none;
+      outline: none;
+      padding: 16px 20px;
+      font-family: 'Fira Code', monospace;
+      font-size: 14px;
+      color: #d8d4cc;
+      letter-spacing: 0.12em;
+      caret-color: #c9a96e;
+    }
+    #gate-input::placeholder { color: #6f6c84; }
+
+    #gate-btn {
+      background: #0e0e16;
+      border: none;
+      border-left: 1px solid #2e2b3c;
+      color: #6f6c84;
+      font-family: 'Fira Code', monospace;
+      font-size: 18px;
+      padding: 0 22px;
+      cursor: pointer;
+      transition: color 0.2s, background 0.2s;
+    }
+    #gate-btn:hover:not(:disabled) { color: #c9a96e; background: #13131e; }
+    #gate-btn:disabled { opacity: 0.3; cursor: default; }
+
+    .gate-error {
+      margin-top: 16px;
+      font-family: 'Fira Code', monospace;
+      font-size: 10px;
+      color: #c25a52;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      min-height: 14px;
+    }
+
+    /* ── RODAPÉ ── */
+    .gate-footer {
+      position: absolute;
+      bottom: 40px;
+      left: 0;
+      right: 0;
+      text-align: center;
+      font-family: 'Fira Code', monospace;
+      font-size: 10px;
+      color: #65627a;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      line-height: 2;
+    }
+
+    .gate-back {
+      display: inline-block;
+      font-family: 'Fira Code', monospace;
+      font-size: 10px;
+      color: #65627a;
+      letter-spacing: 0.25em;
+      text-transform: uppercase;
+      cursor: pointer;
+      background: none;
+      border: none;
+      padding: 0;
+      margin-bottom: 10px;
+      transition: color 0.2s;
+    }
+    .gate-back:hover { color: #807d97; }
+
+    .gate-copy {
+      display: inline-block;
+      margin-top: 20px;
+      font-family: 'Fira Code', monospace;
+      font-size: 10px;
+      color: #65627a;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      cursor: pointer;
+      background: none;
+      border: none;
+      padding: 0;
+      transition: color 0.2s;
+    }
+    .gate-copy:hover { color: #c9a96e; }
+
+    @media (max-width: 480px) {
+      body { padding: 40px 20px 90px; gap: 52px; }
+      .gate-footer { bottom: 28px; }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="gate-top">
+    <div class="gate-ornament">✦ &nbsp; ✦ &nbsp; ✦</div>
+    <div class="gate-title">LifeOS</div>
+    <div class="gate-arch">A R C H I V E S</div>
+  </div>
+
+  <div class="gate-middle">
+    <div class="gate-label">acesso restrito</div>
+    <form class="gate-form" id="gate-form" autocomplete="off">
+      <input id="gate-input" type="password" placeholder="senha de acesso" spellcheck="false">
+      <button id="gate-btn" type="submit">→</button>
+    </form>
+    <div class="gate-error" id="gate-error"></div>
+    <button type="button" class="gate-copy" id="gate-copy">copiar link para claude</button>
+  </div>
+
+  <div class="gate-footer">
+    <button class="gate-back" id="gate-back">← voltar</button><br>
+    LifeOS · 2026
+  </div>
+
+<script>
+(function () {
+  'use strict';
+
+  const SUPABASE_URL = 'https://SEU-PROJETO.supabase.co';
+  const ANON_KEY     = 'COLE-AQUI-A-CHAVE-PUBLICAVEL-ANON';
+  const PASS_KEY     = 'psyches_just_auth';
+
+  /* ── Parâmetros da URL ─────────────────────────────────────────── */
+  var params   = new URLSearchParams(location.search);
+  var pageSlug = params.get('page') || '';
+  var backUrl  = params.get('back')  || '';
+
+  /* Valida backUrl — deve ser mesma origin (segurança: open redirect) */
+  if (backUrl) {
+    try {
+      var parsed = new URL(backUrl);
+      /* Para file:// a origin é 'null' em alguns browsers — permite */
+      if (parsed.origin !== location.origin && location.origin !== 'null') {
+        backUrl = '';
+      }
+    } catch (_) {
+      backUrl = '';
+    }
+  }
+
+  /* Fallback: vai para o index na raiz */
+  if (!backUrl) {
+    backUrl = location.href.replace(/login\.html.*$/, 'index.html');
+  }
+
+  /* ── Foco automático ─────────────────────────────────────────── */
+  document.getElementById('gate-input').focus();
+
+  /* ── Botão voltar ─────────────────────────────────────────────── */
+  document.getElementById('gate-back').addEventListener('click', function () {
+    /* Volta para o index — não para a página protegida (evita loop) */
+    location.href = location.href.replace(/login\.html.*$/, 'index.html');
+  });
+
+  /* ── Botão "copiar link para claude" ─────────────────────────────
+   * Monta a URL da página protegida com ?md=claude&pswd= (senha vazia
+   * de propósito — cola na área de transferência faltando só a senha). */
+  var copyBtn = document.getElementById('gate-copy');
+  if (!pageSlug) {
+    copyBtn.style.display = 'none';
+  } else {
+    var copyBtnDefault = copyBtn.textContent;
+    copyBtn.addEventListener('click', function () {
+      var sep       = backUrl.indexOf('?') === -1 ? '?' : '&';
+      var claudeUrl = backUrl + sep + 'md=claude&pswd=';
+
+      function feedback(text) {
+        copyBtn.textContent = text;
+        setTimeout(function () { copyBtn.textContent = copyBtnDefault; }, 1600);
+      }
+
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(claudeUrl).then(
+          function () { feedback('copiado ✓'); },
+          function () { feedback('erro ao copiar'); }
+        );
+      } else {
+        /* fallback para contextos sem Clipboard API (ex.: file://) */
+        var ta = document.createElement('textarea');
+        ta.value = claudeUrl;
+        ta.style.position = 'fixed';
+        ta.style.opacity  = '0';
+        document.body.appendChild(ta);
+        ta.select();
+        try {
+          document.execCommand('copy');
+          feedback('copiado ✓');
+        } catch (_) {
+          feedback('erro ao copiar');
+        }
+        document.body.removeChild(ta);
+      }
+    });
+  }
+
+  /* ── Submit ───────────────────────────────────────────────────── */
+  document.getElementById('gate-form').addEventListener('submit', async function (e) {
+    e.preventDefault();
+
+    var input = document.getElementById('gate-input');
+    var btn   = document.getElementById('gate-btn');
+    var error = document.getElementById('gate-error');
+    var form  = document.getElementById('gate-form');
+    var token = input.value.trim();
+
+    if (!token) return;
+
+    btn.disabled      = true;
+    btn.textContent   = '…';
+    error.textContent = '';
+
+    try {
+      var res = await fetch(SUPABASE_URL + '/rest/v1/rpc/check_page_access', {
+        method: 'POST',
+        headers: {
+          'apikey':        ANON_KEY,
+          'Authorization': 'Bearer ' + ANON_KEY,
+          'Content-Type':  'application/json',
+        },
+        body: JSON.stringify({ p_token: token, p_page: pageSlug }),
+      });
+
+      var valid = await res.json();
+
+      if (valid === true) {
+        /* Flag de uso único — gate.js na página destino consome e remove */
+        sessionStorage.setItem(PASS_KEY, pageSlug);
+        location.replace(backUrl);
+      } else {
+        form.classList.remove('gate-shake');
+        void form.offsetWidth;
+        form.classList.add('gate-shake');
+        error.textContent = 'senha incorreta';
+        input.value       = '';
+        input.focus();
+        btn.disabled    = false;
+        btn.textContent = '→';
+      }
+    } catch (_) {
+      error.textContent = 'erro de conexão — tente novamente';
+      btn.disabled    = false;
+      btn.textContent = '→';
+    }
+  });
+}());
+</script>
+
+</body>
+</html>

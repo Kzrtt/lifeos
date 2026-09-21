@@ -1,0 +1,38 @@
+/* Tema do blog: Sepia — Sépia — papel envelhecido e ocre. A paleta original da capa.
+ *
+ * Paleta CLARA. Os nomes de token aqui são os da capa e da galeria
+ * (--ink, --rule, --bg-card), que NÃO são os do painel (--text, --border,
+ * --surface) — por isso os temas do blog vivem numa pasta própria.
+ *
+ * Entra por um <link> depois do <style> inline da página; `assets/js/tema.js`
+ * só troca o href. Ver LIFEOS.md §12.
+ */
+:root {
+  --bg:         #f5f2ec;
+  --bg-card:    #faf8f4;
+  --bg-hover:   #ffffff;
+  --ink:        #1a1814;
+  --ink-dim:    #6b6456;
+  --ink-mute:   #b0a898;
+  --rule:       #d8d0c4;
+  --gold:       #c4913a;
+  --gold-wash:  rgba(196, 145, 58, 0.06);
+  --scrim:      rgba(20, 18, 15, 0.94);
+}
+
+/* Versão escura — a MESMA paleta do painel (themes/lifeos/sepia.css),
+ * só com os nomes de token da capa. `html.dark` é a classe que o botão
+ * de sol/lua da capa liga; ela vence o `:root` acima por especificidade,
+ * e este arquivo vence o `html.dark` inline da página por vir depois. */
+html.dark {
+  --bg:         #14120f;
+  --bg-card:    #1c1a16;
+  --bg-hover:   #242018;
+  --ink:        #ede8df;
+  --ink-dim:    #b0a898;
+  --ink-mute:   #6b6456;
+  --rule:       #2e2a24;
+  --gold:       #c4913a;
+  --gold-wash:  rgba(196, 145, 58, 0.10);
+  --scrim:      rgba(20, 18, 15, 0.94);
+}

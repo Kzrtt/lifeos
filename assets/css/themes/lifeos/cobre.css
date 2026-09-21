@@ -1,0 +1,23 @@
+/* Tema: Cobre — marrom-avermelhado com acento de cobre oxidado. Mais
+   saturado que o sépia, e mais terroso. */
+:root {
+  --bg:         #16110d;
+  --surface:    #1e1813;
+  --surface-2:  #27201a;
+  --border:     #342a22;
+  --border-mid: #42362c;
+  --text:       #eee4d8;
+  --dim:        #bca894;
+  --mute:       #766451;
+  --text-muted: #766451;
+  --gold:       #cc7f4f;
+  --gold-wash:  rgba(204, 127, 79, 0.10);
+  --accent:     #cc7f4f;
+  --accent-dim: #7e5433;
+  --green:      #52ae86;
+  --red:        #e06a5e;
+  --blue:       #6d92c2;
+}
+html { background: var(--bg); }
+.gate { background: radial-gradient(ellipse at 50% 28%, #1e1813 0%, #16110d 72%); }
+.loading-ov { background: rgba(22, 17, 13, 0.55); }

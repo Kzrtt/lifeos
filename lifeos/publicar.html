@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="theme-color" content="#14120f">
+  <title>LifeOS · Publicar</title>
+  <link rel="icon" href="../assets/images/favicon.svg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,500;0,700;0,900;1,400&family=JetBrains+Mono:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../assets/css/icons.css">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    /* Tokens base — cópia do conjunto de lifeos.html. Cada página do LifeOS
+       carrega a sua (LIFEOS.md §2: padrões de UI repetidos por cópia, não por
+       arquivo compartilhado). O bloco SYSTEM SKIN no fim deste <style> é que
+       define a paleta final. */
+    :root {
+      --bg:        #0c0e12;
+      --surface:   #14171d;
+      --surface-2: #1b1f27;
+      --border:    #262b34;
+      --text:      #e7e9ee;
+      --dim:       #9aa3b2;
+      --mute:      #5d6675;
+      --green:     #3fb98c;
+      --red:       #e5616a;
+      --gold:      #c9a96e;
+      --mono: 'JetBrains Mono', monospace;
+      --serif: 'Playfair Display', Georgia, serif;
+    }
+
+
+    /* Sem isto, `el.hidden = true` NÃO esconde .gate/.app: o atributo [hidden]
+       vale por uma regra do user-agent, e qualquer `display` declarado pelo
+       autor (`.gate { display: flex }`) vence. Mesma linha que lifeos.html,
+       financas.html, tarefas.html e notas.html já têm. */
+    [hidden] { display: none !important; }
+
+    html, body { height: 100%; }
+    body {
+      background: var(--bg); color: var(--text); font-family: var(--mono);
+      -webkit-font-smoothing: antialiased; line-height: 1.5;
+    }
+
+    .wrap { max-width: 820px; margin: 0 auto; padding: 0 20px 80px; }
+
+    /* ── Gate — cópia do padrão das outras páginas do LifeOS ── */
+    .gate {
+      position: fixed; inset: 0; z-index: 400; display: flex; align-items: center; justify-content: center;
+      padding: 24px; background: radial-gradient(ellipse at 50% 28%, #1c1a16 0%, #14120f 72%);
+    }
+    .gate-box { width: 100%; max-width: 380px; text-align: center; }
+    .gate-orn { font-size: 11px; letter-spacing: 0.5em; color: var(--mute); margin-bottom: 18px; }
+    .gate-brand {
+      font-family: var(--serif); font-weight: 900; font-style: italic;
+      font-size: clamp(44px, 11vw, 64px); line-height: 0.95; color: var(--text);
+      letter-spacing: -0.02em; margin-bottom: 36px;
+    }
+    .gate-label { font-size: 10px; letter-spacing: 0.32em; text-transform: uppercase; color: var(--mute); margin-bottom: 16px; }
+    .gate-row {
+      display: flex; border: 1px solid var(--border); border-radius: 6px; overflow: hidden;
+      transition: border-color 0.2s; background: var(--surface);
+    }
+    .gate-row:focus-within { border-color: var(--gold); }
+    .gate-row.shake { animation: shake 0.35s ease; }
+    @keyframes shake {
+      0%,100% { transform: translateX(0); }
+      20% { transform: translateX(-7px); }
+      60% { transform: translateX(7px); }
+      80% { transform: translateX(-3px); }
+    }
+    #gate-input {
+      flex: 1; min-width: 0; background: transparent; border: none; outline: none; padding: 15px 18px;
+      font-family: var(--mono); font-size: 16px; color: var(--text); letter-spacing: 0.12em; caret-color: var(--gold);
+    }
+    #gate-input::placeholder { color: var(--mute); }
+    #gate-btn {
+      background: transparent; border: none; border-left: 1px solid var(--border); color: var(--mute);
+      font-family: var(--mono); font-size: 18px; padding: 0 22px; cursor: pointer; transition: color 0.2s, background 0.2s;
+    }
+    #gate-btn:hover:not(:disabled) { color: var(--gold); background: var(--surface-2); }
+    #gate-btn:disabled { opacity: 0.4; cursor: default; }
+    .gate-remember {
+      display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 16px;
+      font-size: 10px; letter-spacing: 0.1em; color: var(--mute); text-transform: uppercase; cursor: pointer; user-select: none;
+    }
+    .gate-remember input { accent-color: var(--gold); cursor: pointer; width: 15px; height: 15px; }
+    .gate-error { margin-top: 16px; min-height: 14px; font-size: 10px; letter-spacing: 0.15em; text-transform: uppercase; color: var(--red); }
+    .gate-checking { margin-top: 8px; font-size: 11px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--mute); }
+
+    /* ── Topbar ── */
+    .topbar {
+      display: flex; align-items: center; justify-content: space-between; gap: 10px;
+      padding: 18px 0 14px; border-bottom: 1px solid var(--border);
+    }
+    .back { font-size: 10px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--mute); text-decoration: none; transition: color 0.2s; white-space: nowrap; }
+    .back .fad { margin-right: 4px; }
+    .back:hover { color: var(--gold); }
+    .icon-btn {
+      width: 36px; height: 36px; flex-shrink: 0; display: flex; align-items: center; justify-content: center;
+      background: var(--surface); border: 1px solid var(--border); border-radius: 6px; color: var(--dim);
+      cursor: pointer; font-size: 15px; transition: color 0.15s, border-color 0.15s, background 0.15s;
+    }
+    .icon-btn:hover { color: var(--gold); border-color: var(--gold); background: var(--gold-wash); }
+
+    /* ── Cabeçalho ── */
+    .head { padding: 34px 0 26px; }
+    .head h1 {
+      font-family: var(--serif); font-weight: 700; font-style: italic;
+      font-size: clamp(34px, 7vw, 46px); line-height: 1; letter-spacing: -0.02em;
+    }
+    .head p { margin-top: 10px; font-size: 11px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--mute); }
+
+    /* ── Campos ── */
+    .field { margin-bottom: 30px; }
+    .field-label { display: block; font-size: 10px; letter-spacing: 0.24em; text-transform: uppercase; color: var(--mute); margin-bottom: 12px; }
+    .field-hint { margin-top: 10px; font-size: 11px; line-height: 1.7; color: var(--mute); }
+    .field-hint code { color: var(--dim); background: var(--surface); padding: 1px 5px; border-radius: 3px; font-size: 10.5px; }
+
+    .pat-status {
+      flex: 1; min-width: 0; font-size: 11px; letter-spacing: 0.06em;
+      padding: 9px 13px; border: 1px solid var(--border); border-radius: 6px; background: var(--surface);
+    }
+    .pat-status.ok   { color: var(--green); border-color: color-mix(in srgb, var(--green) 35%, transparent); }
+    .pat-status.err  { color: var(--red);   border-color: color-mix(in srgb, var(--red) 35%, transparent); }
+    .pat-status.wait { color: var(--mute); }
+
+    .drop-zone {
+      border: 1px dashed var(--border); border-radius: 8px; background: var(--surface);
+      padding: 42px 20px; text-align: center; font-size: 12px; color: var(--mute);
+      cursor: pointer; transition: border-color 0.2s, color 0.2s, background 0.2s;
+    }
+    .drop-zone:hover, .drop-zone.drag-over { border-color: var(--gold); color: var(--gold); background: var(--surface-2); }
+    .drop-zone .fad { display: block; font-size: 22px; margin-bottom: 12px; }
+    .file-name { margin-top: 12px; font-size: 11.5px; color: var(--dim); min-height: 16px; word-break: break-all; }
+    .file-name.err { color: var(--red); }
+
+    .check-label { display: flex; align-items: center; gap: 10px; font-size: 13px; color: var(--dim); cursor: pointer; user-select: none; }
+    .check-label input { accent-color: var(--gold); cursor: pointer; width: 16px; height: 16px; }
+
+    .field-textarea {
+      width: 100%; min-height: 190px; resize: vertical; padding: 14px 16px;
+      background: var(--surface); border: 1px solid var(--border); border-radius: 6px;
+      font-family: var(--mono); font-size: 12px; line-height: 1.7; color: var(--text);
+      outline: none; transition: border-color 0.2s;
+    }
+    .field-textarea:focus { border-color: var(--gold); }
+    .field-textarea::placeholder { color: var(--mute); }
+
+    .json-status { margin-top: 10px; font-size: 11px; line-height: 1.7; min-height: 15px; }
+    .json-status.ok  { color: var(--green); }
+    .json-status.err { color: var(--red); white-space: pre-wrap; }
+
+    /* ── Legend de themes ── */
+    .theme-legend { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 8px; }
+    .theme-swatch {
+      display: flex; align-items: center; gap: 9px; padding: 9px 12px;
+      background: var(--surface); border: 1px solid var(--border); border-radius: 6px; font-size: 11px;
+    }
+    .theme-dot { width: 11px; height: 11px; border-radius: 2px; flex-shrink: 0; }
+    .theme-name { color: var(--dim); }
+    .theme-hex { margin-left: auto; color: var(--mute); font-size: 10px; }
+
+
+    /* ── Abas ──────────────────────────────────────────────────────────
+       Duas telas no mesmo arquivo. Isto NÃO contraria a regra de
+       LIFEOS.md §2 ("uma página própria se navega de verdade"): as abas
+       não são páginas — são dois painéis do MESMO assunto (publicar uma
+       página e o token que torna isso possível), e a segunda existe
+       justamente porque a primeira não funciona sem ela. */
+    .tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--border); margin-bottom: 30px; }
+    .tab {
+      padding: 11px 18px; background: none; border: none; border-bottom: 2px solid transparent;
+      font-family: var(--mono); font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase;
+      color: var(--mute); cursor: pointer; transition: color 0.15s, border-color 0.15s;
+      display: inline-flex; align-items: center; gap: 8px;
+    }
+    .tab:hover { color: var(--dim); }
+    .tab.is-active { color: var(--gold); border-bottom-color: var(--gold); }
+    .tab .fad { font-size: 12px; }
+    .tab-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--red); flex-shrink: 0; }
+
+    /* ── Passo a passo do token ── */
+    .passos { counter-reset: passo; margin: 0; padding: 0; list-style: none; }
+    .passo {
+      counter-increment: passo; position: relative; padding: 0 0 18px 40px;
+      font-size: 12px; line-height: 1.75; color: var(--dim);
+    }
+    .passo:last-child { padding-bottom: 0; }
+    .passo::before {
+      content: counter(passo); position: absolute; left: 0; top: 0;
+      width: 24px; height: 24px; border-radius: 50%;
+      background: var(--surface-2); border: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 10px; color: var(--gold); font-weight: 600;
+    }
+    /* Linha ligando os passos — some no último. */
+    .passo:not(:last-child)::after {
+      content: ''; position: absolute; left: 12px; top: 26px; bottom: 6px;
+      width: 1px; background: var(--border);
+    }
+    .passo code { color: var(--text); background: var(--surface-2); padding: 1px 6px; border-radius: 3px; font-size: 11px; }
+    .passo strong { color: var(--text); font-weight: 500; }
+    .passo a { color: var(--gold); }
+
+    .token-atual {
+      display: flex; flex-wrap: wrap; align-items: center; gap: 10px;
+      padding: 14px 16px; border: 1px solid var(--border); border-radius: 8px;
+      background: var(--surface); margin-bottom: 22px;
+    }
+    .token-atual-val { font-size: 12px; color: var(--dim); letter-spacing: 0.04em; }
+    .token-atual-data { font-size: 10px; color: var(--mute); }
+    .token-atual .row-btn { margin-left: auto; }
+    .row-btn {
+      width: 30px; height: 30px; display: flex; align-items: center; justify-content: center;
+      background: transparent; border: 1px solid var(--border); border-radius: 5px;
+      color: var(--mute); cursor: pointer; font-size: 11px; transition: color 0.15s, border-color 0.15s;
+    }
+    .row-btn.danger:hover { color: var(--red); border-color: var(--red); }
+    .row-btn.pending { color: var(--red); border-color: var(--red); }
+
+    .aviso-seg {
+      display: flex; gap: 12px; padding: 14px 16px; margin-top: 24px;
+      border: 1px solid color-mix(in srgb, var(--red) 30%, transparent); border-radius: 8px;
+      background: color-mix(in srgb, var(--red) 6%, transparent); font-size: 11.5px; line-height: 1.75; color: var(--dim);
+    }
+    .aviso-seg .fad { color: var(--red); font-size: 14px; flex-shrink: 0; margin-top: 2px; }
+
+    /* ── Botão principal ── */
+    .btn-primary {
+      width: 100%; padding: 15px; border: 1px solid var(--gold); border-radius: 6px;
+      background: transparent; color: var(--gold); font-family: var(--mono);
+      font-size: 11px; letter-spacing: 0.26em; text-transform: uppercase;
+      cursor: pointer; transition: background 0.2s, color 0.2s, opacity 0.2s;
+    }
+    .btn-primary:hover:not(:disabled) { background: var(--gold); color: var(--bg); }
+    .btn-primary:disabled { opacity: 0.35; cursor: default; }
+
+    /* ── Log de status ── */
+    .status { margin-top: 20px; font-size: 11.5px; line-height: 2; }
+    .status .s-info { color: var(--mute); }
+    .status .s-ok   { color: var(--green); }
+    .status .s-err  { color: var(--red); word-break: break-word; }
+    .status .s-link { color: var(--gold); text-decoration: none; border-bottom: 1px solid currentColor; }
+
+    .foot { margin-top: 60px; padding-top: 22px; border-top: 3px double var(--text); text-align: center; }
+    .foot-text { font-size: 10px; letter-spacing: 0.22em; text-transform: uppercase; color: var(--mute); }
+
+    @media (max-width: 600px) {
+      .theme-legend { grid-template-columns: 1fr 1fr; }
+    }
+
+    /* ═══════════════════════════════════════════════════════════════════
+       SYSTEM SKIN — paleta sépia-quente do arquivo. Mesma reskin das
+       outras páginas do LifeOS, copiada (LIFEOS.md §2). Reverter = apagar.
+       ═══════════════════════════════════════════════════════════════════ */
+    :root {
+      --bg:        #14120f;
+      --surface:   #1c1a16;
+      --surface-2: #242018;
+      --border:    #2e2a24;
+      --text:      #ede8df;
+      --dim:       #b0a898;
+      --mute:      #6b6456;
+      --gold:      #c4913a;
+      --gold-wash: rgba(196, 145, 58, 0.10);
+    }
+    html { background: var(--bg); }
+    .gate { background: radial-gradient(ellipse at 50% 28%, #1c1a16 0%, #14120f 72%); }
+    /* ═══ SYSTEM SKIN ▸ END ═══ */
+  </style>
+  <link rel="stylesheet" id="lifeos-tema" href="../assets/css/themes/lifeos/sepia.css">
+  <!-- Config da instância + tema. Precisam vir AQUI, nesta ordem e sem defer:
+       o <link> acima tem de ficar depois do <style> pra vencer o SYSTEM SKIN,
+       e tema.js tem de rodar antes da primeira pintura. Ver assets/js/tema.js. -->
+  <script src="../assets/js/lifeos-config.js"></script>
+  <script src="../assets/js/tema.js"></script>
+  <script src="../assets/js/blog.js"></script>
+</head>
+<body>
+
+<!-- ───────────────────────── GATE ───────────────────────── -->
+<div id="gate" class="gate">
+  <div class="gate-box">
+    <div class="gate-orn">✦ &nbsp; ✦ &nbsp; ✦</div>
+    <div class="gate-brand">LifeOS</div>
+    <form id="gate-form" autocomplete="off">
+      <div class="gate-label">acesso restrito · senha mestre</div>
+      <div class="gate-row" id="gate-row">
+        <input id="gate-input" type="password" placeholder="senha mestre" spellcheck="false" autocomplete="current-password">
+        <button id="gate-btn" type="submit"><i class="fad fa-arrow-right"></i></button>
+      </div>
+      <label class="gate-remember"><input type="checkbox" id="gate-remember"> lembrar neste navegador</label>
+      <div id="gate-error" class="gate-error"></div>
+    </form>
+    <div id="gate-checking" class="gate-checking" hidden>verificando sessão…</div>
+  </div>
+</div>
+
+<!-- ───────────────────────── APP ───────────────────────── -->
+<div id="app" class="wrap" hidden>
+
+  <div class="topbar">
+    <a href="lifeos.html" class="back"><i class="fad fa-arrow-left"></i> lifeos</a>
+    <button id="logout-btn" class="icon-btn" title="Sair" aria-label="Sair"><i class="fad fa-sign-out"></i></button>
+  </div>
+
+  <header class="head">
+    <h1>Publicar</h1>
+    <p>nova entrada do archive</p>
+  </header>
+
+  <div class="tabs" role="tablist">
+    <button type="button" class="tab is-active" role="tab" data-tab="publicar" aria-selected="true">
+      <i class="fad fa-upload"></i> Publicar página
+    </button>
+    <button type="button" class="tab" role="tab" data-tab="token" aria-selected="false">
+      <i class="fad fa-key-skeleton"></i> Token do GitHub
+      <span class="tab-dot" id="tab-dot" hidden></span>
+    </button>
+  </div>
+
+  <!-- ─────────────── PAINEL · PUBLICAR ─────────────── -->
+  <div id="painel-publicar">
+
+  <!-- Estado do token. A gestão dele vive na outra aba; aqui é só o
+       suficiente pra entender por que o botão Publicar está travado. -->
+  <div class="field">
+    <div style="display:flex; align-items:center; gap:10px;">
+      <div id="pat-status" class="pat-status wait">carregando token…</div>
+      <button id="pat-refresh" class="icon-btn" title="Re-buscar token" aria-label="Re-buscar token"><i class="fad fa-sync"></i></button>
+    </div>
+  </div>
+
+  <!-- Arquivo -->
+  <div class="field">
+    <label class="field-label">Arquivo HTML</label>
+    <div class="drop-zone" id="drop-zone">
+      <input id="file-input" type="file" accept=".html" hidden>
+      <i class="fad fa-file-code"></i>
+      soltar o arquivo .html aqui — ou clicar para selecionar
+    </div>
+    <div id="file-name" class="file-name"></div>
+    <div class="field-hint">
+      O slug vem do nome do arquivo: <code>microdose-sonhos.html</code> → <code>microdose-sonhos</code>.
+    </div>
+  </div>
+
+  <!-- Restrita -->
+  <div class="field">
+    <label class="check-label">
+      <input id="restricted-input" type="checkbox">
+      <span>Página restrita</span>
+    </label>
+    <div class="field-hint" style="padding-left:26px;">
+      Injeta <code>gate.js</code> no HTML enviado e marca <code>protected: true</code> no manifest.
+      Só a senha mestre desbloqueia, a menos que você conceda escopo a outra senha em
+      <a href="senhas.html" style="color:var(--gold);">Senhas</a>.
+    </div>
+  </div>
+
+  <!-- Manifest -->
+  <div class="field">
+    <label class="field-label" for="manifest-json">Manifest JSON</label>
+    <textarea id="manifest-json" class="field-textarea" spellcheck="false"
+              placeholder='{"title": "...", "subtitle": "...", "categories": [], "tags": [], "icon": "📄", "date": "2026-09-21", "date_display": "21 Set 2026", "volume": 3, "protected": false, "theme": "identidade", "status": "published"}'></textarea>
+    <div id="json-status" class="json-status"></div>
+    <div class="field-hint">
+      <code>slug</code> e <code>file</code> são sempre derivados do arquivo enviado — não precisa incluir.
+      O campo restrita acima é preenchido a partir de <code>protected</code>.
+    </div>
+  </div>
+
+  <!-- Themes -->
+  <div class="field">
+    <label class="field-label">Valores válidos de <code style="text-transform:none;letter-spacing:0;">theme</code></label>
+    <div class="theme-legend" id="theme-legend"></div>
+    <div class="field-hint">
+      Define a cor da barra lateral do card no index. Valor fora da lista cai
+      silenciosamente no fallback <code>identidade</code>.
+    </div>
+  </div>
+
+  <button id="publish-btn" class="btn-primary" disabled>Publicar</button>
+  <div id="status" class="status"></div>
+
+  </div><!-- /painel-publicar -->
+
+  <!-- ─────────────── PAINEL · TOKEN ─────────────── -->
+  <div id="painel-token" hidden>
+
+    <div id="token-atual-wrap"></div>
+
+    <div class="field">
+      <label class="field-label" for="token-input">
+        <span id="token-input-label">Cadastrar token</span>
+      </label>
+      <input id="token-input" class="field-textarea" style="min-height:0;height:auto;"
+             type="password" spellcheck="false" autocomplete="off"
+             placeholder="ghp_… ou github_pat_…">
+      <div id="token-error" class="json-status"></div>
+      <div class="field-hint">
+        O token é guardado no seu Supabase, não no navegador nem no repositório.
+        Depois de salvo ele nunca é exibido de volta — só as pontas.
+      </div>
+    </div>
+
+    <button id="token-save" class="btn-primary">Salvar token</button>
+
+    <div class="field" style="margin-top:44px">
+      <label class="field-label">Como gerar o token</label>
+      <ol class="passos">
+        <li class="passo">
+          Abra <a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener noreferrer">github.com/settings/personal-access-tokens/new</a>
+          — ou, no GitHub: sua foto → <strong>Settings</strong> → <strong>Developer settings</strong> →
+          <strong>Personal access tokens</strong> → <strong>Fine-grained tokens</strong> → <strong>Generate new token</strong>.
+        </li>
+        <li class="passo">
+          Dê um nome que você reconheça depois (ex.: <code>lifeos-publicar</code>) e escolha a
+          validade. Token sem validade é conveniente e arriscado: se vazar, vaza para sempre.
+          <strong>90 dias</strong> é um meio-termo razoável.
+        </li>
+        <li class="passo">
+          Em <strong>Repository access</strong>, escolha <strong>Only select repositories</strong> e
+          marque <strong>apenas</strong> o repositório do seu archive. Nunca dê acesso a todos.
+        </li>
+        <li class="passo">
+          Em <strong>Permissions → Repository permissions</strong>, encontre <strong>Contents</strong>
+          e mude para <strong>Read and write</strong>. É a única permissão necessária —
+          é ela que deixa o publish criar o commit. Deixe todo o resto como está.
+        </li>
+        <li class="passo">
+          Clique em <strong>Generate token</strong> e copie o valor. <strong>O GitHub só mostra uma
+          vez</strong> — se perder, não dá pra recuperar, só gerar outro.
+        </li>
+        <li class="passo">
+          Cole no campo acima e salve. O status no topo da aba <strong>Publicar página</strong>
+          deve passar a verde.
+        </li>
+      </ol>
+      <div class="field-hint" style="margin-top:18px">
+        Token clássico (<code>ghp_…</code>) também funciona: precisa do escopo <code>repo</code>.
+        O fine-grained é preferível por dar acesso a um repositório só.
+      </div>
+    </div>
+
+    <div class="aviso-seg">
+      <i class="fad fa-shield-exclamation"></i>
+      <span>
+        <strong>Entenda o que este token permite.</strong> Para publicar, a página precisa dele
+        no navegador — ou seja, quem souber a senha mestre e abrir esta tela consegue escrever
+        no seu repositório. Por isso: use um token com acesso a <strong>um</strong> repositório,
+        <strong>só</strong> a permissão Contents, e com validade. Se suspeitar de vazamento,
+        revogue no GitHub — revogar lá invalida na hora, apagar aqui só remove o registro.
+      </span>
+    </div>
+
+  </div><!-- /painel-token -->
+
+  <footer class="foot">
+    <span class="foot-text">✦ LifeOS</span>
+  </footer>
+</div>
+
+<script src="../assets/js/publicar.js?v=20260921"></script>
+
+</body>
+</html>

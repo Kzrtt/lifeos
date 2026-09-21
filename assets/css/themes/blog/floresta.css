@@ -1,0 +1,38 @@
+/* Tema do blog: Floresta — Floresta — papel esverdeado, acento de latão escuro.
+ *
+ * Paleta CLARA. Os nomes de token aqui são os da capa e da galeria
+ * (--ink, --rule, --bg-card), que NÃO são os do painel (--text, --border,
+ * --surface) — por isso os temas do blog vivem numa pasta própria.
+ *
+ * Entra por um <link> depois do <style> inline da página; `assets/js/tema.js`
+ * só troca o href. Ver LIFEOS.md §12.
+ */
+:root {
+  --bg:         #eef3ef;
+  --bg-card:    #f7fbf8;
+  --bg-hover:   #ffffff;
+  --ink:        #121a15;
+  --ink-dim:    #566459;
+  --ink-mute:   #a1b0a6;
+  --rule:       #ccdad1;
+  --gold:       #6f6533;
+  --gold-wash:  rgba(111, 101, 51, 0.06);
+  --scrim:      rgba(14, 20, 17, 0.94);
+}
+
+/* Versão escura — a MESMA paleta do painel (themes/lifeos/floresta.css),
+ * só com os nomes de token da capa. `html.dark` é a classe que o botão
+ * de sol/lua da capa liga; ela vence o `:root` acima por especificidade,
+ * e este arquivo vence o `html.dark` inline da página por vir depois. */
+html.dark {
+  --bg:         #0e1411;
+  --bg-card:    #151d19;
+  --bg-hover:   #1c2621;
+  --ink:        #e4ebe6;
+  --ink-dim:    #a2b1a7;
+  --ink-mute:   #5f6f65;
+  --rule:       #263129;
+  --gold:       #b9a05a;
+  --gold-wash:  rgba(185, 160, 90, 0.10);
+  --scrim:      rgba(14, 20, 17, 0.94);
+}

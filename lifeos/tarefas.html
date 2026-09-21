@@ -1,0 +1,665 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="theme-color" content="#14120f">
+  <title>LifeOS · Tarefas</title>
+  <link rel="icon" href="../assets/images/favicon.svg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,500;0,700;0,900;1,400&family=JetBrains+Mono:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../assets/css/icons.css">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:        #0c0e12;
+      --surface:   #14171d;
+      --surface-2: #1b1f27;
+      --border:    #262b34;
+      --text:      #e7e9ee;
+      --dim:       #9aa3b2;
+      --mute:      #5d6675;
+      --green:     #3fb98c;
+      --red:       #e5616a;
+      --gold:      #c9a96e;
+      --blue:      #5b8def;
+      --mono: 'JetBrains Mono', monospace;
+      --serif: 'Playfair Display', Georgia, serif;
+      --border-mid: #2f3540;
+      --text-muted: #5d6675;
+      --accent-dim: #7a6a56;
+      --accent:     #c9a96e;
+    }
+
+    html, body { height: 100%; }
+    body {
+      background: var(--bg); color: var(--text); font-family: var(--mono);
+      -webkit-font-smoothing: antialiased; line-height: 1.5;
+      -webkit-text-size-adjust: 100%;
+    }
+    [hidden] { display: none !important; }
+
+    /* ───────────────────────── GATE ───────────────────────── */
+    .gate {
+      position: fixed; inset: 0; display: flex; align-items: center; justify-content: center;
+      padding: 24px; background: radial-gradient(ellipse at 50% 28%, #161a22 0%, #0c0e12 72%);
+    }
+    .gate-box { width: 100%; max-width: 380px; text-align: center; }
+    .gate-orn { font-size: 11px; letter-spacing: 0.5em; color: var(--mute); margin-bottom: 18px; }
+    .gate-brand {
+      font-family: var(--serif); font-weight: 900; font-style: italic;
+      font-size: clamp(44px, 11vw, 64px); line-height: 0.95; color: var(--text);
+      letter-spacing: -0.02em; margin-bottom: 36px;
+    }
+    .gate-label { font-size: 10px; letter-spacing: 0.32em; text-transform: uppercase; color: var(--mute); margin-bottom: 16px; }
+    .gate-row {
+      display: flex; border: 1px solid var(--border); border-radius: 6px; overflow: hidden;
+      transition: border-color 0.2s; background: var(--surface);
+    }
+    .gate-row:focus-within { border-color: var(--gold); }
+    #gate-input {
+      flex: 1; min-width: 0; background: transparent; border: none; outline: none; padding: 15px 18px;
+      font-family: var(--mono); font-size: 16px; color: var(--text); letter-spacing: 0.12em; caret-color: var(--gold);
+    }
+    #gate-input::placeholder { color: var(--mute); }
+    #gate-btn {
+      background: transparent; border: none; border-left: 1px solid var(--border); color: var(--mute);
+      font-family: var(--mono); font-size: 18px; padding: 0 22px; cursor: pointer; transition: color 0.2s, background 0.2s;
+    }
+    #gate-btn:hover:not(:disabled) { color: var(--gold); background: var(--surface-2); }
+    #gate-btn:disabled { opacity: 0.4; cursor: default; }
+    .gate-remember {
+      display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 16px;
+      font-size: 10px; letter-spacing: 0.1em; color: var(--mute); text-transform: uppercase; cursor: pointer; user-select: none;
+    }
+    .gate-remember input { accent-color: var(--gold); cursor: pointer; width: 15px; height: 15px; }
+    .gate-error { margin-top: 16px; min-height: 14px; font-size: 10px; letter-spacing: 0.15em; text-transform: uppercase; color: var(--red); }
+    .gate-checking { margin-top: 8px; font-size: 11px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--mute); }
+    .gate-row.shake { animation: shake 0.35s ease; }
+    @keyframes shake { 0%,100% { transform: translateX(0); } 20% { transform: translateX(-7px); } 60% { transform: translateX(7px); } 80% { transform: translateX(-3px); } }
+
+    /* ───────────────────────── APP ───────────────────────── */
+    .app { max-width: 1200px; margin: 0 auto; padding: 0 20px calc(64px + env(safe-area-inset-bottom)); }
+
+    .topbar { display: flex; align-items: center; justify-content: space-between; padding: 18px 0 14px; border-bottom: 1px solid var(--border); gap: 10px; }
+    .back { font-size: 10px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--mute); text-decoration: none; transition: color 0.2s; white-space: nowrap; }
+    .back .fad { margin-right: 4px; }
+    .back:hover { color: var(--gold); }
+    .topbar-actions { display: flex; align-items: center; gap: 10px; min-width: 0; }
+    .icon-btn {
+      width: 36px; height: 36px; flex-shrink: 0; display: flex; align-items: center; justify-content: center;
+      background: var(--surface); border: 1px solid var(--border); border-radius: 6px; color: var(--dim);
+      cursor: pointer; font-size: 15px; transition: color 0.15s, border-color 0.15s;
+    }
+    .icon-btn:hover { color: var(--gold); border-color: var(--gold); }
+    .icon-btn:disabled { opacity: 0.4; cursor: default; }
+    /* Cache local + botão de refresh (ver LIFEOS.md) — mesmo padrão de financas.html. */
+    .fetched { font-size: 9.5px; letter-spacing: 0.06em; color: var(--mute); text-transform: uppercase; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    #refresh-btn.spinning { animation: tarSpin 0.8s linear infinite; }
+    @keyframes tarSpin { to { transform: rotate(360deg); } }
+
+    .head { display: flex; align-items: flex-end; justify-content: space-between; flex-wrap: wrap; gap: 18px; padding: 28px 0 20px; }
+    .head h1 { font-family: var(--serif); font-weight: 900; font-size: clamp(32px, 6vw, 52px); line-height: 0.95; letter-spacing: -0.02em; }
+    .head-sub { font-size: 10px; letter-spacing: 0.28em; text-transform: uppercase; color: var(--mute); margin-top: 8px; }
+
+    /* ── Seletor de projeto (select real) ──────────────────────────
+       Substituiu os chips de scroll horizontal — o autor achou a versão em
+       chip "bosta" pra esse fluxo (trocar de projeto é a ação mais comum da
+       página, merece um controle nativo e previsível, não scroll lateral).
+       padding-top maior que os outros blocos de propósito: respiro depois
+       da régua dupla do .head (SYSTEM SKIN), que fica colada demais sem
+       isso. */
+    .projeto-bar { display: flex; align-items: flex-end; gap: 20px; flex-wrap: wrap; padding: 26px 2px 20px; }
+    /* Sem max-width — o select é o controle principal da página (trocar de
+       projeto é a ação mais comum), ocupa toda a largura sobrando na linha. */
+    .projeto-select-field { min-width: 220px; flex: 1; }
+    .projeto-select {
+      width: 100%; height: 48px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
+      padding: 0 16px; font-family: var(--mono); font-size: 14px; color: var(--text); outline: none;
+      cursor: pointer; transition: border-color 0.15s;
+    }
+    .projeto-select:focus { border-color: var(--gold); }
+    /* Sem isso, o popup nativo do <option> cai no branco padrão do SO com o
+       --text claro herdado por cima — texto claro em fundo claro, ilegível
+       ao passar o mouse. Cor/fundo explícitos aqui são respeitados pelos
+       navegadores baseados em Chromium/Firefox no popup do select. */
+    .projeto-select option { background: var(--surface-2); color: var(--text); }
+    /* .tag-proj também é usado nas tags de Tipo da view · Lista (ver
+       renderListView em tarefas.js) — não é exclusivo do projeto. */
+    .tag-proj {
+      display: inline-block; font-size: 9px; letter-spacing: 0.08em; text-transform: uppercase;
+      padding: 3px 8px; border-radius: 4px; border: 1px solid var(--border); color: var(--dim); white-space: nowrap;
+    }
+
+    .projeto-empty { padding: 40px 0; text-align: center; color: var(--mute); font-size: 12px; letter-spacing: 0.04em; }
+    .projeto-empty .edit-btn { margin-top: 16px; }
+
+    /* ── Estatísticas do projeto ativo (contagem por status + progresso +
+       atrasadas) — sempre sobre TODAS as tarefas do projeto, ignora busca/
+       filtro de tipo (mesmo princípio dos KPIs de Finanças: o resumo é do
+       mês/projeto inteiro, o filtro só recorta a tabela/kanban abaixo). ── */
+    .tar-stats-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 14px; margin: 0 0 20px; }
+    @media (max-width: 900px) { .tar-stats-grid { grid-template-columns: repeat(3, 1fr); } }
+    /* Mobile (2 colunas): Progresso vale mais como barra larga que como
+       quadrado espremido — passa a ocupar a linha inteira (span 2) sozinho,
+       e troca de lugar com Atrasadas (que sobe pra parear com Feito) via
+       `order`, sem mudar a ordem no HTML/desktop. */
+    @media (max-width: 560px) {
+      .tar-stats-grid { grid-template-columns: repeat(2, 1fr); }
+      .stat-card-overdue { order: 1; }
+      .stat-card-progress { order: 2; grid-column: span 2; }
+    }
+    .stat-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 16px 16px 14px; min-width: 0; }
+    .stat-card-label {
+      display: flex; align-items: center; gap: 6px; font-size: 9px; letter-spacing: 0.1em; text-transform: uppercase;
+      color: var(--mute); margin-bottom: 9px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .stat-card-label i { font-size: 10px; color: var(--gold); flex-shrink: 0; }
+    .stat-count { font-size: 22px; font-weight: 700; font-variant-numeric: tabular-nums; color: var(--text); line-height: 1.2; }
+    .stat-card[data-status="Não Iniciado"] .stat-count { color: var(--mute); }
+    .stat-card[data-status="Em Andamento"] .stat-count { color: var(--gold); }
+    .stat-card[data-status="Feito"] .stat-count { color: var(--green); }
+    .stat-card-overdue .stat-count { color: var(--red); }
+    .stat-progress-bar { height: 6px; border-radius: 999px; background: var(--surface-2); margin-top: 10px; overflow: hidden; }
+    .stat-progress-fill { height: 100%; background: var(--gold); border-radius: 999px; transition: width 0.3s ease; }
+
+    /* ── Card genérico (gráfico) — mesmo vocabulário visual de
+       financas.html, cores remapeadas pro domínio de tarefas. ── */
+    .card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 18px 18px 16px; margin: 0 0 20px; }
+    .card-title { font-size: 10px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--dim); margin-bottom: 16px; }
+    .card-title .hint { color: var(--mute); text-transform: none; letter-spacing: 0.04em; font-size: 9px; }
+    .chart-wrap { position: relative; min-height: 240px; }
+    .chart-empty { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--mute); }
+    /* Dois cards lado a lado (status + tipo) — mesmo padrão de .charts em
+       financas.html; align-items:stretch (default) pra ficarem com a MESMA
+       altura, independente de quantas barras/fatias cada um tem. */
+    .tar-charts-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    @media (max-width: 780px) { .tar-charts-grid { grid-template-columns: 1fr; } }
+    .tar-charts-grid .card { margin: 0; }
+
+    /* ── Divisória de seção — mesmo padrão de financas.html ── */
+    .section-divider { position: relative; border-top: 1px solid var(--border); margin: 8px 0 24px; }
+
+    /* ── Filtro por tipo (badges) ── */
+    .filters { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 0 0 18px; }
+    .filters-label { font-size: 10px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--mute); margin-right: 4px; }
+    .chip { font-family: var(--mono); font-size: 12px; letter-spacing: 0.04em; padding: 7px 13px; border-radius: 999px; border: 1px solid var(--border); background: var(--surface-2); color: var(--dim); cursor: pointer; transition: background 0.15s, border-color 0.15s, color 0.15s; }
+    .chip:hover { border-color: var(--gold); color: var(--text); }
+    .chip.active { background: var(--gold); border-color: var(--gold); color: #14120f; font-weight: 500; }
+    .chip-clear { color: var(--red); border-style: dashed; }
+    .chip-clear:hover { border-color: var(--red); color: var(--red); }
+
+    /* ── Toggle de view (Kanban / Lista) — agora na mesma linha do select de
+       projeto (.projeto-bar); flex-shrink:0 pra não disputar espaço com o
+       select, que é quem deve crescer. Quebra pra linha própria (largura
+       cheia, 2 colunas) quando a barra estoura no flex-wrap do mobile. ── */
+    .view-tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; flex-shrink: 0; }
+    @media (max-width: 560px) { .view-tabs { width: 100%; } }
+    .view-tab {
+      display: flex; align-items: center; justify-content: center; gap: 8px; height: 48px; padding: 0 14px;
+      background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
+      color: var(--dim); font-family: var(--mono); font-size: 12px; letter-spacing: 0.03em;
+      cursor: pointer; text-align: left; white-space: nowrap; transition: border-color 0.15s, color 0.15s, background 0.15s;
+    }
+    .view-tab:hover { border-color: var(--gold); color: var(--text); }
+    .view-tab.active { background: var(--surface-2); border-color: var(--gold); color: var(--text); }
+    .view-tab-icon { font-size: 15px; color: var(--mute); flex-shrink: 0; transition: color 0.15s; }
+    .view-tab.active .view-tab-icon { color: var(--gold); }
+
+    /* ── View · Lista (tabela) ── */
+    .table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+    table.tar-table { width: 100%; border-collapse: collapse; }
+    table.tar-table th { text-align: left; font-size: 9.5px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--mute); font-weight: 500; padding: 0 14px 12px; border-bottom: 1px solid var(--border); white-space: nowrap; }
+    table.tar-table th.r { text-align: right; }
+    table.tar-table td { padding: 12px 14px; border-bottom: 1px solid rgba(46,42,36,0.6); font-size: 12.5px; vertical-align: top; }
+    table.tar-table tr:last-child td { border-bottom: none; }
+    table.tar-table tr { cursor: pointer; }
+    table.tar-table tr:hover td { background: var(--gold-wash); }
+    .td-tar-name { color: var(--text); min-width: 160px; }
+    .td-tar-tipo { display: flex; flex-wrap: wrap; gap: 4px; }
+    .td-tar-status { white-space: nowrap; }
+    .td-tar-status-badge { font-size: 9px; letter-spacing: 0.06em; text-transform: uppercase; padding: 3px 8px; border-radius: 4px; border: 1px solid var(--border); color: var(--dim); }
+    .td-tar-status-badge[data-status="Em Andamento"] { color: var(--gold); border-color: color-mix(in srgb, var(--gold) 40%, transparent); }
+    .td-tar-status-badge[data-status="Feito"] { color: var(--green); border-color: color-mix(in srgb, var(--green) 40%, transparent); }
+    .td-tar-data { color: var(--dim); white-space: nowrap; text-align: right; }
+    .td-tar-data.is-overdue { color: var(--red); }
+    .tar-table-empty { text-align: center; color: var(--mute); font-size: 11px; letter-spacing: 0.1em; padding: 20px 0; }
+
+    /* ── Kanban — fundos coloridos por status, mesmo mapeamento de cor do
+       mini-kanban do hub (ver lifeos.html .tar-mini-col/TAR_STATUS_COR):
+       cinza/dourado/verde translúcido por trás da coluna inteira, badge de
+       contagem escuro com o número tingido na cor do status. ── */
+    /* align-items:stretch (default, mas explícito aqui) — as 3 colunas
+       sempre têm a MESMA altura, igual à mais alta da linha, mesmo que uma
+       delas esteja vazia (sem isso, flex-start deixava cada coluna com a
+       altura do próprio conteúdo, e uma coluna vazia ficava visivelmente
+       menor/cortada que as outras). */
+    .kanban-board { display: flex; gap: 14px; overflow-x: auto; padding-bottom: 12px; align-items: stretch; }
+    /* flex:1 1 0 (em vez de flex-basis fixo) — as 3 colunas esticam pra
+       ocupar toda a largura disponível do board, em partes iguais; min-width
+       segura um piso legível e vira o gatilho do scroll horizontal (herdado
+       de .kanban-board) só em telas realmente estreitas. */
+    .kanban-col { flex: 1 1 0; min-width: 220px; border: 1px solid transparent; border-radius: 10px; display: flex; flex-direction: column; max-height: calc(100vh - 320px); min-height: 160px; transition: outline-color 0.1s; }
+    /* Alvo de drop (arrastar um card pra essa coluna) — outline (não border)
+       pra não empurrar o layout durante o drag. */
+    .kanban-col.is-drop-target { outline: 2px dashed var(--gold); outline-offset: -2px; }
+    .kanban-col[data-status="Não Iniciado"] { background: rgba(107, 100, 86, 0.20); }
+    .kanban-col[data-status="Em Andamento"] { background: color-mix(in srgb, var(--gold) 18%, transparent); }
+    .kanban-col[data-status="Feito"] { background: color-mix(in srgb, var(--green) 16%, transparent); }
+    .kanban-col-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 14px 14px 10px; border-bottom: 1px solid rgba(255,255,255,0.08); flex-shrink: 0; }
+    .kanban-col-title { font-size: 9.5px; letter-spacing: 0.1em; text-transform: uppercase; font-weight: 600; color: var(--dim); }
+    /* Título da coluna tingido na cor do status (mesmo mapeamento do badge de
+       contagem abaixo) — sobre o fundo colorido translúcido de cada coluna, o
+       --dim uniforme antigo ficava com contraste baixo demais pra ler rápido. */
+    .kanban-col[data-status="Não Iniciado"] .kanban-col-title { color: var(--dim); }
+    .kanban-col[data-status="Em Andamento"] .kanban-col-title { color: var(--gold); }
+    .kanban-col[data-status="Feito"] .kanban-col-title { color: var(--green); }
+    .kanban-col-count { font-size: 11px; font-weight: 700; font-variant-numeric: tabular-nums; color: var(--text); background: rgba(0,0,0,0.30); border-radius: 999px; padding: 2px 9px; }
+    .kanban-col[data-status="Não Iniciado"] .kanban-col-count { color: var(--dim); }
+    .kanban-col[data-status="Em Andamento"] .kanban-col-count { color: var(--gold); }
+    .kanban-col[data-status="Feito"] .kanban-col-count { color: var(--green); }
+    /* Scroll vertical interno discreto — barra fina e sutil, não o
+       scrollbar padrão do navegador (grosso, chapado). Mesmo tratamento de
+       .tar-mini-list no mini-kanban do hub (lifeos.html). */
+    .kanban-col-body {
+      padding: 10px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; flex: 1;
+      scrollbar-width: thin; scrollbar-color: rgba(255,255,255,0.14) transparent;
+    }
+    .kanban-col-body::-webkit-scrollbar { width: 5px; }
+    .kanban-col-body::-webkit-scrollbar-track { background: transparent; }
+    .kanban-col-body::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.14); border-radius: 999px; }
+    .kanban-col-body::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.24); }
+    /* margin:auto 0 — com a coluna esticada (ver .kanban-board), centraliza
+       o "—" no meio do espaço vazio inteiro, em vez de ficar grudado no
+       topo de uma caixa alta e vazia. */
+    .kanban-col-empty { font-size: 10.5px; color: var(--mute); text-align: center; padding: 14px 4px; margin: auto 0; }
+    .kanban-card {
+      background: var(--surface-2); border-radius: 8px; padding: 11px 12px; cursor: pointer;
+      transition: background 0.15s, opacity 0.15s; display: flex; flex-direction: column; gap: 7px;
+    }
+    .kanban-card:hover { background: var(--gold-wash); }
+    /* cursor:grab só em desktop (ver IS_DESKTOP em tarefas.js, que só marca
+       os cards com essa classe + draggable lá) — em touch o card continua
+       clicável (abre o modal), só não sugere "arraste" onde não funciona. */
+    .kanban-card.is-draggable { cursor: grab; }
+    /* Card sendo arrastado — opacidade reduzida no original (o navegador já
+       desenha um "ghost" flutuando sob o cursor por conta própria). */
+    .kanban-card.is-dragging { opacity: 0.35; cursor: grabbing; }
+    .kanban-card-name { font-size: 12px; color: var(--text); line-height: 1.4; }
+    .kanban-card-meta { display: flex; flex-wrap: wrap; gap: 5px; align-items: center; }
+    .kanban-card-tipo { font-size: 8px; letter-spacing: 0.04em; text-transform: uppercase; color: var(--dim); border: 1px solid var(--border); border-radius: 4px; padding: 2px 6px; }
+    .kanban-card-data { font-size: 9.5px; color: var(--mute); margin-left: auto; white-space: nowrap; }
+    .kanban-card-data.is-overdue { color: var(--red); }
+    /* Rótulo de projeto — só aparece com "Todos os projetos" selecionado
+       (kanban e lista), pra não perder o contexto quando várias tarefas de
+       projetos diferentes aparecem misturadas. */
+    .tar-item-proj { display: block; font-size: 9.5px; font-style: italic; color: var(--mute); margin-top: 3px; }
+
+    /* ── Chip picker genérico (status/tipo/tags, single ou multi) ── */
+    .chip-picker { display: flex; flex-wrap: wrap; gap: 8px; }
+    .chip-opt {
+      font-family: var(--mono); font-size: 11px; letter-spacing: 0.03em;
+      background: var(--surface-2); border: 1px solid var(--border); color: var(--dim);
+      padding: 7px 12px; border-radius: 999px; cursor: pointer; transition: border-color 0.15s, color 0.15s, background 0.15s;
+    }
+    .chip-opt:hover { color: var(--text); }
+    .chip-opt.is-selected { background: var(--gold); border-color: var(--gold); color: #14120f; font-weight: 500; }
+
+    .foot { margin-top: 48px; padding-top: 24px; border-top: 1px solid var(--border); display: flex; align-items: center; justify-content: center; gap: 12px; font-size: 10px; letter-spacing: 0.25em; text-transform: uppercase; color: var(--mute); }
+    .foot .icon-btn { width: 28px; height: 28px; font-size: 12px; text-transform: none; letter-spacing: 0; }
+
+    /* ── Modal / formulário (mesmo padrão de financas.html/eventos.html) ── */
+    .edit-panel { max-width: 420px; }
+    .edit-field { margin-bottom: 14px; }
+    .edit-field:last-of-type { margin-bottom: 0; }
+    .edit-label { display: block; font-size: 10px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--mute); margin-bottom: 6px; }
+    .edit-input {
+      width: 100%; background: var(--surface-2); border: 1px solid var(--border); border-radius: 6px;
+      padding: 10px 12px; font-family: var(--mono); font-size: 13px; color: var(--text); outline: none;
+      transition: border-color 0.15s;
+    }
+    .edit-input:focus { border-color: var(--gold); }
+    .edit-textarea { resize: vertical; min-height: 110px; line-height: 1.6; }
+    /* ── Descrição da tarefa: markdown com toggle Editar/Pré-visualizar,
+       mesmo chip-picker genérico acima, 2 opções só pra essa escolha. ── */
+    .md-mode-picker { margin-bottom: 8px; }
+    .md-mode-picker .chip-opt { font-size: 10px; padding: 5px 10px; }
+    .md-preview {
+      min-height: 110px; max-height: 260px; overflow-y: auto; background: var(--surface-2);
+      border: 1px solid var(--border); border-radius: 6px; padding: 10px 12px;
+      font-size: 13px; color: var(--text); line-height: 1.6;
+    }
+    .md-preview:empty::before, .md-preview.is-empty::before { content: 'nada pra pré-visualizar ainda'; color: var(--mute); }
+    .md-preview h1, .md-preview h2, .md-preview h3 { font-family: var(--serif); font-style: italic; line-height: 1.3; margin: 0 0 8px; }
+    .md-preview h1 { font-size: 19px; } .md-preview h2 { font-size: 16px; } .md-preview h3 { font-size: 14px; }
+    .md-preview p { margin: 0 0 10px; }
+    .md-preview ul, .md-preview ol { margin: 0 0 10px; padding-left: 20px; }
+    .md-preview li { margin-bottom: 4px; }
+    .md-preview a { color: var(--gold); }
+    .md-preview code { font-size: 12px; background: rgba(0,0,0,0.28); padding: 1px 5px; border-radius: 4px; }
+    .md-preview pre { background: rgba(0,0,0,0.28); border-radius: 6px; padding: 10px 12px; overflow-x: auto; margin: 0 0 10px; }
+    .md-preview pre code { background: none; padding: 0; }
+    .md-preview blockquote { border-left: 2px solid var(--gold); margin: 0 0 10px; padding-left: 12px; color: var(--dim); }
+    .md-preview > *:last-child { margin-bottom: 0; }
+    .edit-error { min-height: 14px; font-size: 11px; letter-spacing: 0.04em; color: var(--red); margin-top: 10px; }
+    .edit-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 18px; }
+    .edit-btn { display: inline-flex; align-items: center; justify-content: center; text-decoration: none; font-family: var(--mono); font-size: 12px; letter-spacing: 0.04em; padding: 10px 18px; border-radius: 6px; cursor: pointer; transition: border-color 0.15s, background 0.15s, color 0.15s; }
+    .edit-btn-ghost { background: transparent; border: 1px solid var(--border); color: var(--dim); }
+    .edit-btn-ghost:hover { border-color: var(--gold); color: var(--text); }
+    .edit-btn-danger { background: transparent; border: 1px solid var(--red); color: var(--red); margin-right: auto; }
+    .edit-btn-danger:hover { background: color-mix(in srgb, var(--red) 10%, transparent); }
+    .edit-btn-primary { background: var(--gold); border: 1px solid var(--gold); color: #14120f; font-weight: 500; }
+    .edit-btn-primary:hover { opacity: 0.9; }
+    .edit-btn-primary:disabled { opacity: 0.5; cursor: default; }
+
+    .modal { position: fixed; inset: 0; z-index: 1000; display: flex; align-items: center; justify-content: center; padding: 20px; background: rgba(6,8,11,0.78); opacity: 0; pointer-events: none; transition: opacity 0.2s ease; }
+    .modal.open { opacity: 1; pointer-events: auto; }
+    .modal-panel { width: 100%; max-width: 560px; max-height: 86vh; display: flex; flex-direction: column; background: var(--surface); border: 1px solid var(--border-mid); border-radius: 12px; overflow: hidden; }
+    .modal-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; padding: 18px 20px 14px; border-bottom: 1px solid var(--border); }
+    .modal-title { font-family: var(--serif); font-style: italic; font-size: 20px; color: var(--text); }
+    .modal-close { width: 36px; height: 36px; flex-shrink: 0; background: transparent; border: 1px solid var(--border); border-radius: 6px; color: var(--dim); cursor: pointer; font-size: 13px; }
+    .modal-close:hover { color: var(--gold); border-color: var(--gold); }
+    /* Scroll interno discreto — mesma barra fina de .kanban-col-body, não o
+       scrollbar padrão do navegador (grosso, chapado). */
+    .modal-body {
+      overflow-y: auto; -webkit-overflow-scrolling: touch; padding: 18px 20px 20px;
+      scrollbar-width: thin; scrollbar-color: rgba(255,255,255,0.14) transparent;
+    }
+    .modal-body::-webkit-scrollbar { width: 5px; }
+    .modal-body::-webkit-scrollbar-track { background: transparent; }
+    .modal-body::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.14); border-radius: 999px; }
+    .modal-body::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.24); }
+
+    .loading-ov { position: fixed; inset: 0; z-index: 500; display: flex; align-items: center; justify-content: center; background: rgba(12,14,18,0.55); }
+    .spinner { width: 32px; height: 32px; border: 3px solid var(--border); border-top-color: var(--gold); border-radius: 50%; animation: spin 0.7s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    @media (max-width: 560px) {
+      .app { padding: 0 14px calc(56px + env(safe-area-inset-bottom)); }
+      .fetched { display: none; }
+      .modal { padding: 16px; align-items: center; }
+      .modal-panel { max-width: 100%; max-height: 86vh; border-radius: 12px; }
+      /* Scroll horizontal é inevitável com 3 colunas em tela estreita, mas
+         cada coluna ocupa a largura cheia disponível (100vw − padding do
+         .app) em vez de mostrar fatias de 2-3 colunas ao mesmo tempo — vira
+         um scroll "uma coluna por vez", reforçado pelo scroll-snap. */
+      .kanban-col { min-width: calc(100vw - 28px); scroll-snap-align: start; }
+      .kanban-board { scroll-snap-type: x mandatory; }
+    }
+
+    /* ═══════════════════════════════════════════════════════════════════
+       SYSTEM SKIN — paleta sépia-quente do arquivo, mesma reskin aplicada
+       em index / galeria / financas / eventos. Reverter = apagar este bloco.
+       ═══════════════════════════════════════════════════════════════════ */
+    :root {
+      --bg:        #14120f;
+      --surface:   #1c1a16;
+      --surface-2: #242018;
+      --border:    #2e2a24;
+      --text:      #ede8df;
+      --dim:       #b0a898;
+      --mute:      #6b6456;
+      --gold:      #c4913a;
+      --gold-wash: rgba(196, 145, 58, 0.10);
+      --border-mid: #3a352d;
+      --text-muted: #6b6456;
+      --accent-dim: #7a6a56;
+      --accent:     #c4913a;
+    }
+    html { background: var(--bg); }
+    body { background: transparent; }
+    .ambient-field { position: fixed; inset: 0; z-index: -1; overflow: hidden; pointer-events: none; }
+    .ambient-glyph {
+      position: absolute; font-family: 'Playfair Display', serif; font-style: italic; color: var(--text);
+      opacity: 0; animation-name: ambientFade; animation-timing-function: ease-in-out; animation-iteration-count: infinite;
+      will-change: opacity, transform;
+    }
+    @keyframes ambientFade {
+      0%   { opacity: 0; transform: translateY(10px); }
+      50%  { opacity: var(--peak, 0.05); transform: translateY(-10px); }
+      100% { opacity: 0; transform: translateY(-24px); }
+    }
+    .gate { background: radial-gradient(ellipse at 50% 28%, #1c1a16 0%, #14120f 72%); }
+    .modal { background: rgba(8, 7, 6, 0.90); }
+    .loading-ov { background: rgba(20, 18, 15, 0.55); }
+    .head { border-bottom: 3px double var(--text); padding-bottom: 22px; }
+    .head h1 { font-style: italic; letter-spacing: -0.03em; }
+    .head-titles::before {
+      content: '✦ ✦ ✦';
+      display: block; font-family: var(--mono);
+      font-size: 10px; letter-spacing: 0.6em; color: var(--mute);
+      margin-bottom: 14px;
+    }
+    .foot { border-top: 3px double var(--text); }
+    .icon-btn:hover { background: var(--gold-wash); }
+    .kanban-card:hover { background: var(--gold-wash); }
+    .projeto-select:hover { background: var(--gold-wash); }
+    /* :not(.active) — sem isso, essa regra (mesma especificidade de
+       .chip.active, mas declarada depois) vence a cascata e troca o fundo
+       sólido dourado do estado ativo por um wash translúcido; o texto
+       escuro (#14120f) do .active continua escuro, resultando em texto
+       quase preto sobre fundo quase preto no hover de um chip já
+       selecionado — ilegível. */
+    .view-tab:hover, .chip:hover:not(.active) { background: var(--gold-wash); }
+    table.tar-table tr:hover td { background: var(--gold-wash); }
+    .section-divider::before {
+      content: '✦'; position: absolute; top: -7px; left: 50%; transform: translateX(-50%);
+      background: var(--bg); padding: 0 12px; color: var(--gold); font-size: 10px;
+    }
+    /* ═══ SYSTEM SKIN ▸ END ═══ */
+  </style>
+  <link rel="stylesheet" id="lifeos-tema" href="../assets/css/themes/lifeos/sepia.css">
+  <!-- Config da instância + tema. Precisam vir AQUI, nesta ordem e sem defer:
+       o <link> acima tem de ficar depois do <style> pra vencer o SYSTEM SKIN,
+       e tema.js tem de rodar antes da primeira pintura. Ver assets/js/tema.js. -->
+  <script src="../assets/js/lifeos-config.js"></script>
+  <script src="../assets/js/tema.js"></script>
+  <script src="../assets/js/blog.js"></script>
+</head>
+<body>
+
+<div class="ambient-field" id="ambient-field" aria-hidden="true"></div>
+
+<!-- ───────────────────────── GATE ───────────────────────── -->
+<div id="gate" class="gate">
+  <div class="gate-box">
+    <div class="gate-orn">✦ &nbsp; ✦ &nbsp; ✦</div>
+    <div class="gate-brand">Tarefas</div>
+    <form id="gate-form" autocomplete="off">
+      <div class="gate-label">acesso restrito · senha mestre</div>
+      <div class="gate-row" id="gate-row">
+        <input id="gate-input" type="password" placeholder="senha mestre" spellcheck="false" autocomplete="current-password">
+        <button id="gate-btn" type="submit"><i class="fad fa-arrow-right"></i></button>
+      </div>
+      <label class="gate-remember"><input type="checkbox" id="gate-remember"> lembrar neste navegador</label>
+      <div id="gate-error" class="gate-error"></div>
+    </form>
+    <div id="gate-checking" class="gate-checking" hidden>verificando sessão…</div>
+  </div>
+</div>
+
+<!-- ───────────────────────── APP ───────────────────────── -->
+<div id="app" class="app" hidden>
+
+  <div class="topbar">
+    <a href="lifeos.html" class="back"><i class="fad fa-arrow-left"></i> LifeOS</a>
+    <div class="topbar-actions">
+      <span id="fetched-at" class="fetched"></span>
+      <button id="add-tarefa-btn" class="icon-btn" title="Nova tarefa" aria-label="Nova tarefa"><i class="fad fa-plus"></i></button>
+      <button id="refresh-btn" class="icon-btn" title="Re-sincronizar" aria-label="Atualizar"><i class="fad fa-sync"></i></button>
+      <button id="logout-btn" class="icon-btn" title="Sair" aria-label="Sair"><i class="fad fa-sign-out"></i></button>
+    </div>
+  </div>
+
+  <header class="head">
+    <div class="head-titles">
+      <h1>Tarefas</h1>
+      <p class="head-sub">Projetos &amp; Kanban</p>
+    </div>
+  </header>
+
+  <div id="projeto-empty" class="projeto-empty" hidden>
+    <p>Nenhum projeto ainda.</p>
+    <!-- Gestão de projetos (criar/editar/excluir) mora em lifeos.html desde
+         set/2026, a pedido do autor — esta página só lê PROJETOS (ver LIFEOS.md). -->
+    <a href="lifeos.html#hero-projetos" id="projeto-empty-add" class="edit-btn edit-btn-primary">Criar o primeiro projeto</a>
+  </div>
+
+  <div id="tarefas-content" hidden>
+    <section class="projeto-bar">
+      <div class="projeto-select-field">
+        <label class="edit-label" for="projeto-select">Projeto ativo</label>
+        <select id="projeto-select" class="projeto-select"></select>
+      </div>
+      <div class="view-tabs" id="tar-view-tabs">
+        <button class="view-tab active" data-view="kanban" type="button"><i class="fad fa-columns view-tab-icon"></i> Kanban</button>
+        <button class="view-tab" data-view="lista" type="button"><i class="fad fa-list view-tab-icon"></i> Lista</button>
+      </div>
+    </section>
+
+    <div id="tipo-filters" class="filters" hidden></div>
+
+    <section class="kanban-board" id="kanban-board"></section>
+
+    <section class="card" id="view-lista" hidden>
+      <div class="table-wrap">
+        <table class="tar-table">
+          <thead><tr><th>Nome</th><th>Tipo</th><th>Status</th><th class="r">Entrega</th></tr></thead>
+          <tbody id="tar-list-tbody"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <div class="section-divider"></div>
+
+    <section class="tar-stats-grid" id="tar-stats-grid">
+      <div class="stat-card" data-status="Não Iniciado">
+        <div class="stat-card-label"><i class="fad fa-circle"></i> Não iniciadas</div>
+        <div class="stat-count" id="stat-nao-iniciado">—</div>
+      </div>
+      <div class="stat-card" data-status="Em Andamento">
+        <div class="stat-card-label"><i class="fad fa-spinner-third"></i> Em andamento</div>
+        <div class="stat-count" id="stat-em-andamento">—</div>
+      </div>
+      <div class="stat-card" data-status="Feito">
+        <div class="stat-card-label"><i class="fad fa-check-circle"></i> Feitas</div>
+        <div class="stat-count" id="stat-feito">—</div>
+      </div>
+      <div class="stat-card stat-card-progress">
+        <div class="stat-card-label"><i class="fad fa-chart-pie"></i> Progresso</div>
+        <div class="stat-count" id="stat-progresso">—</div>
+        <div class="stat-progress-bar"><div class="stat-progress-fill" id="stat-progresso-fill" style="width:0%"></div></div>
+      </div>
+      <div class="stat-card stat-card-overdue">
+        <div class="stat-card-label"><i class="fad fa-exclamation-triangle"></i> Atrasadas</div>
+        <div class="stat-count" id="stat-atrasadas">—</div>
+      </div>
+    </section>
+
+    <section class="tar-charts-grid">
+      <div class="card">
+        <div class="card-title">Por status</div>
+        <div class="chart-wrap"><canvas id="tar-chart-status"></canvas><div id="tar-chart-status-empty" class="chart-empty" hidden>sem tarefas neste projeto</div></div>
+      </div>
+      <div class="card">
+        <div class="card-title">Por tipo</div>
+        <div class="chart-wrap"><canvas id="tar-chart-tipo"></canvas><div id="tar-chart-tipo-empty" class="chart-empty" hidden>nenhuma tarefa com tipo</div></div>
+      </div>
+    </section>
+  </div>
+
+  <footer class="foot">
+    <span class="foot-text">✦ LifeOS · LifeOS · Tarefas · LifeOS · 2026</span>
+  </footer>
+</div>
+
+<!-- ───────────────────────── MODAL · TAREFA (criar/editar) ───────────────────────── -->
+<div id="tarefa-modal" class="modal" role="dialog" aria-modal="true">
+  <div class="modal-panel edit-panel">
+    <div class="modal-head">
+      <div class="modal-title" id="tarefa-modal-title">Nova tarefa</div>
+      <button type="button" id="tarefa-modal-close" class="modal-close" aria-label="Fechar"><i class="fad fa-times"></i></button>
+    </div>
+    <div class="modal-body">
+      <form id="tarefa-form" autocomplete="off">
+        <div class="edit-field">
+          <label class="edit-label" for="tarefa-nome">Nome</label>
+          <input type="text" id="tarefa-nome" class="edit-input" maxlength="300" autocomplete="off">
+        </div>
+        <div class="edit-field">
+          <label class="edit-label">Status</label>
+          <input type="hidden" id="tarefa-status" value="Não Iniciado">
+          <div class="chip-picker" id="tarefa-status-picker"></div>
+        </div>
+        <div class="edit-field">
+          <label class="edit-label">Tipo</label>
+          <div class="chip-picker" id="tarefa-tipo-picker"></div>
+        </div>
+        <div class="edit-field">
+          <label class="edit-label">Projeto</label>
+          <input type="hidden" id="tarefa-projeto-id" value="">
+          <div class="chip-picker" id="tarefa-projeto-picker"></div>
+        </div>
+        <div class="edit-field">
+          <label class="edit-label" for="tarefa-data-entrega">Data de entrega (opcional)</label>
+          <input type="date" id="tarefa-data-entrega" class="edit-input">
+        </div>
+        <div class="edit-field">
+          <label class="edit-label">Descrição <span style="text-transform:none;letter-spacing:0;color:var(--mute);">(markdown, opcional)</span></label>
+          <div class="chip-picker md-mode-picker" id="tarefa-descricao-mode"></div>
+          <textarea id="tarefa-descricao" class="edit-input edit-textarea" maxlength="20000" placeholder="**negrito**, _itálico_, listas, links…"></textarea>
+          <div id="tarefa-descricao-preview" class="md-preview" hidden></div>
+        </div>
+        <div id="tarefa-error" class="edit-error"></div>
+        <div class="edit-actions">
+          <button type="button" id="tarefa-delete" class="edit-btn edit-btn-danger" hidden>Excluir</button>
+          <button type="button" id="tarefa-cancel" class="edit-btn edit-btn-ghost">Cancelar</button>
+          <button type="submit" id="tarefa-save" class="edit-btn edit-btn-primary">Salvar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- ───────────────────────── LOADING ───────────────────────── -->
+<div id="loading" class="loading-ov" hidden><div class="spinner"></div></div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.6/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/marked@12.0.2/marked.min.js"></script>
+<script src="../assets/js/tarefas.js?v=20260917f"></script>
+<script src="../assets/js/back-to-top.js?v=20260617"></script>
+
+<script>
+(function buildAmbientField() {
+  'use strict';
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  var field = document.getElementById('ambient-field');
+  if (!field) return;
+  var GLYPHS = [
+    'ψ', 'Ω', 'Σ', 'Φ', 'α', 'β', 'γ', 'δ', 'θ', 'λ', 'μ', 'ξ', 'π', 'τ', 'ω', 'ρ', 'ν', 'ι', 'κ',
+    '☿', '☽', '☉', '♀', '♂', '♃', '♄', '⛢', '♆', '✦', '✧', '⟡', '◈', '⌖', '⬗', '☯', '✵', '✶', '✳', '⚝'
+  ];
+  var count = window.innerWidth < 640 ? 85 : 170;
+  var frag = document.createDocumentFragment();
+  for (var i = 0; i < count; i++) {
+    var el = document.createElement('span');
+    el.className = 'ambient-glyph';
+    el.textContent = GLYPHS[Math.floor(Math.random() * GLYPHS.length)];
+    el.style.left = (Math.random() * 100) + '%';
+    el.style.top = (Math.random() * 100) + '%';
+    el.style.fontSize = (16 + Math.random() * 38) + 'px';
+    el.style.setProperty('--peak', (0.016 + Math.random() * 0.03).toFixed(3));
+    var dur = 3 + Math.random() * 5;
+    el.style.animationDuration = dur + 's';
+    el.style.animationDelay = (-Math.random() * dur) + 's';
+    frag.appendChild(el);
+  }
+  field.appendChild(frag);
+})();
+</script>
+
+</body>
+</html>

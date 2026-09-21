@@ -1,0 +1,1747 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="theme-color" content="#14120f">
+  <title>LifeOS · LifeOS</title>
+  <link rel="icon" href="../assets/images/favicon.svg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,500;0,700;0,900;1,400&family=JetBrains+Mono:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../assets/css/icons.css">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:        #0c0e12;
+      --surface:   #14171d;
+      --surface-2: #1b1f27;
+      --border:    #262b34;
+      --text:      #e7e9ee;
+      --dim:       #9aa3b2;
+      --mute:      #5d6675;
+      --green:     #3fb98c;
+      --red:       #e5616a;
+      --gold:      #c9a96e;
+      --blue:      #5b8def;
+      --mono: 'JetBrains Mono', monospace;
+      --serif: 'Playfair Display', Georgia, serif;
+      --border-mid: #2f3540;
+      --text-muted: #5d6675;
+      --accent-dim: #7a6a56;
+      --accent:     #c9a96e;
+    }
+
+    html, body { height: 100%; }
+    body {
+      background: var(--bg); color: var(--text); font-family: var(--mono);
+      -webkit-font-smoothing: antialiased; line-height: 1.5;
+      -webkit-text-size-adjust: 100%;
+    }
+    body.modal-scroll-lock { overflow: hidden; }
+    [hidden] { display: none !important; }
+
+    /* ───────────────────────── GATE ───────────────────────── */
+    .gate {
+      position: fixed; inset: 0; display: flex; align-items: center; justify-content: center;
+      padding: 24px; background: radial-gradient(ellipse at 50% 28%, #161a22 0%, #0c0e12 72%);
+    }
+    .gate-box { width: 100%; max-width: 380px; text-align: center; }
+    .gate-orn { font-size: 11px; letter-spacing: 0.5em; color: var(--mute); margin-bottom: 18px; }
+    .gate-brand {
+      font-family: var(--serif); font-weight: 900; font-style: italic;
+      font-size: clamp(44px, 11vw, 64px); line-height: 0.95; color: var(--text);
+      letter-spacing: -0.02em; margin-bottom: 36px;
+    }
+    .gate-label { font-size: 10px; letter-spacing: 0.32em; text-transform: uppercase; color: var(--mute); margin-bottom: 16px; }
+    .gate-row {
+      display: flex; border: 1px solid var(--border); border-radius: 6px; overflow: hidden;
+      transition: border-color 0.2s; background: var(--surface);
+    }
+    .gate-row:focus-within { border-color: var(--gold); }
+    #gate-input {
+      flex: 1; min-width: 0; background: transparent; border: none; outline: none; padding: 15px 18px;
+      font-family: var(--mono); font-size: 16px; color: var(--text); letter-spacing: 0.12em; caret-color: var(--gold);
+    }
+    #gate-input::placeholder { color: var(--mute); }
+    #gate-btn {
+      background: transparent; border: none; border-left: 1px solid var(--border); color: var(--mute);
+      font-family: var(--mono); font-size: 18px; padding: 0 22px; cursor: pointer; transition: color 0.2s, background 0.2s;
+    }
+    #gate-btn:hover:not(:disabled) { color: var(--gold); background: var(--surface-2); }
+    #gate-btn:disabled { opacity: 0.4; cursor: default; }
+    .gate-remember {
+      display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 16px;
+      font-size: 10px; letter-spacing: 0.1em; color: var(--mute); text-transform: uppercase; cursor: pointer; user-select: none;
+    }
+    .gate-remember input { accent-color: var(--gold); cursor: pointer; width: 15px; height: 15px; }
+    .gate-error { margin-top: 16px; min-height: 14px; font-size: 10px; letter-spacing: 0.15em; text-transform: uppercase; color: var(--red); }
+    .gate-checking { margin-top: 8px; font-size: 11px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--mute); }
+    .gate-row.shake { animation: shake 0.35s ease; }
+    @keyframes shake { 0%,100% { transform: translateX(0); } 20% { transform: translateX(-7px); } 60% { transform: translateX(7px); } 80% { transform: translateX(-3px); } }
+
+    /* ───────────────────────── APP ───────────────────────── */
+    .app { max-width: 1080px; margin: 0 auto; padding: 0 20px calc(64px + env(safe-area-inset-bottom)); }
+
+    .topbar { display: flex; align-items: center; justify-content: space-between; padding: 18px 0 14px; border-bottom: 1px solid var(--border); gap: 10px; }
+    .back { font-size: 10px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--mute); text-decoration: none; transition: color 0.2s; white-space: nowrap; }
+    .back .fad { margin-right: 4px; }
+    .back:hover { color: var(--gold); }
+    /* Cache local + botão de refresh (ver LIFEOS.md) — mesmo padrão visual
+       de financas.html (.fetched/.icon-btn.spinning). */
+    .topbar-actions { display: flex; align-items: center; gap: 10px; min-width: 0; }
+    .fetched { font-size: 9.5px; letter-spacing: 0.06em; color: var(--mute); text-transform: uppercase; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    #hub-refresh-btn.spinning { animation: hubSpin 0.8s linear infinite; }
+    @keyframes hubSpin { to { transform: rotate(360deg); } }
+    .icon-btn {
+      width: 36px; height: 36px; flex-shrink: 0; display: flex; align-items: center; justify-content: center;
+      background: var(--surface); border: 1px solid var(--border); border-radius: 6px; color: var(--dim);
+      cursor: pointer; font-size: 15px; transition: color 0.15s, border-color 0.15s;
+    }
+    .icon-btn:hover { color: var(--gold); border-color: var(--gold); }
+    .icon-btn:disabled { opacity: 0.4; cursor: default; }
+
+    /* ── Masthead: banner + ícone sobreposto (à la Notion) ──
+       O banner (assets/images/banner.svg) é uma ilustração emoldurada
+       inteira, AR nativo ~1.79:1 (2048×1143) — a caixa usa esse MESMO AR
+       (`aspect-ratio`), então `object-fit:cover` nunca corta nada, só
+       redimensiona; height é responsivo à largura, não um valor fixo. Um
+       scrim (`::after`) escurece a faixa inferior pra garantir contraste do
+       título por cima da ilustração, seja qual for o conteúdo ali. */
+    .hub-banner {
+      width: 100%; height: clamp(190px, 26vw, 320px); border-radius: 14px; overflow: hidden;
+      margin-top: 4px; position: relative;
+    }
+    .hub-banner img { width: 100%; height: 100%; object-fit: cover; object-position: center top; display: block; }
+    .hub-banner::after {
+      content: ''; position: absolute; inset: auto 0 0 0; height: 46%; pointer-events: none;
+      background: linear-gradient(to top, rgba(0,0,0,0.88), rgba(0,0,0,0.35) 55%, rgba(0,0,0,0) 100%);
+    }
+    .hub-masthead-row { display: flex; align-items: flex-end; gap: 20px; padding: 0 4px; margin-top: -80px; position: relative; z-index: 1; }
+    .hub-icon-wrap {
+      width: clamp(120px, 15vw, 168px); height: clamp(120px, 15vw, 168px); border-radius: 22px; overflow: hidden; flex-shrink: 0;
+      border: 4px solid var(--bg); background: var(--surface); box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+    }
+    .hub-icon-wrap img { width: 100%; height: 100%; object-fit: cover; object-position: center top; display: block; }
+    .hub-masthead-text { padding-bottom: 10px; }
+    .hub-masthead-text h1 {
+      font-family: var(--serif); font-weight: 900; font-style: italic;
+      font-size: clamp(32px, 6vw, 48px); line-height: 0.95; letter-spacing: -0.02em; color: var(--text);
+      text-shadow: 0 2px 16px rgba(0,0,0,0.85), 0 1px 4px rgba(0,0,0,0.9);
+    }
+    .hub-sub { font-size: 10px; letter-spacing: 0.28em; text-transform: uppercase; color: var(--dim); margin-top: 8px; text-shadow: 0 1px 6px rgba(0,0,0,0.7); }
+
+    .hub-quicknav { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 8px; margin: 12px 0 22px; }
+    .hub-quicknav a, .hub-quicknav button {
+      display: inline-flex; align-items: center; gap: 7px; font-family: var(--mono); font-size: 11px; letter-spacing: 0.05em;
+      background: var(--surface); border: 1px solid var(--border); color: var(--dim); text-decoration: none;
+      padding: 8px 13px; border-radius: 999px; cursor: pointer; transition: border-color 0.15s, color 0.15s, background 0.15s;
+    }
+    .hub-quicknav a:hover, .hub-quicknav button:hover { border-color: var(--gold); color: var(--gold); background: var(--gold-wash); }
+    .hub-quicknav a i, .hub-quicknav button i { color: var(--gold); font-size: 11px; }
+    .hub-masthead-rule { border-top: 3px double var(--text); margin-bottom: 14px; }
+
+    /* ── Hero-section: uma área do LifeOS ─────────────────────────────
+       NÃO é um card — não tem fundo nem borda próprios. É só um agrupador:
+       um título + um conjunto de `.bento-card`s soltos, flutuando direto
+       sobre o fundo da página. A separação entre áreas é um divisor simples
+       (borda no topo de toda seção que não é a primeira), não uma caixa. */
+    .hero-section { padding: 18px 4px 34px; scroll-margin-top: 20px; }
+    .hero-section + .hero-section { border-top: 3px double var(--text); }
+
+    .hero-head { display: flex; align-items: center; flex-wrap: wrap; gap: 10px 12px; margin-bottom: 22px; }
+    .hero-icon { font-size: 19px; color: var(--gold); flex-shrink: 0; }
+    .hero-title { font-family: var(--serif); font-style: italic; font-weight: 700; font-size: 23px; color: var(--text); flex: 1; min-width: 0; }
+    /* Botão "Adicionar" + toggle Eventos/Tarefas lado a lado no desktop */
+    .hero-head-actions { display: flex; flex-direction: row; align-items: center; gap: 10px; flex-shrink: 0; margin-left: auto; }
+    #cal-mode-toggle { width: auto; flex-shrink: 0; }
+    .hero-link {
+      flex-shrink: 0; display: inline-flex; align-items: center; gap: 6px; text-decoration: none;
+      font-family: var(--mono); font-size: 11px; letter-spacing: 0.05em;
+      background: transparent; border: 1px solid var(--border); color: var(--dim);
+      padding: 7px 12px; border-radius: 7px; cursor: pointer; transition: border-color 0.15s, color 0.15s, background 0.15s;
+    }
+    .hero-link:hover { border-color: var(--gold); color: var(--gold); background: var(--gold-wash); }
+    /* ── Bento card: unidade visual reaproveitada em toda hero-section ──
+       Estilização copiada do .card do index.html (mesmos tokens: --surface
+       aqui = --bg-card lá, --border aqui = --rule lá, hex idênticos nas
+       duas paletas) — cantos QUADRADOS (index.html não arredonda `.card`),
+       borda fina de 1px (sutil, mas existe — não é "sem borda", é uma borda
+       quase invisível pelo baixo contraste de --rule/--border), padding
+       mais generoso e desproporcional (mais em cima que embaixo, como
+       `.card-body` do index: 30/22/26). */
+    .bento-card { background: var(--surface); border: 1px solid var(--border); border-radius: 0; padding: 20px 18px 17px; min-width: 0; }
+    /* Leve wash de cor por trás de cards com semântica pos/neg — por cima
+       do fundo padrão do card, borda continua a mesma. */
+    .bento-card.tint-pos { background: linear-gradient(135deg, color-mix(in srgb, var(--green) 13%, transparent), var(--surface) 62%); }
+    .bento-card.tint-neg { background: linear-gradient(135deg, color-mix(in srgb, var(--red) 13%, transparent), var(--surface) 62%); }
+    .bento-card-label {
+      display: flex; align-items: center; gap: 6px;
+      font-size: 9px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--mute);
+      margin-bottom: 8px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .bento-card-label i { font-size: 10px; color: var(--gold); flex-shrink: 0; }
+    .bento-big-val { font-size: 22px; font-weight: 700; font-variant-numeric: tabular-nums; color: var(--text); line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .bento-big-val.pos { color: var(--green); }
+    .bento-big-val.neg { color: var(--red); }
+    .bento-sub { font-size: 10.5px; color: var(--dim); line-height: 1.5; margin-top: 6px; }
+    .bento-sub.pos { color: var(--green); }
+    .bento-sub.warn { color: var(--gold); }
+
+    /* ── Finanças: grid bento de tamanhos variados (não um card único) ──
+       saldo (grande, 2×2) + entradas/saídas (pequenos) + fatura atual/
+       projetada (pequenos) + últimas transações (larga, embaixo). */
+    .fin-bento { display: grid; grid-template-columns: repeat(4, 1fr); grid-template-areas: "saldo saldo entradas saidas" "saldo saldo fatura-atual fatura-proj" "recent recent recent recent"; gap: 14px; }
+    .fin-card-saldo { grid-area: saldo; display: flex; flex-direction: column; }
+    .fin-card-entradas { grid-area: entradas; }
+    .fin-card-saidas { grid-area: saidas; }
+    .fin-card-fatura-atual { grid-area: fatura-atual; }
+    .fin-card-fatura-proj { grid-area: fatura-proj; }
+    .fin-card-recent { grid-area: recent; }
+    @media (max-width: 780px) {
+      .fin-bento { grid-template-columns: 1fr 1fr; grid-template-areas: "saldo saldo" "entradas saidas" "fatura-atual fatura-proj" "recent recent"; }
+    }
+    @media (max-width: 480px) {
+      .fin-bento { grid-template-columns: 1fr; grid-template-areas: "saldo" "entradas" "saidas" "fatura-atual" "fatura-proj" "recent"; }
+    }
+
+    /* ── Tarefas: contagem por status + kanban (por projeto, via select).
+       Read-only (padrão Finanças) — escrita mora só em tarefas.html.
+       Kanban NUNCA divide linha com outro card — ocupa a largura cheia do
+       grid (grid-template-areas abaixo), pra não espremer as 3 colunas e
+       forçar scroll lateral. */
+    .tar-bento { display: grid; grid-template-columns: repeat(3, 1fr); grid-template-areas: "stat-ni stat-ea stat-fe" "kanban kanban kanban"; gap: 14px; }
+    .tar-card-stat-ni { grid-area: stat-ni; }
+    .tar-card-stat-ea { grid-area: stat-ea; }
+    .tar-card-stat-fe { grid-area: stat-fe; }
+    .tar-card-kanban { grid-area: kanban; }
+    @media (max-width: 480px) {
+      .tar-bento { grid-template-columns: 1fr; grid-template-areas: "stat-ni" "stat-ea" "stat-fe" "kanban"; }
+    }
+    .tar-stat-count { font-size: 22px; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1.2; }
+
+    /* ── Notas: duas linhas (6ª rodada, set/2026 — pedido explícito do
+       o autor, reestruturação completa). Linha 1: "Últimas notas" ocupa a
+       largura INTEIRA (`.not-card-recent { grid-column: 1 / -1 }`,
+       primeiro no DOM pra cair na 1ª linha do grid) — antes dividia
+       espaço com o gráfico e só cabia 1 nota sem rolar, o que "não fazia
+       sentido". Linha 2: dois cards lado a lado — "Por tipo" (já
+       existia) e "Por projeto" (novo, `.not-card-projeto` — mesma lógica
+       de barras horizontais, cor única `--gold` já que projeto não tem
+       mapeamento de cor como tipo tem). Motivação do autor: "bastante
+       visualizações dos dados".
+
+       HISTÓRICO — por que não usa mais `syncNotasCardHeight()`/JS: até a
+       5ª rodada, "Por tipo" e "Últimas notas" dividiam uma bento-row e
+       precisavam de altura igual (por isso o JS de sync, o mesmo
+       mecanismo problemático de `.evt-bento`/`syncEventTimelineHeight`,
+       com DOIS bugs de amontoamento em rodadas anteriores — ver
+       `NOTAS.md` §3). Com a lista agora numa linha própria, sem card
+       pareado, essa necessidade desaparece: `#not-recent` vira um
+       `max-height` fixo simples (ver abaixo), sem flex:1/JS nenhum — os
+       dois cards da linha 2 têm estrutura idêntica (rótulo + linha de
+       stats + `.not-chart-wrap`, mesma altura fixa nos dois — ver
+       regra abaixo), então ficam com a mesma altura só por CSS, sem
+       ambiguidade pra resolver. */
+    .not-bento { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    .not-card-recent { grid-column: 1 / -1; }
+    .not-card-tipo, .not-card-recent, .not-card-projeto { display: flex; flex-direction: column; min-height: 0; }
+    .not-stats-line { font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--mute); margin: -2px 0 10px; }
+    /* 320px — era 220px (7ª rodada, set/2026, pedido explícito do autor:
+       "faça eles maiores verticalmente" — screenshot mostrando os dois
+       gráficos de barra pequenos demais pro espaço que a linha 2 do
+       .not-bento já tem disponível). */
+    .not-chart-wrap { height: 320px; }
+    /* max-height explícito (não flex:1) — mesma lição das duas rodadas
+       anteriores: flex:1 num container auto-height é ambíguo, max-height
+       fixo não é. ~5 notas cabem sem rolar em conteúdo típico (nome + até
+       2 linhas de tags + snippet); o resto rola por dentro
+       (.hub-list-scroll cuida do overflow-y/scrollbar). */
+    #not-recent { flex: none; min-height: 0; max-height: 420px; overflow-y: auto; }
+    @media (max-width: 780px) {
+      .not-bento { grid-template-columns: 1fr; }
+    }
+    /* Linha de nota na lista enriquecida (#not-recent) — tags de tipo/
+       projeto + um trecho de conteúdo, tudo dentro de .hub-list-main
+       (empilhado sob o nome). 4ª rodada, set/2026 — correção de estilo
+       (pedido explícito do autor): texto colorido era "vibrante demais" —
+       agora é um PONTO colorido (--dot-color) + texto neutro (--dim); tag
+       de projeto perdeu o ícone de pasta e a borda grossa dourada — só não
+       ter cor já diferencia de tipo, não precisa de mais nenhum ornamento. */
+    .not-list-tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 2px; }
+    .not-list-snippet { font-size: 10.5px; color: var(--mute); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-top: 2px; }
+    .tag-tipo-mini {
+      display: inline-flex; align-items: center; gap: 4px;
+      font-size: 8px; letter-spacing: 0.05em; text-transform: uppercase; padding: 2px 7px; border-radius: 4px;
+      border: 1px solid var(--border); color: var(--dim); white-space: nowrap;
+    }
+    .tag-tipo-mini::before { content: ''; width: 5px; height: 5px; border-radius: 50%; background: var(--dot-color, var(--mute)); flex-shrink: 0; }
+    .tag-projeto-mini {
+      display: inline-flex; align-items: center; font-size: 8px; letter-spacing: 0.04em;
+      padding: 2px 7px; border-radius: 4px; background: var(--surface-2); border: 1px solid var(--border);
+      color: var(--dim); white-space: nowrap;
+    }
+
+    .tar-kanban-head { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; margin-bottom: 12px; }
+    .tar-projeto-select {
+      font-family: var(--mono); font-size: 11px; color: var(--dim);
+      background: var(--surface-2); border: 1px solid var(--border); border-radius: 6px;
+      padding: 6px 10px; max-width: 100%; cursor: pointer; outline: none;
+    }
+    .tar-projeto-select:focus { border-color: var(--gold); }
+
+    /* Kanban agora é sempre largura cheia — 3 colunas cabem sem apertar,
+       só empilha em telas realmente estreitas (mobile). */
+    .tar-mini-board { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+    @media (max-width: 560px) { .tar-mini-board { grid-template-columns: 1fr; } }
+    /* Fundo por status — cinza/amarelo/verde, mesmo mapeamento de cor de
+       TAR_STATUS_COR (JS). rgba hardcoded pra bater com --mute/--gold/
+       --green da paleta sépia (mesmo padrão já usado em .tag-*). */
+    .tar-mini-col { min-width: 0; border-radius: 8px; padding: 10px 8px 8px; outline: 2px dashed transparent; outline-offset: -2px; transition: outline-color 0.1s; }
+    .tar-mini-col[data-status="Não Iniciado"] { background: rgba(107, 100, 86, 0.20); }
+    .tar-mini-col[data-status="Em Andamento"] { background: color-mix(in srgb, var(--gold) 18%, transparent); }
+    .tar-mini-col[data-status="Feito"] { background: color-mix(in srgb, var(--green) 16%, transparent); }
+    /* Alvo de drop (arrastar um card pra essa coluna) — só desktop (ver
+       IS_DESKTOP em lifeos.js, que só marca os cards como draggable lá). */
+    .tar-mini-col.is-drop-target { outline-color: var(--gold); }
+    .tar-mini-col-head { display: flex; align-items: center; justify-content: space-between; gap: 6px; margin-bottom: 8px; }
+    .tar-mini-col-title { font-size: 8.5px; letter-spacing: 0.08em; text-transform: uppercase; font-weight: 600; color: var(--mute); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    /* Título tingido na cor do status (mesmo mapeamento do badge de contagem
+       logo abaixo) — sobre o fundo colorido translúcido da coluna, --mute
+       uniforme ficava com contraste baixo demais pra ler rápido. */
+    .tar-mini-col[data-status="Não Iniciado"] .tar-mini-col-title { color: var(--dim); }
+    .tar-mini-col[data-status="Em Andamento"] .tar-mini-col-title { color: var(--gold); }
+    .tar-mini-col[data-status="Feito"] .tar-mini-col-title { color: var(--green); }
+    /* Mesmo tratamento de número "pra ler de longe" dos outros cards
+       (tabular-nums + peso 700, ver .bento-big-val/.tar-stat-count) — o
+       badge de contagem era pequeno e apagado (9px, --mute) demais sobre
+       o fundo colorido novo da coluna. */
+    .tar-mini-col-count {
+      font-size: 11px; font-weight: 700; font-variant-numeric: tabular-nums; color: var(--text);
+      background: rgba(0, 0, 0, 0.30); border-radius: 999px; padding: 2px 9px; flex-shrink: 0;
+    }
+    .tar-mini-col[data-status="Não Iniciado"] .tar-mini-col-count { color: var(--dim); }
+    .tar-mini-col[data-status="Em Andamento"] .tar-mini-col-count { color: var(--gold); }
+    .tar-mini-col[data-status="Feito"] .tar-mini-col-count { color: var(--green); }
+    /* Scroll vertical interno discreto — barra fina e sutil, não o
+       scrollbar padrão do navegador (grosso, chapado). */
+    .tar-mini-list {
+      display: flex; flex-direction: column; gap: 6px; max-height: 260px; overflow-y: auto;
+      scrollbar-width: thin; scrollbar-color: rgba(255,255,255,0.14) transparent;
+    }
+    .tar-mini-list::-webkit-scrollbar { width: 5px; }
+    .tar-mini-list::-webkit-scrollbar-track { background: transparent; }
+    .tar-mini-list::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.14); border-radius: 999px; }
+    .tar-mini-list::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.24); }
+    /* cursor:pointer — clicar sempre abre o modal de detalhe (leitura, ver
+       openDetailModal), em qualquer dispositivo. cursor:grab só entra via
+       .is-draggable (classe que o JS só aplica com IS_DESKTOP — ver
+       renderTarMiniKanban), pra não sugerir "arraste" onde não funciona. */
+    .tar-mini-card { background: var(--surface-2); border-radius: 6px; padding: 8px 9px; font-size: 10.5px; color: var(--dim); line-height: 1.4; overflow-wrap: break-word; cursor: pointer; transition: background 0.15s, opacity 0.15s; display: flex; flex-direction: column; gap: 5px; }
+    .tar-mini-card:hover { background: var(--gold-wash); }
+    .tar-mini-card.is-draggable { cursor: grab; }
+    .tar-mini-card.is-dragging { opacity: 0.35; cursor: grabbing; }
+    .tar-mini-card-proj { font-size: 9px; color: var(--mute); }
+    /* Linha inferior do card: tags de tipo à esquerda, data no canto direito
+       (margin-left:auto) — antes a data vinha numa linha própria alinhada à
+       esquerda, igual ao resto do texto. */
+    .tar-mini-card-meta { display: flex; flex-wrap: wrap; gap: 5px; align-items: center; }
+    .tar-mini-card-tipo { font-size: 8px; letter-spacing: 0.04em; text-transform: uppercase; color: var(--dim); border: 1px solid var(--border); border-radius: 4px; padding: 2px 6px; }
+    .tar-mini-card-data { margin-left: auto; font-size: 9px; color: var(--mute); white-space: nowrap; }
+    .tar-mini-card-data.is-overdue { color: var(--red); }
+    .tar-mini-empty { font-size: 9.5px; color: var(--mute); text-align: center; padding: 8px 2px; }
+
+    /* ── Projetos: gestão completa direto no hub (movida de tarefas.html em
+       set/2026, a pedido do autor — ver LIFEOS.md). Seção simples: um único
+       .bento-card full-width com uma tabela, sem grid bento variado como as
+       outras hero-sections (não faz sentido aqui, é só uma lista). ── */
+    /* Filtro de status — linha própria logo abaixo do cabeçalho da seção,
+       antes do .bento-card com a tabela. Reaproveita o mesmo select estilizado
+       de .tar-projeto-select (mesmo arquivo, sem motivo pra duplicar CSS). */
+    .proj-filter-bar { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; }
+    .proj-filter-bar .edit-label { margin-bottom: 0; white-space: nowrap; }
+    .proj-filter-bar .tar-projeto-select { min-width: 170px; }
+    .proj-table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+    table.proj-table { width: 100%; border-collapse: collapse; }
+    table.proj-table th {
+      text-align: left; font-size: 9px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--mute);
+      font-weight: 500; padding: 0 12px 12px; border-bottom: 1px solid var(--border); white-space: nowrap;
+    }
+    table.proj-table th.r, table.proj-table td.r { text-align: right; }
+    table.proj-table td { padding: 14px 12px; border-bottom: 1px solid rgba(255,255,255,0.05); vertical-align: middle; }
+    table.proj-table tr:last-child td { border-bottom: none; }
+    table.proj-table tbody tr { transition: background 0.15s; }
+    table.proj-table tbody tr:hover { background: var(--gold-wash); }
+    /* "Avatar" do projeto — emoji (ou pasta genérica) num quadrado, mesmo
+       vocabulário visual do .hub-icon-wrap/.bento-card, só bem menor — dá
+       identidade visual à linha sem precisar de imagem de verdade. */
+    .proj-name-cell { display: flex; align-items: center; gap: 12px; }
+    .proj-avatar {
+      width: 38px; height: 38px; border-radius: 10px; flex-shrink: 0;
+      background: var(--surface-2); border: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: center; font-size: 17px;
+    }
+    .proj-name { font-family: var(--serif); font-style: italic; font-weight: 700; font-size: 14.5px; color: var(--text); }
+    .proj-status-pill { display: inline-flex; align-items: center; gap: 7px; font-size: 10.5px; letter-spacing: 0.03em; color: var(--dim); white-space: nowrap; }
+    .proj-status-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+    .proj-tags { display: flex; flex-wrap: wrap; gap: 5px; max-width: 180px; }
+    .proj-tag {
+      font-size: 8.5px; letter-spacing: 0.05em; text-transform: uppercase; padding: 3px 8px;
+      border-radius: 4px; border: 1px solid var(--border); color: var(--dim); white-space: nowrap;
+    }
+    /* Progresso: %concluído do projeto, calculado sobre TAREFAS_ALL — a
+       mesma info que já existe no card de Tarefas, mas por projeto; dá pra
+       ver de relance quais projetos estão andando sem abrir o kanban. */
+    .proj-progress-cell { min-width: 150px; }
+    .proj-progress-label { font-size: 10.5px; color: var(--dim); margin-bottom: 6px; white-space: nowrap; font-variant-numeric: tabular-nums; }
+    .proj-progress-bar { height: 5px; border-radius: 999px; background: var(--surface-2); overflow: hidden; }
+    .proj-progress-fill { height: 100%; background: var(--gold); border-radius: 999px; transition: width 0.3s ease; }
+    .proj-table-empty { text-align: center; color: var(--mute); font-size: 11px; letter-spacing: 0.08em; padding: 28px 10px; }
+    /* A linha inteira abre o #projeto-detail-modal (ver openProjetoDetail em
+       lifeos.js). Os botões de Editar/Excluir continuam funcionando — o
+       handler de clique confere .row-actions antes de abrir o detalhe. */
+    table.proj-table tbody tr[data-projeto-id] { cursor: pointer; }
+
+    /* ── "Padrão banner" de modal — nasceu só no #projeto-detail-modal, hoje
+       é o padrão de TODOS os modais do hub (dia, detalhe evento/tarefa,
+       novo evento, tarefa, projeto, manifestação). O prefixo `.pdet-`
+       (de "project detail") ficou — trocar em ~40 lugares por um nome
+       genérico não valia o risco, mas é vocabulário compartilhado agora,
+       não exclusivo de projeto. Ideia central: banner com ícone/imagem no
+       topo substitui o `.modal-head` padrão (título + X numa barra plana);
+       o resto do conteúdo reaproveita vocabulário que já existia —
+       .proj-status-pill, .proj-status-dot, .proj-tag, .chip-opt etc. ── */
+    .pdet-panel { max-width: 680px; }
+    /* Banner substitui o .modal-head padrão (que este modal não usa) — o
+       .modal-body herdaria 10px 20px 20px de padding pro conteúdo genérico;
+       aqui cada bloco (.pdet-head/.pdet-progress/.pdet-tasks-head/.pdet-tasks)
+       já define o próprio padding horizontal, então zera o do body. */
+    .pdet-panel .modal-body { padding: 0; }
+    .pdet-banner {
+      position: relative; height: 132px; flex-shrink: 0; overflow: hidden;
+      display: flex; align-items: center; justify-content: center;
+      background: radial-gradient(circle at 50% 120%, var(--pdet-accent, var(--gold)) -40%, var(--surface-2) 68%);
+    }
+    /* Trama diagonal sutil por cima do gradiente — dá textura sem virar
+       ruído; o mesmo truque do banner padrão de Manifestações, sem animação
+       (aqui o banner é estático, não compete com o conteúdo do modal). */
+    .pdet-banner::before {
+      content: ''; position: absolute; inset: 0;
+      background: repeating-linear-gradient(135deg, rgba(255,255,255,0.028) 0 2px, transparent 2px 9px);
+    }
+    /* Esmaece o pé do banner até o fundo do painel, pra emenda com o corpo
+       não virar uma linha dura. */
+    .pdet-banner::after {
+      content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 58%;
+      background: linear-gradient(to bottom, transparent, var(--surface));
+    }
+    .pdet-banner-icon {
+      position: relative; z-index: 1; width: 72px; height: 72px; border-radius: 18px;
+      display: flex; align-items: center; justify-content: center; font-size: 34px; line-height: 1;
+      background: var(--surface); border: 1px solid var(--border);
+      box-shadow: 0 10px 26px rgba(0,0,0,0.42);
+    }
+    .pdet-close {
+      position: absolute; top: 12px; right: 12px; z-index: 2;
+      width: 34px; height: 34px; display: flex; align-items: center; justify-content: center;
+      background: rgba(6,8,11,0.5); border: 1px solid var(--border); border-radius: 8px;
+      color: var(--dim); cursor: pointer; font-size: 13px; transition: color 0.15s, background 0.15s;
+    }
+    .pdet-close:hover { color: var(--gold); background: rgba(6,8,11,0.75); }
+    /* Agrupa "Tela cheia" (só #detail-modal, kind 'nota') + Fechar no canto
+       superior direito do #detail-banner — 5ª rodada, set/2026, pedido
+       explícito do autor: mesma mudança espelhada em notas.html (icon-button
+       ao lado do Fechar em vez de botão-texto no rodapé). Reusa .pdet-close
+       (visual idêntico) pros dois — só sobrescreve o position:absolute
+       individual porque agora o wrapper posiciona o par. NÃO é o mesmo
+       .pdet-banner-actions do banner de Manifestação (esse fica no canto
+       INFERIOR direito, pras ações de imagem) — nome deliberadamente
+       diferente pra não colidir. */
+    .pdet-banner-top-actions { position: absolute; top: 12px; right: 12px; z-index: 2; display: flex; gap: 8px; }
+    .pdet-banner-top-actions .pdet-close { position: static; top: auto; right: auto; }
+    /* Imagem escolhida (só #manifestacao-modal) cobre o banner inteiro,
+       por cima do gradiente — ::before/::after continuam por cima dela
+       (trama + esmaecimento do pé), então a emenda com o corpo do modal
+       fica igual, com ou sem imagem. */
+    .pdet-banner-img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+    /* Ações extra sobre o banner (hoje só "trocar/remover imagem" da
+       Manifestação) — canto oposto ao .pdet-close, mesmo tratamento visual. */
+    .pdet-banner-actions { position: absolute; bottom: 10px; right: 10px; z-index: 2; display: flex; gap: 6px; }
+    .pdet-banner-action-btn {
+      display: inline-flex; align-items: center; gap: 6px;
+      background: rgba(6,8,11,0.55); border: 1px solid var(--border); border-radius: 999px;
+      padding: 6px 12px; font-family: var(--mono); font-size: 10px; letter-spacing: 0.03em;
+      color: var(--dim); cursor: pointer; transition: color 0.15s, background 0.15s, border-color 0.15s;
+    }
+    .pdet-banner-action-btn:hover { color: var(--gold); background: rgba(6,8,11,0.8); }
+    .pdet-banner-action-btn.pdet-banner-action-danger { padding: 6px 9px; }
+    .pdet-banner-action-btn.pdet-banner-action-danger:hover { color: var(--red); border-color: var(--red); }
+
+    /* Corpo simples (sem .pdet-progress/.pdet-tasks-*) — dia, detalhe de
+       evento/tarefa, e o corpo dos formulários (evento/tarefa/projeto/
+       manifestação). Mesmo ritmo horizontal de .pdet-tasks (22px). */
+    .pdet-body-pad { padding: 16px 22px 20px; }
+
+    .pdet-head { padding: 2px 22px 0; text-align: center; flex-shrink: 0; }
+    .pdet-name { font-family: var(--serif); font-style: italic; font-weight: 700; font-size: 23px; line-height: 1.25; color: var(--text); }
+    .pdet-meta { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 8px 14px; margin-top: 10px; }
+    .pdet-tags { display: flex; flex-wrap: wrap; justify-content: center; gap: 5px; }
+
+    /* Barra de progresso + as 3 contagens por status. */
+    .pdet-progress { padding: 16px 22px 0; flex-shrink: 0; }
+    .pdet-progress-top { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin-bottom: 7px; }
+    .pdet-progress-label { font-size: 10.5px; letter-spacing: 0.04em; color: var(--dim); font-variant-numeric: tabular-nums; }
+    .pdet-progress-pct { font-size: 12px; font-weight: 600; color: var(--gold); font-variant-numeric: tabular-nums; }
+    .pdet-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 14px; }
+    .pdet-stat { border-radius: 8px; padding: 9px 8px; text-align: center; background: var(--surface-2); }
+    .pdet-stat[data-status="Não Iniciado"] { background: rgba(107, 100, 86, 0.20); }
+    .pdet-stat[data-status="Em Andamento"] { background: color-mix(in srgb, var(--gold) 18%, transparent); }
+    .pdet-stat[data-status="Feito"]        { background: color-mix(in srgb, var(--green) 16%, transparent); }
+    .pdet-stat-num { font-size: 17px; font-weight: 700; color: var(--text); font-variant-numeric: tabular-nums; line-height: 1.1; }
+    .pdet-stat-label { font-size: 8.5px; letter-spacing: 0.08em; text-transform: uppercase; font-weight: 600; color: var(--mute); margin-top: 3px; }
+    .pdet-stat[data-status="Não Iniciado"] .pdet-stat-label { color: var(--dim); }
+    .pdet-stat[data-status="Em Andamento"] .pdet-stat-label { color: var(--gold); }
+    .pdet-stat[data-status="Feito"]        .pdet-stat-label { color: var(--green); }
+
+    /* Divisória + filtro das tarefas. */
+    .pdet-tasks-head {
+      display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px;
+      padding: 18px 22px 10px; margin-top: 16px; border-top: 1px solid var(--border); flex-shrink: 0;
+    }
+    .pdet-tasks-title { font-size: 9.5px; letter-spacing: 0.12em; text-transform: uppercase; font-weight: 600; color: var(--mute); }
+    .pdet-filter { display: flex; flex-wrap: wrap; gap: 5px; }
+    /* Chips menores que os do .chip-opt dos formulários — aqui são filtro, não
+       campo; não devem pesar mais que a lista que filtram. */
+    .pdet-filter-btn {
+      font-family: var(--mono); font-size: 9.5px; letter-spacing: 0.04em;
+      background: var(--surface-2); border: 1px solid var(--border); color: var(--mute);
+      padding: 5px 10px; border-radius: 999px; cursor: pointer;
+      transition: color 0.15s, border-color 0.15s, background 0.15s;
+    }
+    .pdet-filter-btn:hover { color: var(--text); }
+    .pdet-filter-btn.is-active { background: var(--gold); border-color: var(--gold); color: #14120f; font-weight: 500; }
+
+    .pdet-tasks { padding: 0 22px 20px; }
+    .pdet-task {
+      display: flex; align-items: center; gap: 10px;
+      padding: 9px 0; border-bottom: 1px solid rgba(255,255,255,0.05); font-size: 12px;
+    }
+    .pdet-task:last-child { border-bottom: none; }
+    .pdet-task.is-done .pdet-task-name { color: var(--mute); text-decoration: line-through; }
+    .pdet-task-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+    .pdet-task-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+    .pdet-task-name { color: var(--dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .pdet-task-sub { font-size: 10px; font-style: italic; color: var(--mute); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .pdet-task-date { font-size: 10px; color: var(--mute); white-space: nowrap; flex-shrink: 0; font-variant-numeric: tabular-nums; }
+    .pdet-task-date.is-late { color: var(--red); }
+    .pdet-empty { text-align: center; color: var(--mute); font-size: 11px; letter-spacing: 0.08em; padding: 24px 10px; }
+
+    /* Toggle Tarefas/Notas do #projeto-detail-modal — canto superior
+       esquerdo do banner, simétrico ao .pdet-close (canto oposto). Reusa
+       literalmente .tar-chart-toggle/-btn (mesmo componente do toggle
+       Eventos/Tarefas do calendário) só envolvido num wrapper posicionado
+       — ver switchPdetViewMode em lifeos.js. 3ª rodada, set/2026: pedido
+       explícito do autor pra ter uma visão central de Tarefas E Notas de
+       um projeto no mesmo modal. */
+    /* Fundo translúcido (não o --surface-2 opaco padrão de .tar-chart-toggle)
+       — mesmo tratamento "vidro" de .pdet-close/.pdet-banner-action-btn,
+       pra combinar com os outros controles sobre o banner. */
+    .pdet-banner-toggle {
+      position: absolute; top: 12px; left: 12px; z-index: 2;
+      background: rgba(6,8,11,0.5);
+    }
+    .pdet-banner-toggle .tar-chart-toggle-btn { color: var(--dim); }
+    .pdet-banner-toggle .tar-chart-toggle-btn:hover { color: var(--text); }
+
+    /* Bloco de Notas do projeto — mesmo par visual de .pdet-tasks-head/
+       .pdet-tasks, cabeçalho próprio (sem filtro de status, Notas não tem
+       status) + lista de linhas reaproveitando as tags de tipo/projeto
+       (.tag-tipo-mini/.tag-projeto-mini, ver #hero-notas acima) e o
+       snippet de conteúdo. Escondido por padrão — só um dos dois pares
+       (tarefas ou notas) fica visível por vez, ver switchPdetViewMode. */
+    .pdet-notes-head {
+      display: flex; align-items: center; justify-content: space-between; gap: 10px;
+      padding: 18px 22px 10px; margin-top: 16px; border-top: 1px solid var(--border); flex-shrink: 0;
+    }
+    .pdet-notes-title { font-size: 9.5px; letter-spacing: 0.12em; text-transform: uppercase; font-weight: 600; color: var(--mute); }
+    .pdet-notes-count { font-size: 10.5px; color: var(--dim); font-variant-numeric: tabular-nums; }
+    .pdet-notes { padding: 0 22px 20px; }
+    .pdet-note {
+      display: flex; flex-direction: column; gap: 5px; cursor: pointer;
+      padding: 10px 0; border-bottom: 1px solid rgba(255,255,255,0.05); transition: opacity 0.15s;
+    }
+    .pdet-note:last-child { border-bottom: none; }
+    .pdet-note:hover { opacity: 0.8; }
+    .pdet-note-name { font-size: 12px; color: var(--dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .pdet-note-tags { display: flex; flex-wrap: wrap; gap: 4px; }
+    .pdet-note-snippet { font-size: 10.5px; color: var(--mute); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .pdet-note-date { font-size: 10px; color: var(--mute); font-variant-numeric: tabular-nums; }
+
+    @media (max-width: 560px) {
+      .pdet-banner { height: 104px; }
+      .pdet-banner-icon { width: 60px; height: 60px; font-size: 28px; border-radius: 15px; }
+      .pdet-name { font-size: 20px; }
+      .pdet-head, .pdet-progress, .pdet-tasks-head, .pdet-tasks, .pdet-body-pad { padding-left: 16px; padding-right: 16px; }
+    }
+
+    /* .tar-chart-toggle/-btn — reaproveitados só pelo toggle Eventos/
+       Tarefas do calendário (#cal-mode-toggle, ver §3.4 LIFEOS.md); a
+       visão geral de Tarefas (gráficos) foi removida por decisão do autor. */
+    .tar-chart-toggle { display: flex; gap: 4px; background: var(--surface-2); border-radius: 999px; padding: 3px; }
+    .tar-chart-toggle-btn {
+      font-family: var(--mono); font-size: 10px; letter-spacing: 0.03em; color: var(--mute);
+      background: transparent; border: none; border-radius: 999px; padding: 5px 11px; cursor: pointer;
+      transition: background 0.15s, color 0.15s;
+    }
+    .tar-chart-toggle-btn:hover { color: var(--text); }
+    .tar-chart-toggle-btn.is-active { background: var(--gold); color: #14120f; font-weight: 500; }
+
+    .hub-chart-wrap { position: relative; flex: 1; min-height: 108px; margin-top: 10px; }
+    .hub-chart-empty { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 9.5px; letter-spacing: 0.08em; color: var(--mute); text-transform: uppercase; }
+
+    /* ── Eventos: calendário navegável + linha do tempo, dois cards ──
+       O calendário manda na altura. Sempre. A lista da linha do tempo só
+       acompanha e rola por dentro o que não couber — nunca o contrário.
+
+       Isso NÃO é resolvido em CSS puro — já foram tentadas três variações
+       (align-items:stretch cru, depois align-items:start, depois stretch +
+       overflow:hidden no item do grid) e todas quebravam em algum cenário:
+       o navegador nem sempre trata overflow-y:auto de um descendente como
+       "esse conteúdo não conta pra altura automática do ancestral" — o
+       comportamento varia com QUANTO conteúdo existe (poucos eventos vs.
+       muitas tarefas com data), então o que parecia corrigido no modo
+       Eventos voltava a quebrar no modo Tarefas.
+
+       A correção de verdade é em JS: syncEventTimelineHeight() (lifeos.js,
+       chamada no fim de renderMiniCal — roda em toda troca de mês/modo/
+       CRUD, e no resize) mede a altura JÁ RENDERIZADA de .evt-card-cal e
+       aplica como altura FIXA (style.height, não CSS) em
+       .evt-card-timeline. Uma vez que o card tem uma altura explícita (não
+       mais "auto"), o flex:1 + overflow-y:auto da .hub-list-scroll lá
+       dentro funciona de forma totalmente previsível — isso é
+       comportamento de flexbox básico, sem a ambiguidade de auto-sizing de
+       grid+overflow que vinha dando errado. No mobile (1 coluna, sem
+       calendário ao lado pra igualar) o JS remove a altura fixa e o card
+       volta a ocupar a altura do próprio conteúdo. */
+    .evt-bento { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; align-items: start; }
+    .evt-card-cal, .evt-card-timeline { display: flex; flex-direction: column; min-height: 0; }
+    @media (max-width: 780px) { .evt-bento { grid-template-columns: 1fr; } }
+    .hub-cal-nav { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+    .hub-cal-nav-btn {
+      width: 26px; height: 26px; flex-shrink: 0; display: flex; align-items: center; justify-content: center;
+      background: transparent; border: none; border-radius: 6px; color: var(--dim);
+      cursor: pointer; font-size: 12px; transition: color 0.15s, background 0.15s;
+    }
+    .hub-cal-nav-btn:hover { color: var(--gold); background: var(--gold-wash); }
+    .hub-cal-label { font-family: var(--serif); font-style: italic; font-weight: 700; font-size: 14px; color: var(--text); }
+
+    .hub-list { display: flex; flex-direction: column; }
+    /* Linha do tempo do Calendário (#eventos-timeline) — única .hub-list que
+       precisa rolar. O corte de quantidade vive no JS e é assimétrico: no
+       máximo 3 passados, futuros TODOS no DOM (ver renderEventosTimeline em
+       lifeos.js) — quantos aparecem SEM rolar não é mais decidido por um
+       número fixo aqui: é a altura real do calendário ao lado (ver o
+       comentário de .evt-bento acima) que dita o espaço disponível, mês a
+       mês. flex:1 preenche exatamente esse espaço; min-height:0 é o que
+       permite encolher pra caber nele em vez de forçar o card a crescer.
+
+       Classe própria (não em .hub-list direto) — .hub-list também é usada
+       em #fin-recent e no #day-modal-body, que não devem ganhar esse
+       comportamento. */
+    .hub-list-scroll {
+      flex: 1; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch;
+      scrollbar-width: thin; scrollbar-color: rgba(255,255,255,0.14) transparent;
+    }
+    .hub-list-scroll::-webkit-scrollbar { width: 5px; }
+    .hub-list-scroll::-webkit-scrollbar-track { background: transparent; }
+    .hub-list-scroll::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.14); border-radius: 999px; }
+    .hub-list-scroll::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.24); }
+    /* flex-shrink:0 — reforço defensivo (5ª rodada, set/2026): garante que
+       uma linha nunca seja comprimida abaixo do próprio conteúdo. Sem
+       isso a área rola normalmente; com isso, blindado mesmo se algum dia
+       o conteúdo de uma linha ficar maior que o esperado (ver #not-recent
+       — 6ª rodada trocou o esquema de altura pra max-height simples, sem
+       JS, ver comentário grande em .not-bento acima). */
+    .hub-list-row { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.04); font-size: 12px; flex-shrink: 0; }
+    .hub-list-row:last-child, .hub-list-row.no-divider { border-bottom: none; }
+    .hub-list-row.is-past { opacity: 0.5; }
+    .hub-list-date { color: var(--mute); white-space: nowrap; flex-shrink: 0; width: 36px; }
+    /* .hub-list-main agrupa nome + tags empilhados (a linha só tem UMA coisa
+       que cresce: o bloco nome+tags — value fica de fora, alinhado à direita). */
+    .hub-list-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+    /* flex:1 empurra o que vem depois (tag/ações) pro fim da linha — vale
+       tanto direto num .hub-list-row (eventos/tarefas: timeline, dia) quanto
+       dentro de .hub-list-main (Finanças: aqui só rege o eixo vertical, a
+       largura já vem do stretch padrão do container coluna). */
+    .hub-list-name { color: var(--dim); flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    /* Projeto vinculado à tarefa, no calendário (linha do tempo + modal do
+       dia) — linha própria abaixo do nome, não mais texto emendado com
+       " · Nome do projeto". Itálico + tom apagado marca a diferença sem
+       competir com o nome da tarefa. */
+    .hub-list-proj { display: block; font-size: 10px; font-style: italic; color: var(--mute); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .hub-list-val { font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; flex-shrink: 0; }
+    .hub-list-val.pos { color: var(--green); }
+    .hub-list-val.neg { color: var(--red); }
+    .hub-list-empty { font-size: 10.5px; letter-spacing: 0.06em; color: var(--mute); padding: 10px 0 2px; text-align: center; }
+    /* Linhas de evento/tarefa (linha do tempo + modal de dia) abrem o
+       modal de detalhe ao clicar — só nessas, não nas de Finanças. */
+    .hub-list-row.is-clickable {
+      cursor: pointer; border-radius: 6px; transition: background 0.15s;
+      touch-action: manipulation; -webkit-tap-highlight-color: color-mix(in srgb, var(--gold) 15%, transparent);
+      min-height: 44px; padding-left: 4px; padding-right: 4px;
+    }
+    .hub-list-row.is-clickable:hover { background: rgba(255,255,255,0.035); }
+    /* Tags de movimentação (entrada/saída + meio) — mesmas classes/cores de financas.html.
+       Fica ABAIXO do nome (dentro de .hub-list-main), não colada no valor. */
+    .hub-list-tags { display: flex; flex-wrap: wrap; gap: 4px; }
+    .tag { display: inline-block; font-size: 8px; letter-spacing: 0.06em; text-transform: uppercase; padding: 2px 6px; border-radius: 4px; border: 1px solid var(--border); color: var(--dim); white-space: nowrap; }
+    .tag-entrada { color: var(--green); border-color: color-mix(in srgb, var(--green) 40%, transparent); }
+    .tag-saida   { color: var(--red);   border-color: color-mix(in srgb, var(--red) 40%, transparent); }
+    .tag-credito, .tag-debito, .tag-pix, .tag-vale, .tag-boleto { color: var(--gold); border-color: color-mix(in srgb, var(--gold) 32%, transparent); }
+    .hub-evt-tag {
+      flex-shrink: 0; font-size: 8px; letter-spacing: 0.06em; text-transform: uppercase;
+      padding: 2px 6px; border-radius: 4px; border: 1px solid; white-space: nowrap;
+    }
+
+    .hub-timeline-divider { position: relative; text-align: center; margin: 12px 0; border-top: 1px solid var(--border); }
+    .hub-timeline-divider span {
+      position: absolute; top: -7px; left: 50%; transform: translateX(-50%);
+      background: var(--surface); padding: 0 10px; font-size: 8.5px; letter-spacing: 0.16em;
+      text-transform: uppercase; color: var(--gold);
+    }
+
+    /* ── Mini-calendário (navegável — ver goHubCalMonth). Único calendário do
+       LifeOS: o CRUD de eventos mora inteiro aqui (ver §1 do LIFEOS.md — o
+       o autor decidiu não ter uma tela de detalhe separada pro calendário; as
+       Tarefas, quando existirem, vão dividir essa MESMA grade, não uma cópia
+       à parte — qualquer mudança aqui precisa continuar cabendo os dois). ── */
+    .hub-mini-cal-dow { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; margin-top: 2px; }
+    .hub-mini-cal-dow span { font-size: 9px; text-align: center; color: var(--mute); letter-spacing: 0.04em; }
+    .hub-mini-cal { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+    .hub-mini-cal-cell {
+      aspect-ratio: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
+      font-size: 11px; color: var(--dim); border-radius: 6px; background: var(--surface-2);
+      cursor: pointer; transition: background 0.15s, color 0.15s;
+    }
+    .hub-mini-cal-cell:hover { background: var(--gold-wash); color: var(--gold); }
+    .hub-mini-cal-cell.is-empty { background: transparent; cursor: default; }
+    .hub-mini-cal-cell.is-empty:hover { background: transparent; color: var(--dim); }
+    /* "Hoje": um wash dourado translúcido, não o bloco sólido de antes — a
+       cor amarela em cima de dim/9aa3b2 ficava alta demais em contraste. */
+    .hub-mini-cal-cell.is-today { background: color-mix(in srgb, var(--gold) 30%, transparent); color: var(--gold); font-weight: 700; }
+    .hub-mini-cal-cell.is-today:hover { background: color-mix(in srgb, var(--gold) 42%, transparent); color: var(--gold); }
+    .hub-mini-cal-dots { display: flex; gap: 2px; height: 5px; }
+    .hub-mini-cal-dot { width: 5px; height: 5px; border-radius: 50%; }
+
+    .cal-legend { display: flex; flex-wrap: wrap; gap: 7px 12px; margin-top: 14px; }
+    .cal-legend-item { display: flex; align-items: center; gap: 6px; font-size: 9.5px; letter-spacing: 0.04em; color: var(--dim); text-transform: capitalize; }
+    .cal-legend-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+    .evt-card-cal-count { font-size: 9.5px; color: var(--mute); letter-spacing: 0.04em; }
+
+    /* ── Manifestações: grid de cards com banner (migrado do Notion,
+       set/2026 — ver LIFEOS.md). Card = imagem no topo (edge-to-edge) +
+       corpo com nome/status/tags, mesmo vocabulário de .proj-status-pill/
+       .proj-status-dot/.proj-tag (reaproveitados, sem duplicar CSS). ── */
+    /* 3 colunas fixas no desktop (era auto-fill/minmax(220px) — cabiam 4
+       cards apertados nos ~1080px do .app; o autor preferiu cards maiores,
+       3 por linha). Responsivo abaixo disso: 2 colunas no tablet, 1 no
+       mobile — mesmos breakpoints do resto do arquivo (.evt-bento/.hero-
+       grid-2col usam 780px; .tar-mini-board usa 560px). */
+    .manif-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
+    @media (max-width: 780px) { .manif-grid { grid-template-columns: repeat(2, 1fr); } }
+    @media (max-width: 560px) { .manif-grid { grid-template-columns: 1fr; } }
+    .manif-card { background: var(--surface-2); border-radius: 10px; overflow: hidden; display: flex; flex-direction: column; transition: transform 0.15s, box-shadow 0.15s; }
+    .manif-card:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(0,0,0,0.35); }
+    /* Banner mais alto (era 140px) acompanhando o card mais largo — mesma
+       proporção visual, sem ficar uma faixa fina sobre um card grande. */
+    .manif-banner { width: 100%; height: 190px; flex-shrink: 0; position: relative; background: var(--surface); }
+    .manif-banner img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    /* Banner padrão — usado quando a entrada não tem imagem real (nunca teve
+       cover, ou tinha só o cover-padrão de galeria do Notion, que a migração
+       não traz — ver notion-manifestacoes-migrate). Glow cônico rotativo
+       atrás de um ícone pulsante, mesma paleta dourada do resto do arquivo —
+       "efeito" discreto, não uma animação chamativa. */
+    .manif-banner-default {
+      width: 100%; height: 100%; display: flex; align-items: center; justify-content: center;
+      position: relative; overflow: hidden;
+      background: radial-gradient(circle at 50% 45%, color-mix(in srgb, var(--gold) 24%, transparent), var(--surface) 72%);
+    }
+    .manif-banner-default::before {
+      content: ''; position: absolute; inset: -60%;
+      background: conic-gradient(from 0deg, transparent, color-mix(in srgb, var(--gold) 16%, transparent), transparent 30%);
+      animation: manifSpin 9s linear infinite;
+    }
+    .manif-banner-default i {
+      position: relative; z-index: 1; font-size: 42px; color: var(--gold);
+      animation: manifPulse 3.6s ease-in-out infinite;
+    }
+    @keyframes manifSpin { to { transform: rotate(360deg); } }
+    @keyframes manifPulse { 0%, 100% { opacity: 0.75; transform: scale(1); } 50% { opacity: 1; transform: scale(1.14); } }
+    @media (prefers-reduced-motion: reduce) {
+      .manif-banner-default::before, .manif-banner-default i { animation: none; }
+    }
+    .manif-card-body { padding: 14px 14px 16px; display: flex; flex-direction: column; gap: 9px; flex: 1; }
+    .manif-card-name { font-family: var(--serif); font-style: italic; font-weight: 700; font-size: 15px; color: var(--text); line-height: 1.3; }
+    .manif-empty { grid-column: 1 / -1; text-align: center; color: var(--mute); font-size: 11px; letter-spacing: 0.08em; padding: 30px 10px; }
+
+    /* ── Modo foco (Manifestações) — ver toggleManifFocus em lifeos.js.
+       Oculta as outras hero-sections (a de Manifestações já é a última, só
+       precisa ficar sozinha visível pra "subir" pro lugar do Calendário,
+       sem reordenar nada no DOM) e acende o atalho ativo no quicknav. ── */
+    .app.is-manif-focus .hero-section:not(#hero-manifestacoes) { display: none; }
+    /* .hero-section + .hero-section (borda dupla entre seções) não liga pra
+       display:none do irmão anterior — o seletor de irmão adjacente conta
+       posição no DOM, não visibilidade. Sem isso, Manifestações ficava com
+       uma borda extra logo abaixo de .hub-masthead-rule (ela É precedida por
+       outra .hero-section no DOM, só que oculta) — divisor duplicado. */
+    .app.is-manif-focus #hero-manifestacoes { border-top: none; }
+    #quicknav-manifestacoes.is-active { border-color: var(--gold); color: var(--gold); background: var(--gold-wash); }
+
+    .foot { margin-top: 48px; padding-top: 24px; border-top: 1px solid var(--border); display: flex; align-items: center; justify-content: center; gap: 12px; font-size: 10px; letter-spacing: 0.25em; text-transform: uppercase; color: var(--mute); }
+    .foot .icon-btn { width: 28px; height: 28px; font-size: 12px; text-transform: none; letter-spacing: 0; }
+
+    /* ── Drawer de configuração ──────────────────────────────────────────
+       Substitui o antigo #logout-btn da topbar. O "Sair" mudou pra cá — o
+       espaço da topbar passou a valer mais como porta de entrada das telas
+       de config (publicar/senhas/temas) do que como botão de logout.
+
+       Os itens são <a href> de verdade (páginas próprias em lifeos/), não
+       telas trocadas por JS — ver LIFEOS.md §2. O único <button> é o Sair.
+
+       z-index 1100: acima dos modais (1000), pra que o drawer nunca abra
+       por baixo de um modal que tenha ficado aberto. ── */
+    .drawer-backdrop {
+      position: fixed; inset: 0; z-index: 1090; background: rgba(6,8,11,0.78);
+      opacity: 0; pointer-events: none; transition: opacity 0.2s ease;
+    }
+    .drawer-backdrop.open { opacity: 1; pointer-events: auto; }
+
+    .drawer {
+      position: fixed; top: 0; right: 0; bottom: 0; z-index: 1100;
+      width: min(300px, 84vw); display: flex; flex-direction: column;
+      background: var(--surface); border-left: 1px solid var(--border);
+      transform: translateX(100%);
+      overflow-y: auto; -webkit-overflow-scrolling: touch;
+      scrollbar-width: thin; scrollbar-color: rgba(255,255,255,0.14) transparent;
+      /* `visibility` (e não o atributo [hidden]) porque [hidden] é display:none
+         e mataria a transição do transform. Ela vira `hidden` só DEPOIS que o
+         slide termina (delay 0.2s) e volta na hora ao abrir — assim o drawer
+         fechado some da árvore de acessibilidade sem perder a animação. */
+      visibility: hidden;
+      transition: transform 0.2s ease, visibility 0s linear 0.2s;
+    }
+    .drawer.open {
+      transform: translateX(0);
+      visibility: visible;
+      transition: transform 0.2s ease, visibility 0s;
+    }
+
+    .drawer-head {
+      display: flex; align-items: center; justify-content: space-between; gap: 10px;
+      padding: 18px 18px 14px; border-bottom: 1px solid var(--border);
+    }
+    .drawer-brand { font-size: 10px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--mute); }
+
+    .drawer-group { padding: 16px 0 8px; }
+    .drawer-group + .drawer-group { border-top: 1px solid var(--border); }
+    .drawer-label {
+      font-size: 9px; letter-spacing: 0.24em; text-transform: uppercase;
+      color: var(--mute); padding: 0 18px 10px;
+    }
+
+    .drawer-item {
+      display: flex; align-items: center; gap: 12px; width: 100%;
+      padding: 11px 18px; background: none; border: none; text-align: left;
+      font: inherit; font-size: 13px; color: var(--dim); text-decoration: none;
+      cursor: pointer; transition: color 0.15s, background 0.15s;
+    }
+    .drawer-item:hover { color: var(--gold); background: var(--gold-wash); }
+    .drawer-item.is-disabled { opacity: 0.4; cursor: default; pointer-events: none; }
+    .drawer-item .fad { width: 16px; flex-shrink: 0; text-align: center; font-size: 14px; }
+    .drawer-item-sub { display: block; font-size: 10px; color: var(--mute); margin-top: 2px; }
+
+    .loading-ov { position: fixed; inset: 0; z-index: 500; display: flex; align-items: center; justify-content: center; background: rgba(12,14,18,0.55); }
+    .spinner { width: 32px; height: 32px; border: 3px solid var(--border); border-top-color: var(--gold); border-radius: 50%; animation: spin 0.7s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Modal — casca compartilhada pelos 7 modais do hub. Todos usam o
+       "padrão banner" (.pdet-panel, ver mais abaixo) — não existe mais
+       nenhum modal com o .modal-head antigo (barra plana de título + X);
+       a classe foi removida daqui por ficar sem uso. ── */
+    .modal { position: fixed; inset: 0; z-index: 1000; display: flex; align-items: center; justify-content: center; padding: 20px; background: rgba(6,8,11,0.78); opacity: 0; pointer-events: none; transition: opacity 0.2s ease; }
+    .modal.open { opacity: 1; pointer-events: auto; }
+    .modal-panel { width: 100%; max-width: 640px; max-height: 80vh; display: flex; flex-direction: column; background: var(--surface); border-radius: 12px; overflow: hidden; }
+    /* Scroll interno discreto — mesma barra fina de .tar-mini-list/
+       .kanban-col-body, não o scrollbar padrão do navegador (grosso, chapado). */
+    .modal-body {
+      overflow-y: auto; -webkit-overflow-scrolling: touch; padding: 10px 20px 20px;
+      scrollbar-width: thin; scrollbar-color: rgba(255,255,255,0.14) transparent;
+    }
+    .modal-body::-webkit-scrollbar { width: 5px; }
+    .modal-body::-webkit-scrollbar-track { background: transparent; }
+    .modal-body::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.14); border-radius: 999px; }
+    .modal-body::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.24); }
+    /* Rodapé de ações do detail-modal (Editar/Excluir) — canto inferior
+       direito, fora da área com scroll do modal-body, sempre visível. */
+    .detail-modal-foot { display: flex; justify-content: flex-end; gap: 8px; padding: 12px 20px; border-top: 1px solid var(--border); flex-shrink: 0; }
+    @media (max-width: 480px) { .modal { padding: 14px; } .modal-panel { max-width: 100%; } }
+
+    /* ── Formulário do modal (novo evento) — mesmo padrão de financas.html/eventos.html ── */
+    .edit-panel { max-width: 560px; }
+    .edit-field { margin-bottom: 14px; }
+    .edit-field:last-of-type { margin-bottom: 0; }
+    .edit-label { display: block; font-size: 10px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--mute); margin-bottom: 6px; }
+    .edit-input {
+      width: 100%; background: var(--surface-2); border: 1px solid var(--border); border-radius: 6px;
+      padding: 10px 12px; font-family: var(--mono); font-size: 13px; color: var(--text); outline: none;
+      transition: border-color 0.15s;
+    }
+    .edit-input:focus { border-color: var(--gold); }
+    .edit-textarea { resize: vertical; min-height: 110px; line-height: 1.6; }
+
+    /* Upload de banner da Manifestação (Nome/preview/remover) — vive dentro
+       do próprio .pdet-banner agora (.pdet-banner-img/.pdet-banner-actions,
+       ver comentário no #manifestacao-modal). Upload é opcional e
+       best-effort (ver lifeos-manifestacoes/handleCreate); sem arquivo
+       escolhido, a manifestação nasce com o banner padrão animado no CARD
+       da grade (ver .manif-banner-default — CSS diferente, esse aqui é só
+       o do card, não o do modal). */
+
+    /* ── Chip picker genérico (status/tipo/projeto/descrição do modal de
+       tarefa — cópia isolada do mesmo componente de tarefas.js/tarefas.html,
+       ver LIFEOS.md §2/§7) ── */
+    .chip-picker { display: flex; flex-wrap: wrap; gap: 8px; }
+    .chip-opt {
+      font-family: var(--mono); font-size: 11px; letter-spacing: 0.03em;
+      background: var(--surface-2); border: 1px solid var(--border); color: var(--dim);
+      padding: 7px 12px; border-radius: 999px; cursor: pointer; transition: border-color 0.15s, color 0.15s, background 0.15s;
+    }
+    .chip-opt:hover { color: var(--text); }
+    .chip-opt.is-selected { background: var(--gold); border-color: var(--gold); color: #14120f; font-weight: 500; }
+
+    /* ── Descrição da tarefa: markdown com toggle Editar/Pré-visualizar,
+       mesmo padrão de tarefas.html. ── */
+    .md-mode-picker { margin-bottom: 8px; }
+    .md-mode-picker .chip-opt { font-size: 10px; padding: 5px 10px; }
+    .md-preview {
+      min-height: 110px; max-height: 260px; overflow-y: auto; background: var(--surface-2);
+      border: 1px solid var(--border); border-radius: 6px; padding: 10px 12px;
+      font-size: 13px; color: var(--text); line-height: 1.6;
+    }
+    .md-preview.is-empty::before { content: 'nada pra pré-visualizar ainda'; color: var(--mute); }
+    .md-preview h1, .md-preview h2, .md-preview h3, .md-preview h4 { font-family: var(--serif); font-style: italic; line-height: 1.3; margin: 0 0 8px; }
+    .md-preview h1 { font-size: 19px; } .md-preview h2 { font-size: 16px; } .md-preview h3 { font-size: 14px; } .md-preview h4 { font-size: 12.5px; }
+    .md-preview p { margin: 0 0 10px; }
+    .md-preview ul, .md-preview ol { margin: 0 0 10px; padding-left: 20px; }
+    .md-preview li { margin-bottom: 4px; }
+    .md-preview a { color: var(--gold); }
+    .md-preview code { font-size: 12px; background: rgba(0,0,0,0.28); padding: 1px 5px; border-radius: 4px; }
+    .md-preview pre { background: rgba(0,0,0,0.28); border-radius: 6px; padding: 10px 12px; overflow-x: auto; margin: 0 0 10px; }
+    .md-preview pre code { background: none; padding: 0; }
+    .md-preview blockquote { border-left: 2px solid var(--gold); margin: 0 0 10px; padding-left: 12px; color: var(--dim); }
+    /* Notas (via #detail-modal em modo 'nota') chegam a ter tabela/
+       <details> no corpo — o preview de descrição de tarefa nunca
+       precisou disso antes, mas a leitura de nota sim (ver openDetailModal
+       kind==='nota'). */
+    .md-preview table { width: 100%; border-collapse: collapse; margin: 0 0 10px; }
+    .md-preview th, .md-preview td { border: 1px solid var(--border); padding: 6px 10px; font-size: 12.5px; text-align: left; }
+    .md-preview hr { border: none; border-top: 1px solid var(--border); margin: 14px 0; }
+    .md-preview details { border: 1px solid var(--border); border-radius: 6px; padding: 8px 12px; margin: 0 0 10px; }
+    .md-preview summary { cursor: pointer; color: var(--dim); }
+    .md-preview > *:last-child { margin-bottom: 0; }
+    /* Rendida também no modal de detalhe (leitura) — sem toggle, sempre
+       estilizada; classe extra só ajusta margem externa nesse contexto. */
+    .detail-value.md-preview { min-height: 0; max-height: none; padding: 0; border: none; background: transparent; }
+    /* Tags de Tipo/Projeto do #detail-modal em modo 'nota' (4ª rodada,
+       set/2026) — mesma estrutura de notas.html: linha de Tipo, linha de
+       Projeto(s) abaixo, cada uma em .detail-meta-row própria (nunca
+       misturadas). Substitui o antigo formato label:valor
+       (addDetailField 'Tipo'/'Projeto(s)') só pra esse kind — evento/
+       tarefa continuam com addDetailField, fora do escopo desta correção.
+       Divisória marca onde os atributos terminam e o texto (conteúdo)
+       começa — mesma peça de notas.html, agora espelhada aqui. */
+    .detail-meta { display: flex; flex-direction: column; gap: 8px; }
+    .detail-meta-row { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+    .detail-divider { border-top: 1px solid var(--border); margin: 16px 0 18px; }
+    /* Badge de data no canto superior esquerdo do banner (nota) — mesma
+       peça de notas.html (.pdet-date-badge), cópia isolada aqui. */
+    .pdet-date-badge {
+      position: absolute; top: 12px; left: 12px; z-index: 2;
+      background: rgba(6,8,11,0.5); border: 1px solid var(--border); border-radius: 8px;
+      padding: 8px 12px; font-family: var(--mono); font-size: 11px; letter-spacing: 0.08em; color: var(--dim);
+    }
+
+    .edit-error { min-height: 14px; font-size: 11px; letter-spacing: 0.04em; color: var(--red); margin-top: 10px; }
+    .edit-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 18px; }
+    .edit-btn { display: inline-flex; align-items: center; justify-content: center; gap: 7px; font-family: var(--mono); font-size: 12px; letter-spacing: 0.04em; padding: 10px 18px; border-radius: 6px; cursor: pointer; transition: border-color 0.15s, background 0.15s, color 0.15s; }
+    .edit-btn-ghost { background: transparent; border: 1px solid var(--border); color: var(--dim); }
+    .edit-btn-ghost:hover { border-color: var(--gold); color: var(--text); }
+    .edit-btn-primary { background: var(--gold); border: 1px solid var(--gold); color: #14120f; font-weight: 500; }
+    .edit-btn-primary:hover { opacity: 0.9; }
+    .edit-btn-primary:disabled { opacity: 0.5; cursor: default; }
+
+    /* ── Modal de detalhe (evento/tarefa) — texto SEM truncar, ao contrário
+       das linhas de lista que geraram esse modal (ver .hub-list-name/
+       .hub-list-proj, que cortam com ellipsis). ── */
+    .detail-field { padding: 10px 0; border-bottom: 1px solid rgba(255,255,255,0.04); }
+    .detail-field:last-child { border-bottom: none; }
+    .detail-label { font-size: 9.5px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--mute); margin-bottom: 5px; }
+    .detail-value { font-size: 14px; color: var(--text); line-height: 1.55; white-space: normal; overflow-wrap: break-word; }
+
+    /* ── Seletor de tipo (e de projeto, mesmo visual) do evento — chips
+       clicáveis, não um select nativo. Poucas opções fixas — clicar pra
+       marcar é mais direto que abrir um dropdown. .evento-tipo-opt carrega
+       cor própria (--opt-color, a mesma de EVENTO_COR) via JS, acende borda
+       quando selecionado; .evento-projeto-opt é a versão sem cor (projeto
+       não tem cor própria), classe SEPARADA de propósito — setEventoTipo()
+       usa querySelectorAll('.evento-tipo-opt') e não pode pegar os chips
+       de projeto junto. */
+    .evento-tipo-picker { display: flex; flex-wrap: wrap; gap: 8px; }
+    .evento-tipo-opt, .evento-projeto-opt {
+      display: inline-flex; align-items: center; gap: 6px;
+      font-family: var(--mono); font-size: 11px; letter-spacing: 0.04em; text-transform: capitalize;
+      background: var(--surface-2); border: 1px solid var(--border); color: var(--dim);
+      padding: 8px 12px; border-radius: 999px; cursor: pointer;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .evento-tipo-opt:hover, .evento-projeto-opt:hover { color: var(--text); }
+    .evento-tipo-opt.is-selected { color: var(--text); font-weight: 600; border-color: var(--opt-color); }
+    .evento-projeto-opt.is-selected { color: #14120f; font-weight: 500; background: var(--gold); border-color: var(--gold); }
+    .evento-tipo-opt-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; background: var(--opt-color); }
+
+    /* ── Ações de linha (excluir, dentro do modal de detalhes do dia) ──
+       Sempre visíveis (não hover-only — dentro de um modal já focado, hover
+       não ajuda e nem existe em touch), confirmação inline de dois cliques,
+       mesmo padrão de financas.html/eventos.html. */
+    .row-actions { display: inline-flex; gap: 5px; flex-shrink: 0; align-items: center; margin-left: auto; }
+    .row-action-btn {
+      width: 26px; height: 26px; flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center;
+      background: var(--surface-2); border: 1px solid var(--border); border-radius: 6px;
+      color: var(--dim); font-size: 11px; cursor: pointer; transition: color 0.15s, border-color 0.15s, background 0.15s;
+    }
+    .row-action-btn:hover { color: var(--gold); border-color: var(--gold); background: var(--gold-wash); }
+    .row-action-btn.row-action-danger:hover { color: var(--red); border-color: var(--red); background: color-mix(in srgb, var(--red) 10%, transparent); }
+    .row-action-btn.confirming {
+      width: auto; padding: 0 10px; color: var(--red); border-color: var(--red); background: color-mix(in srgb, var(--red) 12%, transparent);
+      font-family: var(--mono); font-size: 10px; letter-spacing: 0.04em; white-space: nowrap;
+    }
+    .row-action-btn:disabled { opacity: 0.6; cursor: default; }
+
+    @media (max-width: 560px) {
+      .app { padding: 0 14px calc(56px + env(safe-area-inset-bottom)); }
+      .hub-masthead-row { margin-top: -58px; gap: 14px; }
+      .hub-icon-wrap { width: 96px; height: 96px; border-radius: 16px; border-width: 3px; }
+      .hub-quicknav { justify-content: flex-start; }
+      /* Toggle Eventos/Tarefas embaixo do botão "Adicionar" só no mobile
+         (column-reverse mantém botão em cima com toggle antes no DOM) */
+      .hero-head-actions { flex-direction: column-reverse; align-items: flex-end; gap: 8px; }
+      .fetched { display: none; }
+    }
+
+    /* ═══════════════════════════════════════════════════════════════════
+       SYSTEM SKIN — paleta sépia-quente do arquivo. Reverter = apagar.
+       ═══════════════════════════════════════════════════════════════════ */
+    :root {
+      --bg:        #14120f;
+      --surface:   #1c1a16;
+      --surface-2: #242018;
+      --border:    #2e2a24;
+      --text:      #ede8df;
+      --dim:       #b0a898;
+      --mute:      #6b6456;
+      --gold:      #c4913a;
+      --gold-wash: rgba(196, 145, 58, 0.10);
+      --border-mid: #3a352d;
+      --text-muted: #6b6456;
+      --accent-dim: #7a6a56;
+      --accent:     #c4913a;
+    }
+    html { background: var(--bg); }
+    body { background: transparent; }
+    .ambient-field { position: fixed; inset: 0; z-index: -1; overflow: hidden; pointer-events: none; }
+    .ambient-glyph {
+      position: absolute; font-family: 'Playfair Display', serif; font-style: italic; color: var(--text);
+      opacity: 0; animation-name: ambientFade; animation-timing-function: ease-in-out; animation-iteration-count: infinite;
+      will-change: opacity, transform;
+    }
+    @keyframes ambientFade {
+      0%   { opacity: 0; transform: translateY(10px); }
+      50%  { opacity: var(--peak, 0.05); transform: translateY(-10px); }
+      100% { opacity: 0; transform: translateY(-24px); }
+    }
+    .gate { background: radial-gradient(ellipse at 50% 28%, #1c1a16 0%, #14120f 72%); }
+    .loading-ov { background: rgba(20, 18, 15, 0.55); }
+    .foot { border-top: 3px double var(--text); }
+    .icon-btn:hover { background: var(--gold-wash); }
+    /* ═══ SYSTEM SKIN ▸ END ═══ */
+  </style>
+  <link rel="stylesheet" id="lifeos-tema" href="../assets/css/themes/lifeos/sepia.css">
+  <!-- Config da instância + tema. Precisam vir AQUI, nesta ordem e sem defer:
+       o <link> acima tem de ficar depois do <style> pra vencer o SYSTEM SKIN,
+       e tema.js tem de rodar antes da primeira pintura. Ver assets/js/tema.js. -->
+  <script src="../assets/js/lifeos-config.js"></script>
+  <script src="../assets/js/tema.js"></script>
+  <script src="../assets/js/blog.js"></script>
+</head>
+<body>
+
+<div class="ambient-field" id="ambient-field" aria-hidden="true"></div>
+
+<!-- ───────────────────────── GATE ───────────────────────── -->
+<div id="gate" class="gate">
+  <div class="gate-box">
+    <div class="gate-orn">✦ &nbsp; ✦ &nbsp; ✦</div>
+    <div class="gate-brand">LifeOS</div>
+    <form id="gate-form" autocomplete="off">
+      <div class="gate-label">acesso restrito · senha mestre</div>
+      <div class="gate-row" id="gate-row">
+        <input id="gate-input" type="password" placeholder="senha mestre" spellcheck="false" autocomplete="current-password">
+        <button id="gate-btn" type="submit"><i class="fad fa-arrow-right"></i></button>
+      </div>
+      <label class="gate-remember"><input type="checkbox" id="gate-remember"> lembrar neste navegador</label>
+      <div id="gate-error" class="gate-error"></div>
+    </form>
+    <div id="gate-checking" class="gate-checking" hidden>verificando sessão…</div>
+  </div>
+</div>
+
+<!-- ───────────────────────── APP ───────────────────────── -->
+<div id="app" class="app" hidden>
+
+  <div class="topbar">
+    <a href="../index.html" class="back"><i class="fad fa-arrow-left"></i> arquivo</a>
+    <div class="topbar-actions">
+      <span id="hub-fetched-at" class="fetched"></span>
+      <button id="hub-refresh-btn" class="icon-btn" title="Re-sincronizar" aria-label="Atualizar"><i class="fad fa-sync"></i></button>
+      <button id="menu-btn" class="icon-btn" title="Menu" aria-label="Abrir menu" aria-haspopup="true" aria-expanded="false" aria-controls="config-drawer"><i class="fad fa-bars"></i></button>
+    </div>
+  </div>
+
+  <header class="hub-masthead">
+    <div class="hub-banner">
+      <img src="../assets/images/banner.svg" alt="" loading="eager">
+    </div>
+    <div class="hub-masthead-row">
+      <div class="hub-icon-wrap">
+        <img src="../assets/images/avatar.svg" alt="">
+      </div>
+      <div class="hub-masthead-text">
+        <h1>LifeOS</h1>
+        <p class="hub-sub">gestão de vida · LifeOS</p>
+      </div>
+    </div>
+    <nav class="hub-quicknav">
+      <a href="financas.html"><i class="fad fa-wallet"></i> Finanças</a>
+      <button type="button" data-jump="hero-tarefas"><i class="fad fa-tasks"></i> Tarefas</button>
+      <button type="button" data-jump="hero-projetos"><i class="fad fa-folder-open"></i> Projetos</button>
+      <button type="button" data-jump="hero-notas"><i class="fad fa-book"></i> Notas</button>
+      <button type="button" id="quicknav-manifestacoes"><i class="fad fa-sparkles"></i> Manifestações</button>
+    </nav>
+  </header>
+  <div class="hub-masthead-rule"></div>
+
+  <section class="hero-section" id="hero-eventos">
+    <div class="hero-head">
+      <div class="hero-icon"><i class="fad fa-calendar-alt"></i></div>
+      <div class="hero-title">Calendário</div>
+      <div class="hero-head-actions">
+        <div class="tar-chart-toggle" id="cal-mode-toggle">
+          <button type="button" class="tar-chart-toggle-btn is-active" data-mode="eventos">Eventos</button>
+          <button type="button" class="tar-chart-toggle-btn" data-mode="tarefas">Tarefas</button>
+        </div>
+        <button type="button" class="hero-link" id="add-evento-btn">Adicionar <i class="fad fa-plus"></i></button>
+      </div>
+    </div>
+    <div class="evt-bento">
+      <div class="bento-card evt-card-cal">
+        <div class="hub-cal-nav">
+          <button type="button" class="hub-cal-nav-btn" id="hub-cal-prev" aria-label="Mês anterior"><i class="fad fa-chevron-left"></i></button>
+          <span class="hub-cal-label" id="hub-cal-label"></span>
+          <button type="button" class="hub-cal-nav-btn" id="hub-cal-next" aria-label="Próximo mês"><i class="fad fa-chevron-right"></i></button>
+        </div>
+        <div class="hub-mini-cal-dow" id="mini-cal-dow"></div>
+        <div class="hub-mini-cal" id="mini-cal"></div>
+        <div class="cal-legend" id="cal-legend"></div>
+      </div>
+      <div class="bento-card evt-card-timeline">
+        <div class="bento-card-label"><i class="fad fa-history"></i> Linha do tempo · recentes &amp; próximos</div>
+        <div class="hub-list hub-list-scroll" id="eventos-timeline"></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="hero-section" id="hero-financas">
+    <div class="hero-head">
+      <div class="hero-icon"><i class="fad fa-wallet"></i></div>
+      <div class="hero-title">Finanças</div>
+      <a class="hero-link" href="financas.html">Abrir <i class="fad fa-arrow-right"></i></a>
+    </div>
+    <div class="fin-bento">
+      <div class="bento-card fin-card-saldo">
+        <div class="bento-card-label"><i class="fad fa-chart-line"></i> Saldo · evolução do mês</div>
+        <div class="bento-big-val" id="fin-saldo">—</div>
+        <div class="hub-chart-wrap">
+          <canvas id="fin-chart"></canvas>
+          <div class="hub-chart-empty" id="fin-chart-empty" hidden>sem movimentação este mês</div>
+        </div>
+      </div>
+      <div class="bento-card tint-pos fin-card-entradas">
+        <div class="bento-card-label"><i class="fad fa-arrow-to-bottom"></i> Entradas</div>
+        <div class="bento-big-val pos" id="fin-entradas">—</div>
+        <div class="bento-sub" id="fin-entradas-sub"></div>
+      </div>
+      <div class="bento-card tint-neg fin-card-saidas">
+        <div class="bento-card-label"><i class="fad fa-arrow-from-bottom"></i> Saídas</div>
+        <div class="bento-big-val neg" id="fin-saidas">—</div>
+        <div class="bento-sub" id="fin-saidas-sub"></div>
+      </div>
+      <div class="bento-card fin-card-fatura-atual">
+        <div class="bento-card-label"><i class="fad fa-file-invoice-dollar"></i> Fatura deste mês</div>
+        <div class="bento-big-val" id="fatura-atual-valor">—</div>
+        <div class="bento-sub" id="fatura-atual-status"></div>
+      </div>
+      <div class="bento-card fin-card-fatura-proj">
+        <div class="bento-card-label"><i class="fad fa-hourglass-half"></i> Fatura projetada</div>
+        <div class="bento-big-val" id="fatura-proj-valor">—</div>
+        <div class="bento-sub" id="fatura-proj-sub"></div>
+      </div>
+      <div class="bento-card fin-card-recent">
+        <div class="bento-card-label"><i class="fad fa-receipt"></i> Últimas transações</div>
+        <div class="hub-list" id="fin-recent"></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="hero-section" id="hero-tarefas">
+    <div class="hero-head">
+      <div class="hero-icon"><i class="fad fa-tasks"></i></div>
+      <div class="hero-title">Tarefas</div>
+      <button type="button" class="hero-link" id="add-tarefa-btn">Adicionar <i class="fad fa-plus"></i></button>
+      <a class="hero-link" href="tarefas.html">Abrir <i class="fad fa-arrow-right"></i></a>
+    </div>
+    <div class="tar-bento">
+      <div class="bento-card tar-card-stat-ni">
+        <div class="bento-card-label"><i class="fad fa-circle"></i> Não iniciadas</div>
+        <div class="tar-stat-count" id="tar-count-nao-iniciado" style="color:var(--mute);">—</div>
+      </div>
+      <div class="bento-card tar-card-stat-ea">
+        <div class="bento-card-label"><i class="fad fa-spinner-third"></i> Em andamento</div>
+        <div class="tar-stat-count" id="tar-count-em-andamento" style="color:var(--gold);">—</div>
+      </div>
+      <div class="bento-card tar-card-stat-fe">
+        <div class="bento-card-label"><i class="fad fa-check-circle"></i> Feitas</div>
+        <div class="tar-stat-count" id="tar-count-feito" style="color:var(--green);">—</div>
+      </div>
+      <div class="bento-card tar-card-kanban">
+        <div class="tar-kanban-head">
+          <div class="bento-card-label"><i class="fad fa-columns"></i> Kanban</div>
+          <select id="tar-projeto-select" class="tar-projeto-select"></select>
+        </div>
+        <div class="tar-mini-board" id="tar-mini-board"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Gestão completa de Projetos (criar/editar/excluir) — movida de
+       tarefas.html pra cá em set/2026, a pedido do autor, pra centralizar na
+       tela principal do LifeOS (ver LIFEOS.md). Seção simples de propósito:
+       um único .bento-card com a tabela, sem grid bento variado. -->
+  <section class="hero-section" id="hero-projetos">
+    <div class="hero-head">
+      <div class="hero-icon"><i class="fad fa-folder-open"></i></div>
+      <div class="hero-title">Projetos</div>
+      <button type="button" class="hero-link" id="add-projeto-btn">Novo projeto <i class="fad fa-plus"></i></button>
+    </div>
+    <div class="proj-filter-bar">
+      <label class="edit-label" for="proj-status-filter">Filtrar por status</label>
+      <select id="proj-status-filter" class="tar-projeto-select"></select>
+    </div>
+    <div class="bento-card">
+      <div class="proj-table-wrap">
+        <table class="proj-table">
+          <thead>
+            <tr><th>Projeto</th><th>Status</th><th>Tags</th><th>Progresso</th><th class="r">Ações</th></tr>
+          </thead>
+          <tbody id="proj-table-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- Migrado do Notion em set/2026 (105 notas — ver NOTAS.md). Página
+       própria (notas.html) — leitura no hub, escrita fica toda na página
+       (mesmo tratamento read-only que Finanças tem, ver LIFEOS.md §8).
+       Lista de últimas notas AGORA É clicável (3ª rodada, set/2026 — pedido
+       explícito do autor) e abre o #detail-modal em modo leitura ('nota',
+       ver openDetailModal em lifeos.js) — única exceção read-only ao
+       padrão "não clicável" de #fin-recent, porque abrir uma nota não tem
+       nenhuma ação de escrita associada aqui, só leitura rápida (mesmo
+       espírito de evento no calendário). -->
+  <section class="hero-section" id="hero-notas">
+    <div class="hero-head">
+      <div class="hero-icon"><i class="fad fa-book"></i></div>
+      <div class="hero-title">Notas</div>
+      <a class="hero-link" href="notas.html">Abrir <i class="fad fa-arrow-right"></i></a>
+    </div>
+    <div class="not-bento">
+      <div class="bento-card not-card-recent">
+        <div class="tar-kanban-head">
+          <div class="bento-card-label"><i class="fad fa-history"></i> Últimas notas</div>
+          <select id="not-projeto-filtro" class="tar-projeto-select"></select>
+        </div>
+        <div class="hub-list hub-list-scroll" id="not-recent"></div>
+      </div>
+      <div class="bento-card not-card-tipo">
+        <div class="bento-card-label"><i class="fad fa-chart-bar"></i> Por tipo</div>
+        <div class="not-stats-line" id="not-stats"></div>
+        <div class="hub-chart-wrap not-chart-wrap">
+          <canvas id="not-chart-tipo"></canvas>
+          <div class="hub-chart-empty" id="not-chart-tipo-empty" hidden>sem notas ainda</div>
+        </div>
+      </div>
+      <div class="bento-card not-card-projeto">
+        <div class="bento-card-label"><i class="fad fa-folder-open"></i> Por projeto</div>
+        <div class="not-stats-line" id="not-stats-projeto"></div>
+        <div class="hub-chart-wrap not-chart-wrap">
+          <canvas id="not-chart-projeto"></canvas>
+          <div class="hub-chart-empty" id="not-chart-projeto-empty" hidden>sem projeto vinculado ainda</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Migrado do Notion em set/2026 (ver notion-manifestacoes-migrate,
+       dormente após a migração única — LIFEOS.md). Só leitura por enquanto
+       — CRUD entra quando for pedido, mesmo padrão que Tarefas/Projetos
+       seguiram (ver LIFEOS.md §1). Diferencial: o atalho "Manifestações" do
+       quicknav entra em MODO FOCO (ver toggleManifFocus em lifeos.js) — oculta
+       as outras hero-sections e deixa só esta visível, logo depois do
+       masthead (onde normalmente fica o Calendário), sem precisar reordenar
+       nada no DOM (a seção continua sendo a última — só as outras é que
+       somem). Clicar de novo no mesmo atalho sai do modo foco. -->
+  <section class="hero-section" id="hero-manifestacoes">
+    <div class="hero-head">
+      <div class="hero-icon"><i class="fad fa-sparkles"></i></div>
+      <div class="hero-title">Manifestações</div>
+      <button type="button" class="hero-link" id="add-manifestacao-btn">Nova manifestação <i class="fad fa-plus"></i></button>
+    </div>
+    <div class="manif-grid" id="manif-grid"></div>
+  </section>
+
+  <footer class="foot">
+    <span class="foot-text">✦ LifeOS</span>
+  </footer>
+</div>
+
+<!-- ───────────────────────── MODAL · DIA ───────────────────────── -->
+<div id="day-modal" class="modal">
+  <div class="modal-panel pdet-panel">
+    <div class="pdet-banner">
+      <button type="button" class="pdet-close" id="day-modal-close" aria-label="Fechar"><i class="fad fa-times"></i></button>
+      <div class="pdet-banner-icon"><i class="fad fa-calendar-day"></i></div>
+    </div>
+    <div class="modal-body">
+      <div class="pdet-head"><div class="pdet-name" id="day-modal-title">—</div></div>
+      <div class="pdet-body-pad" id="day-modal-body"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ───────────────────────── MODAL · DETALHE (evento/tarefa) ─────────────────────────
+     Aberto ao clicar numa linha da linha do tempo ou do modal de dia — mostra o
+     conteúdo completo, sem truncar (.hub-list-name/.hub-list-proj cortam com
+     ellipsis nas listas; esse modal existe só pra nunca esconder informação).
+     Ícone/cor do banner são dinâmicos — ver openDetailModal em lifeos.js:
+     calendar-alt + EVENTO_COR[tipo] pra evento, tasks + TAR_STATUS_COR[status]
+     pra tarefa. -->
+<div id="detail-modal" class="modal">
+  <div class="modal-panel pdet-panel">
+    <div class="pdet-banner" id="detail-banner">
+      <!-- Badge de data — só usado no modo 'nota' (evento/tarefa continuam
+           com "Data"/"Entrega" como addDetailField dentro do corpo). -->
+      <div class="pdet-date-badge" id="detail-banner-date" hidden></div>
+      <!-- "Tela cheia" (só kind 'nota') + Fechar agrupados — 5ª rodada,
+           set/2026, pedido explícito do autor: icon-button ao lado do
+           Fechar, não mais botão-texto no rodapé (ver openDetailModal). -->
+      <div class="pdet-banner-top-actions">
+        <button type="button" class="pdet-close" id="detail-modal-fullscreen" hidden aria-label="Tela cheia"><i class="fad fa-expand"></i></button>
+        <button type="button" class="pdet-close" id="detail-modal-close" aria-label="Fechar"><i class="fad fa-times"></i></button>
+      </div>
+      <div class="pdet-banner-icon" id="detail-banner-icon"><i class="fad fa-calendar-alt"></i></div>
+    </div>
+    <div class="modal-body">
+      <div class="pdet-head"><div class="pdet-name" id="detail-modal-title">—</div></div>
+      <div class="pdet-body-pad" id="detail-modal-body"></div>
+    </div>
+    <!-- Editar/Excluir só aparecem pra tarefa (ver openDetailModal) —
+         eventos continuam só leitura aqui, excluir mora no modal do dia
+         (§3.4 LIFEOS.md); nota não usa mais este rodapé (5ª rodada,
+         set/2026 — Tela cheia virou icon-button no banner acima, e
+         Excluir/Editar de nota nunca moraram aqui, ver notas.html). Fica
+         no rodapé (fora da área com scroll), não no header, pra continuar
+         visível mesmo com o conteúdo rolado. -->
+    <div class="detail-modal-foot" id="detail-modal-actions" hidden>
+      <button type="button" class="row-action-btn" id="detail-modal-edit" aria-label="Editar tarefa"><i class="fad fa-pen"></i></button>
+      <button type="button" class="row-action-btn row-action-danger" id="detail-modal-delete" aria-label="Excluir tarefa"><i class="fad fa-trash"></i></button>
+    </div>
+  </div>
+</div>
+
+<!-- ───────────────────────── MODAL · NOVO EVENTO ─────────────────────────
+     Banner com cor dinâmica pelo tipo selecionado (EVENTO_COR) — ver
+     setEventoTipo em lifeos.js, que atualiza --pdet-accent a cada clique
+     no chip, junto do #evento-tipo hidden. -->
+<div id="evento-modal" class="modal" role="dialog" aria-modal="true">
+  <div class="modal-panel pdet-panel edit-panel">
+    <div class="pdet-banner" id="evento-banner">
+      <button type="button" id="evento-modal-close" class="pdet-close" aria-label="Fechar"><i class="fad fa-times"></i></button>
+      <div class="pdet-banner-icon"><i class="fad fa-calendar-alt"></i></div>
+    </div>
+    <div class="modal-body">
+      <div class="pdet-head"><div class="pdet-name">Novo evento</div></div>
+      <form id="evento-form" class="pdet-body-pad" autocomplete="off">
+        <div class="edit-field">
+          <label class="edit-label" for="evento-nome">Nome</label>
+          <input type="text" id="evento-nome" class="edit-input" maxlength="200" autocomplete="off">
+        </div>
+        <div class="edit-field">
+          <label class="edit-label" for="evento-date">Data</label>
+          <input type="date" id="evento-date" class="edit-input">
+        </div>
+        <div class="edit-field">
+          <label class="edit-label">Tipo</label>
+          <input type="hidden" id="evento-tipo" value="vida">
+          <div class="evento-tipo-picker" id="evento-tipo-picker"></div>
+        </div>
+        <div class="edit-field">
+          <label class="edit-label">Projeto <span style="text-transform:none;letter-spacing:0;color:var(--mute);">(opcional)</span></label>
+          <input type="hidden" id="evento-projeto-id" value="">
+          <div class="evento-tipo-picker" id="evento-projeto-picker"></div>
+        </div>
+        <div id="evento-error" class="edit-error"></div>
+        <div class="edit-actions">
+          <button type="button" id="evento-cancel" class="edit-btn edit-btn-ghost">Cancelar</button>
+          <button type="submit" id="evento-save" class="edit-btn edit-btn-primary">Salvar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- ───────────────────────── MODAL · TAREFA (criar/editar direto pelo hub) ─────────────────────────
+     Exceção documentada em LIFEOS.md (set/2026): CRUD completo de Tarefas
+     passa a existir também aqui, a pedido do autor — tarefas.html continua
+     sendo a página completa (kanban, lista, filtros, gráficos). Banner com
+     cor dinâmica pelo status selecionado (TAR_STATUS_COR) — mesmo mecanismo
+     do #evento-modal, ver setSingleChip('tarefa-status-picker', ...). -->
+<div id="tarefa-modal" class="modal" role="dialog" aria-modal="true">
+  <div class="modal-panel pdet-panel edit-panel">
+    <div class="pdet-banner" id="tarefa-banner">
+      <button type="button" id="tarefa-modal-close" class="pdet-close" aria-label="Fechar"><i class="fad fa-times"></i></button>
+      <div class="pdet-banner-icon"><i class="fad fa-tasks"></i></div>
+    </div>
+    <div class="modal-body">
+      <div class="pdet-head"><div class="pdet-name" id="tarefa-modal-title">Nova tarefa</div></div>
+      <form id="tarefa-form" class="pdet-body-pad" autocomplete="off">
+        <div class="edit-field">
+          <label class="edit-label" for="tarefa-nome">Nome</label>
+          <input type="text" id="tarefa-nome" class="edit-input" maxlength="300" autocomplete="off">
+        </div>
+        <div class="edit-field">
+          <label class="edit-label">Status</label>
+          <input type="hidden" id="tarefa-status" value="Não Iniciado">
+          <div class="chip-picker" id="tarefa-status-picker"></div>
+        </div>
+        <div class="edit-field">
+          <label class="edit-label">Tipo</label>
+          <div class="chip-picker" id="tarefa-tipo-picker"></div>
+        </div>
+        <div class="edit-field">
+          <label class="edit-label">Projeto</label>
+          <input type="hidden" id="tarefa-projeto-id" value="">
+          <div class="chip-picker" id="tarefa-projeto-picker"></div>
+        </div>
+        <div class="edit-field">
+          <label class="edit-label" for="tarefa-data-entrega">Data de entrega (opcional)</label>
+          <input type="date" id="tarefa-data-entrega" class="edit-input">
+        </div>
+        <div class="edit-field">
+          <label class="edit-label">Descrição <span style="text-transform:none;letter-spacing:0;color:var(--mute);">(markdown, opcional)</span></label>
+          <div class="chip-picker md-mode-picker" id="tarefa-descricao-mode"></div>
+          <textarea id="tarefa-descricao" class="edit-input edit-textarea" maxlength="20000" placeholder="**negrito**, _itálico_, listas, links…"></textarea>
+          <div id="tarefa-descricao-preview" class="md-preview" hidden></div>
+        </div>
+        <div id="tarefa-error" class="edit-error"></div>
+        <div class="edit-actions">
+          <button type="button" id="tarefa-cancel" class="edit-btn edit-btn-ghost">Cancelar</button>
+          <button type="submit" id="tarefa-save" class="edit-btn edit-btn-primary">Salvar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- ───────────────────────── MODAL · PROJETO (criar/editar direto pelo hub) ─────────────────────────
+     Movido de tarefas.html em set/2026, a pedido do autor — CRUD completo de
+     Projetos passa a viver só aqui (ver LIFEOS.md). Excluir mora como ação de
+     linha na tabela de #hero-projetos, não neste form (ver renderProjetosTable).
+     Banner com cor dinâmica pelo status selecionado (PROJETO_STATUS_COR) e
+     ícone que segue o campo Emoji ao vivo (cai no folder-open padrão vazio —
+     ver syncProjetoBannerIcon em lifeos.js). -->
+<div id="projeto-modal" class="modal" role="dialog" aria-modal="true">
+  <div class="modal-panel pdet-panel edit-panel">
+    <div class="pdet-banner" id="projeto-banner">
+      <button type="button" id="projeto-modal-close" class="pdet-close" aria-label="Fechar"><i class="fad fa-times"></i></button>
+      <div class="pdet-banner-icon" id="projeto-banner-icon"><i class="fad fa-folder-open"></i></div>
+    </div>
+    <div class="modal-body">
+      <div class="pdet-head"><div class="pdet-name" id="projeto-modal-title">Novo projeto</div></div>
+      <form id="projeto-form" class="pdet-body-pad" autocomplete="off">
+        <div class="edit-field">
+          <label class="edit-label" for="projeto-nome">Nome</label>
+          <input type="text" id="projeto-nome" class="edit-input" maxlength="200" autocomplete="off">
+        </div>
+        <div class="edit-field">
+          <label class="edit-label" for="projeto-emoji">Emoji (opcional)</label>
+          <input type="text" id="projeto-emoji" class="edit-input" maxlength="8" placeholder="📁" autocomplete="off">
+        </div>
+        <div class="edit-field">
+          <label class="edit-label">Status</label>
+          <input type="hidden" id="projeto-status" value="Não Iniciado">
+          <div class="chip-picker" id="projeto-status-picker"></div>
+        </div>
+        <div class="edit-field">
+          <label class="edit-label">Tags</label>
+          <div class="chip-picker" id="projeto-tags-picker"></div>
+        </div>
+        <div id="projeto-error" class="edit-error"></div>
+        <div class="edit-actions">
+          <button type="button" id="projeto-cancel" class="edit-btn edit-btn-ghost">Cancelar</button>
+          <button type="submit" id="projeto-save" class="edit-btn edit-btn-primary">Salvar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- ───────────────────────── MODAL · DETALHE DO PROJETO ─────────────────────────
+     Aberto ao clicar numa linha de #proj-table-tbody (ver openProjetoDetail em
+     lifeos.js). Só leitura — Editar/Excluir continuam sendo as ações da linha
+     na tabela, não duplicadas aqui. Banner substitui o .modal-head padrão:
+     ícone/emoji do projeto sobre um gradiente na cor do status. Abaixo, os
+     dados do projeto e a lista de tarefas vinculadas, filtrável por status
+     (default: todas, ordenadas Não Iniciado → Em Andamento → Feito). -->
+<div id="projeto-detail-modal" class="modal" role="dialog" aria-modal="true">
+  <div class="modal-panel pdet-panel">
+    <div class="pdet-banner" id="pdet-banner">
+      <!-- Toggle Tarefas/Notas — 3ª rodada, set/2026, pedido explícito do
+           o autor: "visão bem centralizada e dinâmica" de tudo que existe no
+           LifeOS pra um projeto. Reusa .tar-chart-toggle/-btn (ver
+           switchPdetViewMode em lifeos.js). -->
+      <div class="pdet-banner-toggle tar-chart-toggle" id="pdet-view-toggle">
+        <button type="button" class="tar-chart-toggle-btn is-active" data-view="tarefas">Tarefas</button>
+        <button type="button" class="tar-chart-toggle-btn" data-view="notas">Notas</button>
+      </div>
+      <button type="button" class="pdet-close" id="projeto-detail-close" aria-label="Fechar"><i class="fad fa-times"></i></button>
+      <div class="pdet-banner-icon" id="pdet-banner-icon">📁</div>
+    </div>
+    <div class="modal-body">
+      <div class="pdet-head">
+        <div class="pdet-name" id="pdet-name">—</div>
+        <div class="pdet-meta">
+          <span class="proj-status-pill">
+            <span class="proj-status-dot" id="pdet-status-dot"></span>
+            <span id="pdet-status-text">—</span>
+          </span>
+          <div class="pdet-tags" id="pdet-tags"></div>
+        </div>
+      </div>
+      <div id="pdet-view-tarefas">
+        <div class="pdet-progress">
+          <div class="pdet-progress-top">
+            <span class="pdet-progress-label" id="pdet-progress-label">sem tarefas</span>
+            <span class="pdet-progress-pct" id="pdet-progress-pct"></span>
+          </div>
+          <div class="proj-progress-bar"><div class="proj-progress-fill" id="pdet-progress-fill" style="width:0%"></div></div>
+          <div class="pdet-stats">
+            <div class="pdet-stat" data-status="Não Iniciado">
+              <div class="pdet-stat-num" id="pdet-stat-nao-iniciado">0</div>
+              <div class="pdet-stat-label">não iniciado</div>
+            </div>
+            <div class="pdet-stat" data-status="Em Andamento">
+              <div class="pdet-stat-num" id="pdet-stat-em-andamento">0</div>
+              <div class="pdet-stat-label">em andamento</div>
+            </div>
+            <div class="pdet-stat" data-status="Feito">
+              <div class="pdet-stat-num" id="pdet-stat-feito">0</div>
+              <div class="pdet-stat-label">feito</div>
+            </div>
+          </div>
+        </div>
+        <div class="pdet-tasks-head">
+          <div class="pdet-tasks-title">Tarefas</div>
+          <div class="pdet-filter" id="pdet-filter"></div>
+        </div>
+        <div class="pdet-tasks" id="pdet-tasks"></div>
+      </div>
+      <div id="pdet-view-notas" hidden>
+        <div class="pdet-notes-head">
+          <div class="pdet-notes-title">Notas</div>
+          <div class="pdet-notes-count" id="pdet-notes-count"></div>
+        </div>
+        <div class="pdet-notes" id="pdet-notes"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ───────────────────────── MODAL · NOVA MANIFESTAÇÃO ─────────────────────────
+     Cadastro direto pelo hub, a pedido do autor — ver LIFEOS.md. Só CREATE
+     por enquanto (sem editar/excluir ainda, mesmo princípio de não
+     adiantar escopo além do pedido). Banner é opcional e agora É o
+     .pdet-banner: sem imagem escolhida, mostra o gradiente padrão +
+     ícone de sparkles (mesmo "sem banner" do card na grade, ver
+     .manif-banner-default); ao escolher uma imagem, ela substitui o
+     gradiente como fundo do banner (.pdet-banner-img), com "trocar" e
+     "remover" sobrepostos — ver onManifestacaoBannerChange/
+     clearManifestacaoBanner em lifeos.js. -->
+<div id="manifestacao-modal" class="modal" role="dialog" aria-modal="true">
+  <div class="modal-panel pdet-panel edit-panel">
+    <div class="pdet-banner" id="manifestacao-banner">
+      <button type="button" id="manifestacao-modal-close" class="pdet-close" aria-label="Fechar"><i class="fad fa-times"></i></button>
+      <img id="manifestacao-banner-preview" class="pdet-banner-img" alt="" hidden>
+      <div class="pdet-banner-icon" id="manifestacao-banner-icon"><i class="fad fa-sparkles"></i></div>
+      <input type="file" id="manifestacao-banner-input" accept="image/*" hidden>
+      <div class="pdet-banner-actions">
+        <button type="button" class="pdet-banner-action-btn" id="manifestacao-banner-trigger">
+          <i class="fad fa-image"></i> <span id="manifestacao-banner-label">Adicionar imagem</span>
+        </button>
+        <button type="button" class="pdet-banner-action-btn pdet-banner-action-danger" id="manifestacao-banner-remove" aria-label="Remover imagem" hidden><i class="fad fa-trash"></i></button>
+      </div>
+    </div>
+    <div class="modal-body">
+      <div class="pdet-head"><div class="pdet-name">Nova manifestação</div></div>
+      <form id="manifestacao-form" class="pdet-body-pad" autocomplete="off">
+        <div class="edit-field">
+          <label class="edit-label" for="manifestacao-nome">Nome</label>
+          <input type="text" id="manifestacao-nome" class="edit-input" maxlength="200" autocomplete="off">
+        </div>
+        <div class="edit-field">
+          <label class="edit-label">Status</label>
+          <input type="hidden" id="manifestacao-status" value="Não Iniciado">
+          <div class="chip-picker" id="manifestacao-status-picker"></div>
+        </div>
+        <div class="edit-field">
+          <label class="edit-label">Tags</label>
+          <div class="chip-picker" id="manifestacao-tags-picker"></div>
+        </div>
+        <div id="manifestacao-error" class="edit-error"></div>
+        <div class="edit-actions">
+          <button type="button" id="manifestacao-cancel" class="edit-btn edit-btn-ghost">Cancelar</button>
+          <button type="submit" id="manifestacao-save" class="edit-btn edit-btn-primary">Salvar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- ───────────────────────── DRAWER · CONFIGURAÇÃO ─────────────────────────
+     Aberto pelo #menu-btn da topbar, que ocupa o lugar do antigo #logout-btn.
+     O "Sair" desceu pra cá junto com as telas de config — a topbar tem espaço
+     pra um botão só, e ele rende mais como menu do que como logout.
+
+     Cada item de config é um <a href> pra uma página própria em lifeos/
+     (LIFEOS.md §2: "uma página própria se navega de verdade, nunca é uma tela
+     trocada por JS"). Só o Sair é <button>, porque é ação, não navegação. -->
+<div id="drawer-backdrop" class="drawer-backdrop"></div>
+<aside id="config-drawer" class="drawer" role="dialog" aria-modal="true" aria-label="Menu de configuração">
+  <div class="drawer-head">
+    <span class="drawer-brand">LifeOS</span>
+    <button type="button" id="drawer-close" class="icon-btn" title="Fechar" aria-label="Fechar menu"><i class="fad fa-times"></i></button>
+  </div>
+
+  <div class="drawer-group">
+    <div class="drawer-label">Configuração</div>
+    <a class="drawer-item" href="publicar.html">
+      <i class="fad fa-upload"></i>
+      <span>Publicar página<span class="drawer-item-sub">nova entrada do archive</span></span>
+    </a>
+    <a class="drawer-item" href="senhas.html">
+      <i class="fad fa-key"></i>
+      <span>Senhas<span class="drawer-item-sub">acesso e escopo por página</span></span>
+    </a>
+    <a class="drawer-item" href="temas.html">
+      <i class="fad fa-palette"></i>
+      <span>Temas<span class="drawer-item-sub">aparência do sistema</span></span>
+    </a>
+    <a class="drawer-item" href="tags.html">
+      <i class="fad fa-tags"></i>
+      <span>Tags<span class="drawer-item-sub">vocabulários das tabelas</span></span>
+    </a>
+    <a class="drawer-item" href="automacao.html">
+      <i class="fad fa-mobile"></i>
+      <span>Automação<span class="drawer-item-sub">lançar pelo celular</span></span>
+    </a>
+    <a class="drawer-item" href="mcp.html">
+      <i class="fad fa-plug"></i>
+      <span>MCP<span class="drawer-item-sub">conectar a uma IA</span></span>
+    </a>
+  </div>
+
+  <div class="drawer-group">
+    <div class="drawer-label">Ajuda</div>
+    <a class="drawer-item" href="tutorial.html">
+      <i class="fad fa-compass"></i>
+      <span>Como funciona<span class="drawer-item-sub">guia do sistema</span></span>
+    </a>
+  </div>
+
+  <div class="drawer-group">
+    <button type="button" class="drawer-item" id="logout-btn">
+      <i class="fad fa-sign-out"></i>
+      <span>Sair</span>
+    </button>
+  </div>
+</aside>
+
+<!-- ───────────────────────── LOADING ───────────────────────── -->
+<div id="loading" class="loading-ov" hidden><div class="spinner"></div></div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.6/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/marked@12.0.2/marked.min.js"></script>
+<script src="../assets/js/lifeos.js?v=20260921"></script>
+<script src="../assets/js/back-to-top.js?v=20260617"></script>
+
+<script>
+(function buildAmbientField() {
+  'use strict';
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  var field = document.getElementById('ambient-field');
+  if (!field) return;
+  var GLYPHS = [
+    'ψ', 'Ω', 'Σ', 'Φ', 'α', 'β', 'γ', 'δ', 'θ', 'λ', 'μ', 'ξ', 'π', 'τ', 'ω', 'ρ', 'ν', 'ι', 'κ',
+    '☿', '☽', '☉', '♀', '♂', '♃', '♄', '⛢', '♆', '✦', '✧', '⟡', '◈', '⌖', '⬗', '☯', '✵', '✶', '✳', '⚝'
+  ];
+  var count = window.innerWidth < 640 ? 85 : 170;
+  var frag = document.createDocumentFragment();
+  for (var i = 0; i < count; i++) {
+    var el = document.createElement('span');
+    el.className = 'ambient-glyph';
+    el.textContent = GLYPHS[Math.floor(Math.random() * GLYPHS.length)];
+    el.style.left = (Math.random() * 100) + '%';
+    el.style.top = (Math.random() * 100) + '%';
+    el.style.fontSize = (16 + Math.random() * 38) + 'px';
+    el.style.setProperty('--peak', (0.016 + Math.random() * 0.03).toFixed(3));
+    var dur = 3 + Math.random() * 5;
+    el.style.animationDuration = dur + 's';
+    el.style.animationDelay = (-Math.random() * dur) + 's';
+    frag.appendChild(el);
+  }
+  field.appendChild(frag);
+})();
+</script>
+
+</body>
+</html>

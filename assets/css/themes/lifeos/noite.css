@@ -1,0 +1,23 @@
+/* Tema: Noite — azul-frio. É a paleta base que as páginas do LifeOS tinham
+   antes da reskin sépia; fica aqui como opção de volta. */
+:root {
+  --bg:         #0c0e12;
+  --surface:    #14171d;
+  --surface-2:  #1b1f27;
+  --border:     #262b34;
+  --border-mid: #323945;
+  --text:       #e7e9ee;
+  --dim:        #9aa3b2;
+  --mute:       #5d6675;
+  --text-muted: #5d6675;
+  --gold:       #c9a96e;
+  --gold-wash:  rgba(201, 169, 110, 0.10);
+  --accent:     #c9a96e;
+  --accent-dim: #7a6a56;
+  --green:      #3fb98c;
+  --red:        #e5616a;
+  --blue:       #5b8def;
+}
+html { background: var(--bg); }
+.gate { background: radial-gradient(ellipse at 50% 28%, #161a22 0%, #0c0e12 72%); }
+.loading-ov { background: rgba(12, 14, 18, 0.55); }

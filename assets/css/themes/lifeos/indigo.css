@@ -1,0 +1,22 @@
+/* Tema: Índigo — roxo-azulado noturno com acento lavanda. */
+:root {
+  --bg:         #12111c;
+  --surface:    #1a1826;
+  --surface-2:  #232031;
+  --border:     #2e2b40;
+  --border-mid: #3b3750;
+  --text:       #e6e3f0;
+  --dim:        #a8a2c0;
+  --mute:       #645e7d;
+  --text-muted: #645e7d;
+  --gold:       #a58ed6;
+  --gold-wash:  rgba(165, 142, 214, 0.10);
+  --accent:     #a58ed6;
+  --accent-dim: #675a85;
+  --green:      #4fb69b;
+  --red:        #e0687a;
+  --blue:       #7b8ede;
+}
+html { background: var(--bg); }
+.gate { background: radial-gradient(ellipse at 50% 28%, #1a1826 0%, #12111c 72%); }
+.loading-ov { background: rgba(18, 17, 28, 0.55); }

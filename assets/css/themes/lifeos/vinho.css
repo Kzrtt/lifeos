@@ -1,0 +1,22 @@
+/* Tema: Vinho — bordô profundo com acento rosé. Quente sem ser sépia. */
+:root {
+  --bg:         #17100f;
+  --surface:    #1f1616;
+  --surface-2:  #291d1d;
+  --border:     #352525;
+  --border-mid: #43302f;
+  --text:       #efe3e1;
+  --dim:        #bda3a0;
+  --mute:       #755b59;
+  --text-muted: #755b59;
+  --gold:       #c77d7d;
+  --gold-wash:  rgba(199, 125, 125, 0.10);
+  --accent:     #c77d7d;
+  --accent-dim: #7d5150;
+  --green:      #56b391;
+  --red:        #e8656f;
+  --blue:       #7f96cc;
+}
+html { background: var(--bg); }
+.gate { background: radial-gradient(ellipse at 50% 28%, #1f1616 0%, #17100f 72%); }
+.loading-ov { background: rgba(23, 16, 15, 0.55); }

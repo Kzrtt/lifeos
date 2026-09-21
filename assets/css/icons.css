@@ -1,0 +1,140 @@
+/* icons.css — Font Awesome 5 FREE, só o necessário
+ * ──────────────────────────────────────────────────────────────────────────
+ *
+ * O projeto original usava o kit PRO (família `fad`, duotone). Pro é um
+ * produto LICENCIADO: redistribuí-lo num repositório público viola a
+ * licença, e o kit inteiro pesa 21MB.
+ *
+ * Aqui só entram os arquivos FREE (2.8MB) e só os glifos que o sistema de
+ * fato usa. A classe `fad` continua funcionando no markup — ela é apenas
+ * apontada para a família Solid do free. Você perde o duotone (duas cores
+ * por ícone); tudo o mais é idêntico.
+ *
+ * Alguns nomes no markup são do Font Awesome 6 ou exclusivos do Pro
+ * (`fa-circle-check`, `fa-sparkles`, `fa-sign-out`…). Em vez de reescrever
+ * as páginas, cada um recebe abaixo o codepoint do equivalente livre.
+ *
+ * QUER O PRO DE VOLTA? Se você tem licença: troque este <link> pelo CSS do
+ * seu kit em cada página, copie os webfonts para `assets/webfonts/`, e o
+ * duotone volta sem mais nenhuma mudança.
+ */
+
+@font-face {
+  font-family: "FA5Free";
+  font-style: normal;
+  font-weight: 900;
+  font-display: block;
+  src: url(../webfonts/free-fa-solid-900.woff2) format("woff2"),
+       url(../webfonts/free-fa-solid-900.woff) format("woff");
+}
+@font-face {
+  font-family: "FA5Brands";
+  font-style: normal;
+  font-weight: 400;
+  font-display: block;
+  src: url(../webfonts/free-fa-brands-400.woff2) format("woff2"),
+       url(../webfonts/free-fa-brands-400.woff) format("woff");
+}
+
+/* `fad` (duotone no Pro) cai no Solid livre — o markup não muda. */
+.fad, .fas, .far, .fal {
+  font-family: "FA5Free";
+  font-weight: 900;
+  -moz-osx-font-smoothing: grayscale;
+  -webkit-font-smoothing: antialiased;
+  display: inline-block;
+  font-style: normal;
+  font-variant: normal;
+  text-rendering: auto;
+  line-height: 1;
+}
+/* Ícones de MARCA vivem numa família própria — ver lifeos/automacao.html. */
+.fab {
+  font-family: "FA5Brands";
+  font-weight: 400;
+  -moz-osx-font-smoothing: grayscale;
+  -webkit-font-smoothing: antialiased;
+  display: inline-block;
+  font-style: normal;
+  font-variant: normal;
+  text-rendering: auto;
+  line-height: 1;
+}
+
+/* Duotone usa ::before + ::after; sem Pro, o segundo tom não existe e
+   precisa sumir, senão cada ícone aparece duplicado. */
+.fad::after { content: none !important; }
+
+/* ── Glifos ── */
+.fa-arrow-from-bottom::before { content: "\f093"; }
+.fa-arrow-left::before { content: "\f060"; }
+.fa-arrow-right::before { content: "\f061"; }
+.fa-arrow-to-bottom::before { content: "\f019"; }
+.fa-bars::before { content: "\f0c9"; }
+.fa-book::before { content: "\f02d"; }
+.fa-book-open::before { content: "\f518"; }
+.fa-calendar-alt::before { content: "\f073"; }
+.fa-calendar-day::before { content: "\f783"; }
+.fa-chart-bar::before { content: "\f080"; }
+.fa-chart-line::before { content: "\f201"; }
+.fa-chart-pie::before { content: "\f200"; }
+.fa-check::before { content: "\f00c"; }
+.fa-check-circle::before { content: "\f058"; }
+.fa-chevron-down::before { content: "\f078"; }
+.fa-chevron-left::before { content: "\f053"; }
+.fa-chevron-right::before { content: "\f054"; }
+.fa-circle::before { content: "\f111"; }
+.fa-circle-check::before { content: "\f058"; }
+.fa-circle-exclamation::before { content: "\f06a"; }
+.fa-circle-info::before { content: "\f05a"; }
+.fa-columns::before { content: "\f0db"; }
+.fa-compass::before { content: "\f14e"; }
+.fa-copy::before { content: "\f0c5"; }
+.fa-diagram-project::before { content: "\f542"; }
+.fa-download::before { content: "\f019"; }
+.fa-exclamation-triangle::before { content: "\f071"; }
+.fa-expand::before { content: "\f065"; }
+.fa-file-code::before { content: "\f1c9"; }
+.fa-file-invoice-dollar::before { content: "\f571"; }
+.fa-file-lock::before { content: "\f15c"; }
+.fa-folder-open::before { content: "\f07c"; }
+.fa-grid-2::before { content: "\f009"; }
+.fa-history::before { content: "\f1da"; }
+.fa-hourglass-half::before { content: "\f252"; }
+.fa-image::before { content: "\f03e"; }
+.fa-info-circle::before { content: "\f05a"; }
+.fa-key::before { content: "\f084"; }
+.fa-key-skeleton::before { content: "\f084"; }
+.fa-lightbulb::before { content: "\f0eb"; }
+.fa-list::before { content: "\f03a"; }
+.fa-mobile::before { content: "\f10b"; }
+.fa-palette::before { content: "\f53f"; }
+.fa-pen::before { content: "\f304"; }
+.fa-pen-nib::before { content: "\f5ad"; }
+.fa-pencil::before { content: "\f303"; }
+.fa-plug::before { content: "\f1e6"; }
+.fa-plus::before { content: "\f067"; }
+.fa-question-circle::before { content: "\f059"; }
+.fa-receipt::before { content: "\f543"; }
+.fa-repeat::before { content: "\f01e"; }
+.fa-rotate-left::before { content: "\f0e2"; }
+.fa-search::before { content: "\f002"; }
+.fa-shield-exclamation::before { content: "\f3ed"; }
+.fa-sign-out::before { content: "\f2f5"; }
+.fa-sparkles::before { content: "\f0d0"; }
+.fa-spinner-third::before { content: "\f110"; }
+.fa-sync::before { content: "\f021"; }
+.fa-tag::before { content: "\f02b"; }
+.fa-tags::before { content: "\f02c"; }
+.fa-tasks::before { content: "\f0ae"; }
+.fa-terminal::before { content: "\f120"; }
+.fa-th-large::before { content: "\f009"; }
+.fa-times::before { content: "\f00d"; }
+.fa-trash::before { content: "\f1f8"; }
+.fa-triangle-exclamation::before { content: "\f071"; }
+.fa-upload::before { content: "\f093"; }
+.fa-wallet::before { content: "\f555"; }
+
+/* Marcas (família Brands) */
+.fa-apple::before { content: "\f179"; }
+.fa-android::before { content: "\f17b"; }

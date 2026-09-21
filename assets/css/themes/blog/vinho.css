@@ -1,0 +1,38 @@
+/* Tema do blog: Vinho — Vinho — papel quente, acento bordô.
+ *
+ * Paleta CLARA. Os nomes de token aqui são os da capa e da galeria
+ * (--ink, --rule, --bg-card), que NÃO são os do painel (--text, --border,
+ * --surface) — por isso os temas do blog vivem numa pasta própria.
+ *
+ * Entra por um <link> depois do <style> inline da página; `assets/js/tema.js`
+ * só troca o href. Ver LIFEOS.md §12.
+ */
+:root {
+  --bg:         #f7f0ef;
+  --bg-card:    #fdf8f7;
+  --bg-hover:   #ffffff;
+  --ink:        #1d1211;
+  --ink-dim:    #6e5654;
+  --ink-mute:   #b8a19f;
+  --rule:       #e0cdcb;
+  --gold:       #8f4a4a;
+  --gold-wash:  rgba(143, 74, 74, 0.06);
+  --scrim:      rgba(23, 16, 15, 0.94);
+}
+
+/* Versão escura — a MESMA paleta do painel (themes/lifeos/vinho.css),
+ * só com os nomes de token da capa. `html.dark` é a classe que o botão
+ * de sol/lua da capa liga; ela vence o `:root` acima por especificidade,
+ * e este arquivo vence o `html.dark` inline da página por vir depois. */
+html.dark {
+  --bg:         #17100f;
+  --bg-card:    #1f1616;
+  --bg-hover:   #291d1d;
+  --ink:        #efe3e1;
+  --ink-dim:    #bda3a0;
+  --ink-mute:   #755b59;
+  --rule:       #352525;
+  --gold:       #c77d7d;
+  --gold-wash:  rgba(199, 125, 125, 0.10);
+  --scrim:      rgba(23, 16, 15, 0.94);
+}

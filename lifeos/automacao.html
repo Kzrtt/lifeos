@@ -1,0 +1,504 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="theme-color" content="#14120f">
+  <title>LifeOS · Automação</title>
+  <link rel="icon" href="../assets/images/favicon.svg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,500;0,700;0,900;1,400&family=JetBrains+Mono:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../assets/css/icons.css">
+  <style>
+
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    /* Tokens base — cópia do conjunto de lifeos.html (LIFEOS.md §2: padrões de
+       UI repetidos por cópia, não por arquivo compartilhado). A paleta final
+       vem do bloco SYSTEM SKIN no fim deste <style>. */
+    :root {
+      --bg:        #0c0e12;
+      --surface:   #14171d;
+      --surface-2: #1b1f27;
+      --border:    #262b34;
+      --text:      #e7e9ee;
+      --dim:       #9aa3b2;
+      --mute:      #5d6675;
+      --green:     #3fb98c;
+      --red:       #e5616a;
+      --gold:      #c9a96e;
+      --mono: 'JetBrains Mono', monospace;
+      --serif: 'Playfair Display', Georgia, serif;
+    }
+
+
+    /* Sem isto, `el.hidden = true` NÃO esconde .gate/.app: o atributo [hidden]
+       vale por uma regra do user-agent, e qualquer `display` declarado pelo
+       autor (`.gate { display: flex }`) vence. Mesma linha que lifeos.html,
+       financas.html, tarefas.html e notas.html já têm. */
+    [hidden] { display: none !important; }
+
+    html, body { height: 100%; }
+    body {
+      background: var(--bg); color: var(--text); font-family: var(--mono);
+      -webkit-font-smoothing: antialiased; line-height: 1.5;
+    }
+    .wrap { max-width: 860px; margin: 0 auto; padding: 0 20px 80px; }
+
+    /* ── Gate ── */
+    .gate {
+      position: fixed; inset: 0; z-index: 400; display: flex; align-items: center; justify-content: center;
+      padding: 24px; background: radial-gradient(ellipse at 50% 28%, #1c1a16 0%, #14120f 72%);
+    }
+    .gate-box { width: 100%; max-width: 380px; text-align: center; }
+    .gate-orn { font-size: 11px; letter-spacing: 0.5em; color: var(--mute); margin-bottom: 18px; }
+    .gate-brand {
+      font-family: var(--serif); font-weight: 900; font-style: italic;
+      font-size: clamp(44px, 11vw, 64px); line-height: 0.95; color: var(--text);
+      letter-spacing: -0.02em; margin-bottom: 36px;
+    }
+    .gate-label { font-size: 10px; letter-spacing: 0.32em; text-transform: uppercase; color: var(--mute); margin-bottom: 16px; }
+    .gate-row {
+      display: flex; border: 1px solid var(--border); border-radius: 6px; overflow: hidden;
+      transition: border-color 0.2s; background: var(--surface);
+    }
+    .gate-row:focus-within { border-color: var(--gold); }
+    .gate-row.shake { animation: shake 0.35s ease; }
+    @keyframes shake {
+      0%,100% { transform: translateX(0); }
+      20% { transform: translateX(-7px); }
+      60% { transform: translateX(7px); }
+      80% { transform: translateX(-3px); }
+    }
+    #gate-input {
+      flex: 1; min-width: 0; background: transparent; border: none; outline: none; padding: 15px 18px;
+      font-family: var(--mono); font-size: 16px; color: var(--text); letter-spacing: 0.12em; caret-color: var(--gold);
+    }
+    #gate-input::placeholder { color: var(--mute); }
+    #gate-btn {
+      background: transparent; border: none; border-left: 1px solid var(--border); color: var(--mute);
+      font-family: var(--mono); font-size: 18px; padding: 0 22px; cursor: pointer; transition: color 0.2s, background 0.2s;
+    }
+    #gate-btn:hover:not(:disabled) { color: var(--gold); background: var(--surface-2); }
+    #gate-btn:disabled { opacity: 0.4; cursor: default; }
+    .gate-remember {
+      display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 16px;
+      font-size: 10px; letter-spacing: 0.1em; color: var(--mute); text-transform: uppercase; cursor: pointer; user-select: none;
+    }
+    .gate-remember input { accent-color: var(--gold); cursor: pointer; width: 15px; height: 15px; }
+    .gate-error { margin-top: 16px; min-height: 14px; font-size: 10px; letter-spacing: 0.15em; text-transform: uppercase; color: var(--red); }
+    .gate-checking { margin-top: 8px; font-size: 11px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--mute); }
+
+    /* ── Topbar / cabeçalho ── */
+    .topbar {
+      display: flex; align-items: center; justify-content: space-between; gap: 10px;
+      padding: 18px 0 14px; border-bottom: 1px solid var(--border);
+    }
+    .back { font-size: 10px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--mute); text-decoration: none; transition: color 0.2s; white-space: nowrap; }
+    .back .fad { margin-right: 4px; }
+    .back:hover { color: var(--gold); }
+    .icon-btn {
+      width: 36px; height: 36px; flex-shrink: 0; display: flex; align-items: center; justify-content: center;
+      background: var(--surface); border: 1px solid var(--border); border-radius: 6px; color: var(--dim);
+      cursor: pointer; font-size: 15px; transition: color 0.15s, border-color 0.15s, background 0.15s;
+    }
+    .icon-btn:hover { color: var(--gold); border-color: var(--gold); background: var(--gold-wash); }
+
+    .head { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 16px; padding: 34px 0 26px; }
+    .head h1 {
+      font-family: var(--serif); font-weight: 700; font-style: italic;
+      font-size: clamp(34px, 7vw, 46px); line-height: 1; letter-spacing: -0.02em;
+    }
+    .head p { margin-top: 10px; font-size: 11px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--mute); }
+    .head-action {
+      display: inline-flex; align-items: center; gap: 8px; padding: 10px 16px;
+      background: transparent; border: 1px solid var(--border); border-radius: 6px;
+      color: var(--dim); font-family: var(--mono); font-size: 11px; letter-spacing: 0.1em;
+      cursor: pointer; transition: border-color 0.15s, color 0.15s, background 0.15s;
+    }
+    .head-action:hover { border-color: var(--gold); color: var(--gold); background: var(--gold-wash); }
+
+
+    /* ── Bloco de URL copiável ── */
+    .url-box {
+      display: flex; align-items: stretch; border: 1px solid var(--border); border-radius: 8px;
+      background: var(--surface); overflow: hidden; margin-bottom: 10px;
+    }
+    .url-val {
+      flex: 1; min-width: 0; padding: 14px 16px; font-size: 11.5px; color: var(--text);
+      word-break: break-all; line-height: 1.6; font-family: var(--mono);
+    }
+    .url-val.vazio { color: var(--mute); font-style: italic; word-break: normal; }
+    .url-copy {
+      flex-shrink: 0; width: 56px; border: none; border-left: 1px solid var(--border);
+      background: var(--surface-2); color: var(--dim); cursor: pointer; font-size: 14px;
+      transition: color 0.15s, background 0.15s;
+    }
+    .url-copy:hover { color: var(--gold); background: var(--bg); }
+    .url-copy.ok { color: var(--green); }
+
+    /* ── Passo a passo / exemplos ── */
+    .passos { counter-reset: passo; margin: 0; padding: 0; list-style: none; }
+    .passo {
+      counter-increment: passo; position: relative; padding: 0 0 18px 40px;
+      font-size: 12px; line-height: 1.75; color: var(--dim);
+    }
+    .passo:last-child { padding-bottom: 0; }
+    .passo::before {
+      content: counter(passo); position: absolute; left: 0; top: 0;
+      width: 24px; height: 24px; border-radius: 50%;
+      background: var(--surface-2); border: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 10px; color: var(--gold); font-weight: 600;
+    }
+    .passo:not(:last-child)::after {
+      content: ''; position: absolute; left: 12px; top: 26px; bottom: 6px; width: 1px; background: var(--border);
+    }
+    .passo code { color: var(--text); background: var(--surface-2); padding: 1px 6px; border-radius: 3px; font-size: 11px; }
+    .passo strong { color: var(--text); font-weight: 500; }
+
+    .exemplos { display: flex; flex-direction: column; gap: 8px; }
+    .exemplo {
+      padding: 12px 15px; border-left: 2px solid var(--gold); background: var(--surface);
+      font-size: 12px; line-height: 1.7; color: var(--dim); font-style: italic;
+    }
+
+    /* ── Seções ── */
+    .sec { margin-bottom: 52px; }
+    .sec-title { font-family: var(--serif); font-style: italic; font-weight: 700; font-size: 22px; color: var(--text); margin-bottom: 8px; }
+    .sec-desc { font-size: 12px; line-height: 1.8; color: var(--mute); margin-bottom: 22px; max-width: 64ch; }
+    .sec-desc code { color: var(--dim); background: var(--surface); padding: 1px 5px; border-radius: 3px; font-size: 11px; }
+    .sec-desc strong { color: var(--dim); font-weight: 500; }
+
+    .notice {
+      display: flex; gap: 12px; padding: 14px 16px; margin-top: 20px;
+      border: 1px solid var(--border); border-radius: 8px;
+      background: var(--surface); font-size: 11.5px; line-height: 1.75; color: var(--mute);
+    }
+    .notice.alerta { border-color: color-mix(in srgb, var(--red) 30%, transparent); background: color-mix(in srgb, var(--red) 6%, transparent); color: var(--dim); }
+    .notice .fad { color: var(--gold); font-size: 14px; flex-shrink: 0; margin-top: 2px; }
+    .notice.alerta .fad { color: var(--red); }
+    .notice code { color: var(--dim); background: var(--surface-2); padding: 1px 5px; border-radius: 3px; font-size: 10.5px; }
+    .notice strong { color: var(--dim); font-weight: 500; }
+
+    .head { padding: 34px 0 26px; }
+    .head h1 {
+      font-family: var(--serif); font-weight: 700; font-style: italic;
+      font-size: clamp(34px, 7vw, 46px); line-height: 1; letter-spacing: -0.02em;
+    }
+    .head p { margin-top: 10px; font-size: 11px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--mute); }
+
+    .foot { margin-top: 60px; padding-top: 22px; border-top: 3px double var(--text); text-align: center; }
+    .foot-text { font-size: 10px; letter-spacing: 0.22em; text-transform: uppercase; color: var(--mute); }
+
+    .loading-ov { position: fixed; inset: 0; z-index: 1200; display: flex; align-items: center; justify-content: center; background: rgba(20,18,15,0.55); }
+    .spinner { width: 32px; height: 32px; border: 3px solid var(--border); border-top-color: var(--gold); border-radius: 50%; animation: spin 0.7s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ═══════════════════════════════════════════════════════════════════
+       SYSTEM SKIN — paleta sépia-quente do arquivo. Mesma reskin das
+       outras páginas do LifeOS, copiada (LIFEOS.md §2). É o fallback de
+       quando o <link> do tema não carrega; o tema escolhido vence por vir
+       depois dela no <head>.
+       ═══════════════════════════════════════════════════════════════════ */
+    :root {
+      --bg:        #14120f;
+      --surface:   #1c1a16;
+      --surface-2: #242018;
+      --border:    #2e2a24;
+      --text:      #ede8df;
+      --dim:       #b0a898;
+      --mute:      #6b6456;
+      --gold:      #c4913a;
+      --gold-wash: rgba(196, 145, 58, 0.10);
+      --border-mid: #3a352d;
+    }
+    html { background: var(--bg); }
+    .gate { background: radial-gradient(ellipse at 50% 28%, #1c1a16 0%, #14120f 72%); }
+    /* ═══ SYSTEM SKIN ▸ END ═══ */
+  
+    /* ── Plataformas ── */
+    .plat { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 12px; margin-bottom: 8px; }
+    .plat-card { border: 1px solid var(--border); border-radius: 9px; background: var(--surface); padding: 16px 17px; }
+    .plat-top { display: flex; align-items: center; gap: 10px; margin-bottom: 9px; }
+    /* `fab` junto de `fad`: os ícones de plataforma são de marca e vivem
+   na família Brands, não na duotone. */
+    .plat-top .fad, .plat-top .fab { font-size: 17px; color: var(--gold); }
+    .plat-nome { font-size: 13.5px; color: var(--text); }
+    .plat-tag {
+      margin-left: auto; font-size: 8px; letter-spacing: 0.12em; text-transform: uppercase;
+      padding: 3px 8px; border-radius: 999px; font-weight: 600;
+      background: color-mix(in srgb, var(--gold) 18%, transparent); color: var(--gold);
+    }
+    .plat-tag.manual { background: var(--surface-2); color: var(--mute); }
+    .plat-desc { font-size: 11.5px; line-height: 1.75; color: var(--mute); }
+
+    /* ── Bloco de código ── */
+    pre.code {
+      margin: 0 0 10px; padding: 15px 17px; overflow-x: auto;
+      border: 1px solid var(--border); border-radius: 8px; background: var(--surface);
+      font-family: var(--mono); font-size: 11.5px; line-height: 1.75; color: var(--dim);
+      scrollbar-width: thin; scrollbar-color: rgba(255,255,255,0.14) transparent;
+    }
+    pre.code .k { color: var(--gold); }
+    pre.code .s { color: var(--text); }
+    pre.code .c { color: var(--mute); font-style: italic; }
+
+    .campo-tab { width: 100%; border-collapse: collapse; margin-top: 4px; }
+    .campo-tab th {
+      text-align: left; padding: 9px 13px; font-size: 9px; letter-spacing: 0.16em;
+      text-transform: uppercase; color: var(--mute); font-weight: 600;
+      border-bottom: 1px solid var(--border);
+    }
+    .campo-tab td { padding: 10px 13px; font-size: 11.5px; color: var(--dim); border-bottom: 1px solid var(--border); vertical-align: top; }
+    .campo-tab tr:last-child td { border-bottom: none; }
+    .campo-tab code { color: var(--gold); font-size: 11px; }
+    .campo-tab .obr { color: var(--red); font-size: 9px; letter-spacing: 0.1em; text-transform: uppercase; }
+  </style>
+  <link rel="stylesheet" id="lifeos-tema" href="../assets/css/themes/lifeos/sepia.css">
+  <!-- Config da instância + tema. Precisam vir AQUI, nesta ordem e sem defer:
+       o <link> acima tem de ficar depois do <style> pra vencer o SYSTEM SKIN,
+       e tema.js tem de rodar antes da primeira pintura. Ver assets/js/tema.js. -->
+  <script src="../assets/js/lifeos-config.js"></script>
+  <script src="../assets/js/tema.js"></script>
+  <script src="../assets/js/blog.js"></script>
+</head>
+<body>
+
+<!-- Gate: a URL mostrada aqui carrega a senha mestre na query string. -->
+<div id="gate" class="gate">
+  <div class="gate-box">
+    <div class="gate-orn">✦ &nbsp; ✦ &nbsp; ✦</div>
+    <div class="gate-brand">LifeOS</div>
+    <form id="gate-form" autocomplete="off">
+      <div class="gate-label">acesso restrito · senha mestre</div>
+      <div class="gate-row" id="gate-row">
+        <input id="gate-input" type="password" placeholder="senha mestre" spellcheck="false" autocomplete="current-password">
+        <button id="gate-btn" type="submit"><i class="fad fa-arrow-right"></i></button>
+      </div>
+      <label class="gate-remember"><input type="checkbox" id="gate-remember"> lembrar neste navegador</label>
+      <div id="gate-error" class="gate-error"></div>
+    </form>
+    <div id="gate-checking" class="gate-checking" hidden>verificando sessão…</div>
+  </div>
+</div>
+
+<div id="app" class="wrap" hidden>
+
+  <div class="topbar">
+    <a href="lifeos.html" class="back"><i class="fad fa-arrow-left"></i> lifeos</a>
+    <button id="logout-btn" class="icon-btn" title="Sair" aria-label="Sair"><i class="fad fa-sign-out"></i></button>
+  </div>
+
+  <header class="head">
+    <h1>Automação</h1>
+    <p>lançar movimentações pelo celular</p>
+  </header>
+
+  <!-- ─────────── O QUE É ─────────── -->
+  <section class="sec">
+    <div class="sec-title">Lançar sem abrir o sistema</div>
+    <p class="sec-desc">
+      Registrar um gasto no momento em que ele acontece é o que separa um controle
+      financeiro que funciona de um que você abandona em três semanas. Abrir o navegador,
+      entrar no painel e preencher um formulário é atrito suficiente para você deixar
+      para depois — e depois você não lembra.
+    </p>
+    <p class="sec-desc">
+      O sistema aceita lançamentos por <strong>webhook</strong>: qualquer coisa capaz de
+      fazer um POST com JSON consegue criar uma movimentação. No iPhone isso vira um
+      atalho na tela de início ou um comando de voz.
+    </p>
+
+    <div class="plat">
+      <div class="plat-card">
+        <div class="plat-top">
+          <i class="fab fa-apple"></i>
+          <span class="plat-nome">iPhone / iPad</span>
+          <span class="plat-tag">pronto</span>
+        </div>
+        <div class="plat-desc">
+          Há um atalho pronto abaixo. Você baixa, troca a URL pela sua, e está funcionando.
+        </div>
+      </div>
+      <div class="plat-card">
+        <div class="plat-top">
+          <i class="fab fa-android"></i>
+          <span class="plat-nome">Android / outros</span>
+          <span class="plat-tag manual">manual</span>
+        </div>
+        <div class="plat-desc">
+          Não existe atalho pronto — o formato do iOS não é portável. Mas qualquer app de
+          automação serve, desde que envie o mesmo JSON. O contrato está documentado
+          abaixo.
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ─────────── SUA URL ─────────── -->
+  <section class="sec">
+    <div class="sec-title">Sua URL de lançamento</div>
+    <p class="sec-desc">
+      É para cá que a automação envia. <strong>A senha mestre faz parte do endereço</strong> —
+      é o que autentica a chamada, já que um atalho de celular não tem onde guardar
+      cabeçalhos.
+    </p>
+
+    <div class="url-box">
+      <div class="url-val vazio" id="ingest-url">carregando…</div>
+      <button class="url-copy" id="ingest-copy" title="Copiar" aria-label="Copiar URL"><i class="fad fa-copy"></i></button>
+    </div>
+
+    <div class="notice alerta">
+      <i class="fad fa-shield-exclamation"></i>
+      <span>
+        <strong>Quem tem esta URL consegue lançar movimentações na sua conta</strong> — e a
+        senha nela é a mesma que abre o LifeOS inteiro. Não compartilhe, não mande em
+        captura de tela, e prefira não usá-la em aparelho de outra pessoa. Se vazar, troque
+        a senha mestre em <a href="senhas.html" style="color:var(--gold)">Senhas</a> e
+        atualize a automação.
+      </span>
+    </div>
+  </section>
+
+  <!-- ─────────── IPHONE ─────────── -->
+  <section class="sec">
+    <div class="sec-title">iPhone — o atalho pronto</div>
+    <p class="sec-desc">
+      Este é o atalho que eu uso. Ele pergunta a descrição, o valor, a direção e o meio de
+      pagamento, e envia para o sistema.
+    </p>
+
+    <ol class="passos">
+      <li class="passo">
+        Abra este link no <strong>iPhone</strong> e toque em <strong>Adicionar Atalho</strong>:<br>
+        <a href="https://www.icloud.com/shortcuts/441b1631b7cc4e03bf0666cac68d1daa"
+           target="_blank" rel="noopener noreferrer"
+           style="color:var(--gold); word-break:break-all;">icloud.com/shortcuts/441b1631b7cc4e03bf0666cac68d1daa</a>
+      </li>
+      <li class="passo">
+        <strong>Troque a URL — este é o passo que faz o atalho ser seu.</strong> No app
+        Atalhos, toque no atalho → ícone de edição → encontre a ação
+        <strong>Obter conteúdo de URL</strong>. O endereço que está lá aponta para a
+        <strong>minha</strong> instância e não vai funcionar para você. Apague e cole a
+        <strong>sua URL</strong>, copiada da seção acima.
+      </li>
+      <li class="passo">
+        Confira que o método é <code>POST</code>, que o <strong>Corpo da Solicitação</strong>
+        está como <strong>JSON</strong>, e que os campos batem com a tabela mais abaixo.
+      </li>
+      <li class="passo">
+        Teste. Rode o atalho, lance um valor qualquer, e confira se ele apareceu em
+        <a href="financas.html" style="color:var(--gold)">Finanças</a>. Se apareceu,
+        apague o lançamento de teste e está pronto.
+      </li>
+      <li class="passo">
+        Opcional: segure o atalho → <strong>Adicionar à Tela de Início</strong>, ou chame
+        por voz com <em>"E aí Siri, [nome do atalho]"</em>.
+      </li>
+    </ol>
+
+    <div class="notice">
+      <i class="fad fa-circle-info"></i>
+      <span>
+        Os meios de pagamento e as direções que o atalho oferece precisam bater com o que
+        está cadastrado em <a href="tags.html" style="color:var(--gold)">Tags</a>. Se você
+        renomear <code>Pix</code> para <code>PIX</code> lá, ajuste a lista no atalho também —
+        senão o envio é recusado.
+      </span>
+    </div>
+  </section>
+
+  <!-- ─────────── ANDROID / CONTRATO ─────────── -->
+  <section class="sec">
+    <div class="sec-title">Android e outras plataformas</div>
+    <p class="sec-desc">
+      O formato de atalho do iOS não é portável, então não há um arquivo pronto. Mas o
+      endpoint não se importa com quem chama: <strong>qualquer coisa que faça um POST com
+      este JSON funciona</strong>. No Android, apps como Tasker, HTTP Shortcuts ou
+      Automate dão conta; no computador, um <code>curl</code> resolve.
+    </p>
+
+    <p class="sec-desc">
+      <strong>Sobre o formato:</strong> ele parece estranho de propósito. É o mesmo payload
+      que a API do Notion aceita para criar uma página, porque o sistema nasceu migrando de
+      lá e a automação existente precisou continuar funcionando trocando <em>só a URL</em>.
+      Os campos <code>parent</code> e <code>icon</code> são ignorados — estão aí só para o
+      payload não precisar mudar.
+    </p>
+
+    <pre class="code"><span class="c">POST  &lt;sua URL, a mesma da seção acima&gt;
+Content-Type: application/json</span>
+
+{
+  <span class="k">"parent"</span>: { <span class="k">"database_id"</span>: <span class="s">"ignorado"</span> },
+  <span class="k">"properties"</span>: {
+    <span class="k">"Name"</span>:  { <span class="k">"title"</span>: [{ <span class="k">"text"</span>: { <span class="k">"content"</span>: <span class="s">"Mercado"</span> } }] },
+    <span class="k">"Valor"</span>: { <span class="k">"number"</span>: <span class="s">42.5</span> },
+    <span class="k">"Tipo"</span>:  { <span class="k">"multi_select"</span>: [{ <span class="k">"name"</span>: <span class="s">"Saida"</span> }, { <span class="k">"name"</span>: <span class="s">"Pix"</span> }] },
+    <span class="k">"Date"</span>:  { <span class="k">"date"</span>: { <span class="k">"start"</span>: <span class="s">"2026-09-21"</span> } }
+  }
+}</pre>
+
+    <table class="campo-tab">
+      <thead>
+        <tr><th>Campo</th><th>Regra</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>Name</code> <span class="obr">obrigatório</span></td>
+          <td>A descrição da movimentação. Texto livre, não pode ficar vazio.</td>
+        </tr>
+        <tr>
+          <td><code>Valor</code> <span class="obr">obrigatório</span></td>
+          <td>Número, sempre <strong>positivo</strong> — quem diz se é entrada ou saída é o campo <code>Tipo</code>. Arredondado para dois decimais.</td>
+        </tr>
+        <tr>
+          <td><code>Date</code> <span class="obr">obrigatório</span></td>
+          <td>Formato <code>AAAA-MM-DD</code>. Qualquer outro formato é recusado.</td>
+        </tr>
+        <tr>
+          <td><code>Tipo</code> <span class="obr">obrigatório</span></td>
+          <td>
+            Lista. Precisa de <strong>exatamente uma</strong> direção
+            (<code>Entrada</code> ou <code>Saida</code> — sem acento) e, opcionalmente, um
+            meio de pagamento. Os valores aceitos são os de
+            <a href="tags.html" style="color:var(--gold)">Tags</a>, domínios
+            <code>mov_direcao</code> e <code>mov_meio</code>.
+          </td>
+        </tr>
+      </tbody>
+    </table>
+
+    <p class="sec-desc" style="margin-top:22px">
+      Respostas: <code>{"ok":true,"id":"…"}</code> em caso de sucesso.
+      <code>401</code> é senha errada na URL; <code>400</code> com
+      <code>invalid_tipo</code>, <code>invalid_valor</code>, <code>invalid_date</code> ou
+      <code>invalid_name</code> aponta qual campo está fora do contrato.
+    </p>
+
+    <div class="notice">
+      <i class="fad fa-terminal"></i>
+      <span>
+        Para testar antes de montar a automação, cole a sua URL num <code>curl -X POST</code>
+        com o JSON acima. Se voltar <code>ok: true</code>, o resto é só embrulhar isso no
+        app de automação que você preferir.
+      </span>
+    </div>
+  </section>
+
+  <footer class="foot">
+    <span class="foot-text">✦ LifeOS</span>
+  </footer>
+</div>
+
+<div id="loading" class="loading-ov" hidden><div class="spinner"></div></div>
+
+<script src="../assets/js/automacao.js?v=20260921"></script>
+
+</body>
+</html>
