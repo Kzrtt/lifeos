@@ -1296,7 +1296,7 @@ Backend: **`lifeos-config`** (ver `AUTH.md`). O valor nunca volta do servidor
 ### `mcp.html`
 
 Mostra a URL do conector com botão de copiar, explica o que é MCP, lista as
-sete tools e traz exemplos de pergunta.
+oito tools e traz exemplos de pergunta.
 
 **Tem gate**, porque a URL carrega o token de acesso embutido no path: quem a
 tiver lê todo o LifeOS.

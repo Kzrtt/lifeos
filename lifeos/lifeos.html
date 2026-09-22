@@ -1086,6 +1086,53 @@
     .foot { border-top: 3px double var(--text); }
     .icon-btn:hover { background: var(--gold-wash); }
     /* ═══ SYSTEM SKIN ▸ END ═══ */
+
+    /* ═══════════════════════════════════════════════════════════════════
+       EXPORTAR PDF (#pdf-export-root) — cópia isolada do mesmo padrão de
+       notas.html/notas.js (ver LIFEOS.md §2 — sem import cruzado entre
+       arquivos): print-to-PDF nativo do navegador, sem dependência nova.
+       Populado via buildPdfExport() em lifeos.js (header do sistema +
+       atributos + o MESMO renderMarkdown()/.md-preview já usado no
+       #detail-modal de leitura), invisível em tela (`hidden`), só vem à
+       tona em @media print via window.print(). Paleta PRÓPRIA (ink escura
+       sobre papel branco) — nunca herda o tema ativo: --text/--dim/--mute/
+       --border/--gold são redefinidas só aqui, então .md-preview (que já
+       usa essas MESMAS variáveis) herda automático sem duplicar CSS de
+       tipografia/cor. ── */
+    #pdf-export-root { font-family: var(--mono); }
+    @media print {
+      body > *:not(#pdf-export-root) { display: none !important; }
+      #pdf-export-root {
+        display: block !important;
+        -webkit-print-color-adjust: exact; print-color-adjust: exact;
+        --text: #1c1a16; --dim: #56503f; --mute: #8c8474;
+        --border: #d9d2c2; --gold: #96712a;
+        background: #fff; color: var(--text); max-width: 100%;
+        padding: 18mm 16mm;
+        -webkit-box-decoration-break: clone; box-decoration-break: clone;
+      }
+      @page { size: auto; margin: 0; }
+      .pdf-header { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; }
+      .pdf-brand { font-size: 10px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--mute); }
+      .pdf-generated { font-size: 9px; letter-spacing: 0.06em; color: var(--mute); white-space: nowrap; }
+      .pdf-header-rule { border-top: 1px solid var(--border); margin: 10px 0 26px; }
+      .pdf-title { font-family: var(--serif); font-style: italic; font-weight: 700; font-size: 26px; line-height: 1.25; margin-bottom: 14px; }
+      .pdf-attrs { display: flex; flex-direction: column; gap: 8px; margin-bottom: 20px; }
+      .pdf-attrs-row { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+      .pdf-attrs-label { flex: 0 0 90px; font-size: 9.5px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--mute); }
+      .pdf-attrs-tags { display: flex; flex-wrap: wrap; gap: 6px; }
+      .pdf-tag {
+        display: inline-block; font-size: 10px; letter-spacing: 0.03em;
+        padding: 2px 9px; border-radius: 4px; border: 1px solid var(--border); color: var(--dim);
+      }
+      .pdf-attrs-value { font-size: 12px; color: var(--dim); }
+      .pdf-divider { border-top: 3px double var(--text); margin: 0 0 26px; }
+      .pdf-content { font-size: 12.5px; line-height: 1.7; }
+      .pdf-content img { max-width: 100%; }
+      .pdf-content pre, .pdf-content blockquote, .pdf-content table { page-break-inside: avoid; }
+      .pdf-content h1, .pdf-content h2, .pdf-content h3, .pdf-content h4 { page-break-after: avoid; }
+    }
+    /* ═══ EXPORTAR PDF ▸ END ═══ */
   </style>
   <link rel="stylesheet" id="lifeos-tema" href="../assets/css/themes/lifeos/sepia.css">
   <!-- Config da instância + tema. Precisam vir AQUI, nesta ordem e sem defer:
@@ -1378,6 +1425,7 @@
            set/2026, pedido explícito do autor: icon-button ao lado do
            Fechar, não mais botão-texto no rodapé (ver openDetailModal). -->
       <div class="pdet-banner-top-actions">
+        <button type="button" class="pdet-close" id="detail-modal-export-pdf" hidden aria-label="Exportar PDF"><i class="fad fa-file-pdf"></i></button>
         <button type="button" class="pdet-close" id="detail-modal-fullscreen" hidden aria-label="Tela cheia"><i class="fad fa-expand"></i></button>
         <button type="button" class="pdet-close" id="detail-modal-close" aria-label="Fechar"><i class="fad fa-times"></i></button>
       </div>
@@ -1718,12 +1766,18 @@
   </div>
 </aside>
 
+<!-- ───────────────────────── EXPORTAR PDF ─────────────────────────
+     Container só-print (ver CSS), populado por buildPdfExport() em
+     lifeos.js — nunca visível em tela, só emerge via @media print quando
+     exportNotaPdf() chama window.print(). -->
+<div id="pdf-export-root" hidden></div>
+
 <!-- ───────────────────────── LOADING ───────────────────────── -->
 <div id="loading" class="loading-ov" hidden><div class="spinner"></div></div>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.6/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/marked@12.0.2/marked.min.js"></script>
-<script src="../assets/js/lifeos.js?v=20260922"></script>
+<script src="../assets/js/lifeos.js?v=20260922b"></script>
 <script src="../assets/js/back-to-top.js?v=20260617"></script>
 
 <script>

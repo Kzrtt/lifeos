@@ -1514,6 +1514,7 @@
     if (kind === 'evento') {
       actions.hidden = true;
       $('detail-modal-fullscreen').hidden = true;
+      $('detail-modal-export-pdf').hidden = true;
       CURRENT_DETAIL_TAREFA_ID = null; CURRENT_DETAIL_NOTA_ID = null;
       bannerIcon.innerHTML = '<i class="fad fa-calendar-alt"></i>';
       banner.style.setProperty('--pdet-accent', EVENTO_COR[obj.tipo] || 'var(--gold)');
@@ -1532,6 +1533,7 @@
          cor 1:1 (mesma decisão já tomada em notas.html). */
       actions.hidden = true;
       $('detail-modal-fullscreen').hidden = false;
+      $('detail-modal-export-pdf').hidden = false;
       CURRENT_DETAIL_TAREFA_ID = null; CURRENT_DETAIL_NOTA_ID = obj.id;
       bannerIcon.innerHTML = '<i class="fad fa-book-open"></i>';
       banner.style.removeProperty('--pdet-accent');
@@ -1570,6 +1572,7 @@
          hub (exceção documentada em LIFEOS.md, set/2026). */
       actions.hidden = false;
       $('detail-modal-fullscreen').hidden = true;
+      $('detail-modal-export-pdf').hidden = true;
       CURRENT_DETAIL_TAREFA_ID = obj.id; CURRENT_DETAIL_NOTA_ID = null;
       bannerIcon.innerHTML = '<i class="fad fa-tasks"></i>';
       banner.style.setProperty('--pdet-accent', TAR_STATUS_COR[obj.status] || 'var(--gold)');
@@ -1584,6 +1587,84 @@
     syncModalScrollLock();
   }
   function closeDetailModal() { $('detail-modal').classList.remove('open'); CURRENT_DETAIL_TAREFA_ID = null; CURRENT_DETAIL_NOTA_ID = null; syncModalScrollLock(); }
+
+  /* ── Exportar PDF (só nota) — print-to-PDF nativo do navegador ───────
+     Cópia isolada do mesmo padrão de notas.js (ver LIFEOS.md §2): popula
+     #pdf-export-root (fora do fluxo normal, só visível via @media print
+     — ver CSS) com um header simples do sistema, os atributos da nota
+     (Tipo/Projeto(s)/Data) e o corpo via o MESMO renderMarkdown() já usado
+     no #detail-modal — nunca duplica a lógica de parse nem perde
+     estilização, porque .pdf-content reusa .md-preview e as MESMAS
+     variáveis CSS, só recoloridas pra papel branco (ver CSS). */
+  function buildPdfExport(n) {
+    var root = $('pdf-export-root'); root.innerHTML = '';
+
+    var header = document.createElement('div'); header.className = 'pdf-header';
+    var brand = document.createElement('span'); brand.className = 'pdf-brand';
+    brand.textContent = '✦ LifeOS · LifeOS · Notas';
+    var gen = document.createElement('span'); gen.className = 'pdf-generated';
+    gen.textContent = 'Gerado em ' + new Date().toLocaleString('pt-BR');
+    header.appendChild(brand); header.appendChild(gen);
+    root.appendChild(header);
+    var headerRule = document.createElement('div'); headerRule.className = 'pdf-header-rule';
+    root.appendChild(headerRule);
+
+    var title = document.createElement('div'); title.className = 'pdf-title'; title.textContent = n.name;
+    root.appendChild(title);
+
+    var attrs = document.createElement('div'); attrs.className = 'pdf-attrs';
+    if ((n.tipo || []).length) {
+      var tipoRow = document.createElement('div'); tipoRow.className = 'pdf-attrs-row';
+      var tipoLbl = document.createElement('span'); tipoLbl.className = 'pdf-attrs-label'; tipoLbl.textContent = 'Tipo';
+      var tipoTags = document.createElement('div'); tipoTags.className = 'pdf-attrs-tags';
+      n.tipo.forEach(function (t) { var s = document.createElement('span'); s.className = 'pdf-tag'; s.textContent = t; tipoTags.appendChild(s); });
+      tipoRow.appendChild(tipoLbl); tipoRow.appendChild(tipoTags);
+      attrs.appendChild(tipoRow);
+    }
+    if ((n.projeto_ids || []).length) {
+      var projRow = document.createElement('div'); projRow.className = 'pdf-attrs-row';
+      var projLbl = document.createElement('span'); projLbl.className = 'pdf-attrs-label'; projLbl.textContent = 'Projeto(s)';
+      var projTags = document.createElement('div'); projTags.className = 'pdf-attrs-tags';
+      n.projeto_ids.forEach(function (pid) {
+        var p = findProjetoById(pid);
+        var s = document.createElement('span'); s.className = 'pdf-tag'; s.textContent = p ? ((p.emoji ? p.emoji + ' ' : '') + p.name) : '?';
+        projTags.appendChild(s);
+      });
+      projRow.appendChild(projLbl); projRow.appendChild(projTags);
+      attrs.appendChild(projRow);
+    }
+    var dataRow = document.createElement('div'); dataRow.className = 'pdf-attrs-row';
+    var dataLbl = document.createElement('span'); dataLbl.className = 'pdf-attrs-label'; dataLbl.textContent = 'Data';
+    var dataVal = document.createElement('span'); dataVal.className = 'pdf-attrs-value'; dataVal.textContent = fmtDate(n.data);
+    dataRow.appendChild(dataLbl); dataRow.appendChild(dataVal);
+    attrs.appendChild(dataRow);
+    root.appendChild(attrs);
+
+    var divider = document.createElement('div'); divider.className = 'pdf-divider';
+    root.appendChild(divider);
+
+    var content = document.createElement('div'); content.className = 'md-preview pdf-content';
+    content.innerHTML = renderMarkdown(n.conteudo_md);
+    root.appendChild(content);
+  }
+  /* O navegador sugere document.title como nome de arquivo no diálogo de
+     "Salvar como PDF" — troca temporária pro nome da nota, restaurado no
+     'afterprint' (dispara tanto ao salvar quanto ao cancelar o diálogo). */
+  function exportNotaPdf(id) {
+    if (!id) return;
+    var n = null;
+    for (var i = 0; i < NOTAS_HUB.length; i++) { if (String(NOTAS_HUB[i].id) === String(id)) { n = NOTAS_HUB[i]; break; } }
+    if (!n) return;
+    buildPdfExport(n);
+    var originalTitle = document.title;
+    function restoreTitle() {
+      document.title = originalTitle;
+      window.removeEventListener('afterprint', restoreTitle);
+    }
+    window.addEventListener('afterprint', restoreTitle);
+    document.title = n.name;
+    window.print();
+  }
   function resolveDetailFromRow(row) {
     var kind = row.getAttribute('data-detail-kind');
     var id = row.getAttribute('data-detail-id');
@@ -3121,6 +3202,7 @@
     $('detail-modal-fullscreen').addEventListener('click', function () {
       if (CURRENT_DETAIL_NOTA_ID) location.href = 'notas.html?nota=' + encodeURIComponent(CURRENT_DETAIL_NOTA_ID);
     });
+    $('detail-modal-export-pdf').addEventListener('click', function () { exportNotaPdf(CURRENT_DETAIL_NOTA_ID); });
     /* Clicar em qualquer lugar que NÃO seja um botão de excluir cancela uma
        confirmação pendente na hora, em vez de esperar os 3s do timeout. */
     document.addEventListener('click', function (e) {

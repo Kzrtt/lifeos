@@ -4,10 +4,22 @@
 // -- pensado pra ser cadastrado como "custom connector" em claude.ai (Settings
 // > Connectors > Add custom connector, colando a URL desta function + token).
 // Expoe tools de CONSULTA sobre todo o sistema (Notas, Tarefas, Projetos,
-// Eventos, Manifestações, Finanças) e uma única tool de ESCRITA:
-// create_nota. Nenhum outro domínio ganha create/update/delete por aqui --
-// decisão explícita do autor (8ª rodada, set/2026): "vamos deixar apenas o
-// notas com tool para create".
+// Eventos, Manifestações, Finanças) e duas tools de ESCRITA, as duas
+// restritas a Notas: create_nota e update_nota. Nenhum outro domínio ganha
+// create/update/delete por aqui -- decisão explícita do autor (8ª rodada,
+// set/2026): "vamos deixar apenas o notas com tool para create" (9ª rodada,
+// set/2026: estendida pra update_nota, mesmo domínio, mesmo racional).
+//
+// update_nota é SUBSTITUIÇÃO COMPLETA, nunca um patch parcial -- todos os
+// campos (name/tipo/projetos/conteudo_md) são obrigatórios em toda chamada,
+// mesmo os que não mudaram. Decisão deliberada (9ª rodada, set/2026): o
+// modelo sempre tem o estado atual em mãos (search_notas devolve o
+// conteúdo completo antes de qualquer edição), então reenviar tudo é
+// barato pra ele e mantém o servidor sem nenhuma lógica de merge/diff --
+// um único PATCH que troca cada campo pelo valor final. O motivo de peso
+// é `conteudo_md`: exigi-lo sempre, por completo, é o que garante que o
+// modelo nunca envie só um trecho/diff do texto -- um envio parcial
+// apagaria o resto da nota.
 //
 // Transporte: Streamable HTTP, SEM estado entre chamadas (sem Mcp-Session-Id)
 // -- cada POST e' um JSON-RPC 2.0 completo e independente, o que combina bem
@@ -214,6 +226,29 @@ function buildTools() {
     },
   },
   {
+    name: "update_nota",
+    description:
+      "Atualiza uma nota existente do LifeOS -- SUBSTITUIÇÃO COMPLETA, não " +
+      "é um patch parcial. Envie TODOS os campos com o valor final " +
+      "desejado, incluindo os que não mudaram (use search_notas antes " +
+      "para recuperar o estado atual da nota). O parâmetro conteudo_md " +
+      "precisa ser o TEXTO INTEIRO e final da nota, em markdown, já com " +
+      "os ajustes aplicados -- nunca um trecho, resumo ou diff do que " +
+      "mudou; enviar só a parte alterada apaga o resto do conteúdo. A " +
+      "data e o histórico de criação da nota não mudam.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        id: { type: "string", description: "id da nota a editar (retornado por search_notas)." },
+        name: { type: "string", description: "Nome/título final da nota." },
+        tipo: { type: "array", items: { type: "string", enum: VOCAB.nota_tipo }, minItems: 1, description: "Conjunto final de tipos/tags -- substitui o atual por completo." },
+        projetos: { type: "array", items: { type: "string" }, description: "Nomes de TODOS os projetos que a nota deve ter ao final -- substitui os vínculos atuais por completo. Pode ser [] se a nota não deve ficar vinculada a nenhum projeto." },
+        conteudo_md: { type: "string", description: "Texto INTEIRO e final da nota, em markdown -- nunca um trecho, resumo ou diff do que mudou." },
+      },
+      required: ["id", "name", "tipo", "projetos", "conteudo_md"],
+    },
+  },
+  {
     name: "search_tarefas",
     description:
       "Busca tarefas do LifeOS por nome, projeto, status, tipo e intervalo " +
@@ -372,6 +407,7 @@ Deno.serve(async (req) => {
       const handlers: Record<string, (args: Record<string, any>) => Promise<unknown>> = {
         search_notas: (a) => handleSearchNotas(REST, restHeaders, a),
         create_nota: (a) => handleCreateNota(REST, restHeaders, a),
+        update_nota: (a) => handleUpdateNota(REST, restHeaders, a),
         search_tarefas: (a) => handleSearchTarefas(REST, restHeaders, a),
         search_projetos: (a) => handleSearchProjetos(REST, restHeaders, a),
         search_eventos: (a) => handleSearchEventos(REST, restHeaders, a),
@@ -541,6 +577,63 @@ async function handleCreateNota(REST: string, headers: Record<string, string>, a
   return toolText(JSON.stringify({
     ok: true,
     nota: { id: created.id, name: created.name, tipo: created.tipo ?? [], data: created.data, projetos: resolved, conteudo_md: created.conteudo_md, created_at: created.created_at },
+  }, null, 2));
+}
+
+// ── Tool: update_nota (substituição completa, nunca patch parcial) ───────
+// Mesmo contrato de setProjetoLinks() em lifeos-notas/index.ts (delete
+// tudo + insere de novo -- nunca um diff dos vínculos). Cópia isolada, ver
+// LIFEOS.md §2: este servidor não importa nada de lifeos-notas.
+async function handleUpdateNota(REST: string, headers: Record<string, string>, args: Record<string, any>) {
+  const id = String(args?.id ?? "").trim();
+  if (!id) return toolText("O parâmetro id (id da nota a editar, retornado por search_notas) é obrigatório.", true);
+
+  const name = String(args?.name ?? "").trim();
+  if (!name) return toolText("O parâmetro name (nome da nota) é obrigatório e não pode ser vazio.", true);
+
+  const tipo = strArray(args?.tipo);
+  if (!tipo.length) return toolText("O parâmetro tipo é obrigatório e precisa ter ao menos um valor.", true);
+  const invalidTipo = tipo.filter((t) => !VOCAB.nota_tipo.includes(t));
+  if (invalidTipo.length) return toolText(`Tipo(s) inválido(s): ${invalidTipo.join(", ")}. Valores aceitos: ${VOCAB.nota_tipo.join(", ")}.`, true);
+
+  if (!Array.isArray(args?.projetos)) {
+    return toolText("O parâmetro projetos é obrigatório -- envie a lista completa de projetos vinculados (pode ser [] se a nota não deve ter nenhum).", true);
+  }
+  const projetosNomes = strArray(args.projetos);
+
+  const conteudo_md = typeof args?.conteudo_md === "string" ? args.conteudo_md.trim() : "";
+  if (!conteudo_md) {
+    return toolText("O parâmetro conteudo_md é obrigatório e precisa ser o TEXTO INTEIRO e final da nota (nunca um trecho, resumo ou diff).", true);
+  }
+
+  const projetos = await fetchAllProjetos(REST, headers);
+  const { resolved, naoEncontrados } = await resolveProjetoNomes(projetos, projetosNomes);
+  if (naoEncontrados.length) {
+    const disponiveis = projetos.map((p) => p.name).join(", ");
+    return toolText(`Projeto(s) não encontrado(s) ou ambíguo(s): ${naoEncontrados.join(", ")}. Projetos existentes: ${disponiveis}.`, true);
+  }
+
+  const updateRes = await fetch(`${REST}/lifeos_notas?id=eq.${id}`, {
+    method: "PATCH",
+    headers: { ...headers, Prefer: "return=representation" },
+    body: JSON.stringify({ name, tipo, conteudo_md, updated_at: new Date().toISOString() }),
+  });
+  if (!updateRes.ok) return toolText(`Erro ao atualizar a nota: ${updateRes.status} ${await updateRes.text()}`, true);
+  const updatedRows = await updateRes.json();
+  if (!updatedRows.length) return toolText(`Nenhuma nota encontrada com id ${id}.`, true);
+  const updated = updatedRows[0];
+
+  const delRes = await fetch(`${REST}/lifeos_notas_projetos?nota_id=eq.${id}`, { method: "DELETE", headers });
+  if (!delRes.ok) return toolText(`Nota atualizada, mas falhou ao limpar vínculos antigos de projeto: ${delRes.status} ${await delRes.text()}`, true);
+  if (resolved.length) {
+    const linkRows = resolved.map((p) => ({ nota_id: id, projeto_id: p.id }));
+    const linkRes = await fetch(`${REST}/lifeos_notas_projetos`, { method: "POST", headers, body: JSON.stringify(linkRows) });
+    if (!linkRes.ok) return toolText(`Nota atualizada, mas falhou ao vincular projetos: ${linkRes.status} ${await linkRes.text()}`, true);
+  }
+
+  return toolText(JSON.stringify({
+    ok: true,
+    nota: { id: updated.id, name: updated.name, tipo: updated.tipo ?? [], data: updated.data, projetos: resolved, conteudo_md: updated.conteudo_md, updated_at: updated.updated_at },
   }, null, 2));
 }
 

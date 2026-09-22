@@ -66,7 +66,12 @@
     {
       nome: 'create_nota', tipo: 'escrita',
       desc: 'Cria uma nota nova. A data é sempre hoje. Exige nome, tipo, ao menos um projeto e o conteúdo.',
-      filtros: 'única ferramenta de escrita do servidor',
+      filtros: 'escrita — restrita a Notas',
+    },
+    {
+      nome: 'update_nota', tipo: 'escrita',
+      desc: 'Edita uma nota existente. Substituição completa, não é um patch — toda chamada reenvia nome, tipo, projetos e o conteúdo INTEIRO, mesmo o que não mudou.',
+      filtros: 'escrita — restrita a Notas',
     },
     {
       nome: 'search_tarefas', tipo: 'leitura',
