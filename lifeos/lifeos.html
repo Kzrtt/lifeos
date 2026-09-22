@@ -292,6 +292,16 @@
     }
     .tar-projeto-select:focus { border-color: var(--gold); }
 
+    /* ── Badges de view (#not-view-filters/#tar-view-filters) — cópia
+       isolada de .filters/.chip de notas.html/tarefas.html (ver LIFEOS.md
+       §2). O hub só ALTERNA entre views já criadas lá, sem "+ Nova view"
+       nem modal aqui. */
+    .filters { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 0 0 12px; }
+    .filters-label { font-size: 10px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--mute); margin-right: 4px; }
+    .chip { font-family: var(--mono); font-size: 12px; letter-spacing: 0.04em; padding: 7px 13px; border-radius: 999px; border: 1px solid var(--border); background: var(--surface-2); color: var(--dim); cursor: pointer; transition: background 0.15s, border-color 0.15s, color 0.15s; }
+    .chip:hover { border-color: var(--gold); color: var(--text); }
+    .chip.active { background: var(--gold); border-color: var(--gold); color: #14120f; font-weight: 500; }
+
     /* Kanban agora é sempre largura cheia — 3 colunas cabem sem apertar,
        só empilha em telas realmente estreitas (mobile). */
     .tar-mini-board { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
@@ -1239,6 +1249,7 @@
           <div class="bento-card-label"><i class="fad fa-columns"></i> Kanban</div>
           <select id="tar-projeto-select" class="tar-projeto-select"></select>
         </div>
+        <div id="tar-view-filters" class="filters"></div>
         <div class="tar-mini-board" id="tar-mini-board"></div>
       </div>
     </div>
@@ -1291,6 +1302,7 @@
           <div class="bento-card-label"><i class="fad fa-history"></i> Últimas notas</div>
           <select id="not-projeto-filtro" class="tar-projeto-select"></select>
         </div>
+        <div id="not-view-filters" class="filters"></div>
         <div class="hub-list hub-list-scroll" id="not-recent"></div>
       </div>
       <div class="bento-card not-card-tipo">
@@ -1711,7 +1723,7 @@
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.6/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/marked@12.0.2/marked.min.js"></script>
-<script src="../assets/js/lifeos.js?v=20260921"></script>
+<script src="../assets/js/lifeos.js?v=20260922"></script>
 <script src="../assets/js/back-to-top.js?v=20260617"></script>
 
 <script>

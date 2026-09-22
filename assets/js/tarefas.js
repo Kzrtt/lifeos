@@ -26,11 +26,12 @@
   var CFG_FN_BASE = (window.LIFEOS_CONFIG ? window.LIFEOS_CONFIG.supabaseUrl : '') + '/functions/v1/';
   var PROJETOS_FN = CFG_FN_BASE + 'lifeos-projetos';
   var TAREFAS_FN = CFG_FN_BASE + 'lifeos-tarefas';
+  var VIEWS_FN = CFG_FN_BASE + 'lifeos-views';
   var ANON_KEY = window.LIFEOS_CONFIG ? window.LIFEOS_CONFIG.anonKey : '';
   var LS_KEY = (window.LIFEOS_CONFIG && window.LIFEOS_CONFIG.sessionKey) || 'financas_master';        /* mesma chave de /financas, /eventos e /lifeos */
   var LS_ACTIVE_PROJETO = 'tarefas_active_projeto'; /* lembra o último projeto aberto, só nesta página */
   var CACHE_KEY = 'tarefas_cache';       /* cache persistente (localStorage) — ver LIFEOS.md */
-  var CACHE_V = 1;
+  var CACHE_V = 2;                       /* bump: cache ganhou o campo `views` */
 
   var STATUS_TAREFA = ['Não Iniciado', 'Em Andamento', 'Feito'];
   var TIPOS_TAREFA = ['Vida', 'Organização', 'Documentação', 'Estudo', 'Avaliação', 'Código', 'Freelance', 'Trabalho', 'Tarefa'];
@@ -97,6 +98,19 @@
   var TAR_TIPO_CHART = null;     /* barras · distribuição por tipo */
   var DRAG_TAREFA_ID = null;     /* id da tarefa sendo arrastada no kanban (drag-and-drop de status) */
 
+  /* ── Views salvas (filtros combináveis, persistem via lifeos-views) ────
+     A view "Todas" (sem filtro) é IMPLÍCITA — ACTIVE_VIEW_ID null representa
+     ela. Diferente de notas.js: aqui o backend busca POR PROJETO
+     (apiTarefasQuery), então uma view custom precisa do conjunto COMPLETO
+     — ver setActiveView(), que força ACTIVE_PROJETO_ID='' (Todos) e
+     desabilita #projeto-select enquanto uma view está ativa. */
+  var VIEWS = [];
+  var ACTIVE_VIEW_ID = null;
+  var EDIT_VIEW_ID = null;       /* null = #view-modal em modo "criar" */
+  var VIEW_MODO = 'todas';       /* 'todas' (E) | 'qualquer' (OU) — estado do editor */
+  var VIEW_REGRAS = [];          /* estado do editor de regras do #view-modal, ver renderRegrasEditor */
+  var VIEW_CAMPOS = ['projeto', 'tipo', 'status']; /* campos válidos pra views de Tarefas */
+
   /* ── Helpers ─────────────────────────────────────────────────── */
   function $(id) { return document.getElementById(id); }
   function todayISO() { var d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
@@ -115,7 +129,36 @@
      estatísticas/gráfico ignoram (mesmo princípio dos KPIs de Finanças: o
      resumo é do projeto inteiro, o filtro só recorta as views abaixo). ── */
   function matchesTipoFiltro(t) { if (!TIPO_FILTRO.size) return true; return (t.tipo || []).some(function (tp) { return TIPO_FILTRO.has(tp); }); }
-  function visibleTarefas() { return TAREFAS.filter(matchesTipoFiltro); }
+
+  /* Valor bruto de uma tarefa pro campo de uma regra — único ponto que
+     muda por tabela (cópia isolada equivalente existe em notas.js/
+     lifeos.js, ver LIFEOS.md §2). projeto_id é escalar (1:N, sempre
+     preenchido — toda tarefa exige projeto), por isso vira array de 1. */
+  function getCampoTarefa(campo, t) {
+    if (campo === 'projeto') return [t.projeto_id];
+    if (campo === 'tipo') return t.tipo || [];
+    if (campo === 'status') return [t.status];
+    return [];
+  }
+  function matchesRegra(campoVal, regra) {
+    var arr = Array.isArray(campoVal) ? campoVal : [campoVal];
+    var bate = regra.valores.some(function (v) { return arr.indexOf(v) !== -1; });
+    return regra.operador === 'excluir' ? !bate : bate;
+  }
+  function matchesView(t, view) {
+    if (!view || !view.regras.length) return true;
+    var results = view.regras.map(function (r) { return matchesRegra(getCampoTarefa(r.campo, t), r); });
+    return view.modo === 'qualquer' ? results.some(Boolean) : results.every(Boolean);
+  }
+  function activeView() {
+    if (!ACTIVE_VIEW_ID) return null;
+    return VIEWS.find(function (v) { return v.id === ACTIVE_VIEW_ID; }) || null;
+  }
+
+  function visibleTarefas() {
+    var view = activeView();
+    return TAREFAS.filter(function (t) { return matchesTipoFiltro(t) && matchesView(t, view); });
+  }
 
   /* ── Dev mock (ambiente local) — mesmo motivo dos outros módulos. ── */
   var IS_LOCAL_DEV = (location.protocol === 'file:') ||
@@ -202,6 +245,27 @@
     if (MOCK_TAREFAS) { for (var i = 0; i < MOCK_TAREFAS.length; i++) { if (MOCK_TAREFAS[i].id === id) { MOCK_TAREFAS.splice(i, 1); break; } } }
     return { ok: true, id: id };
   }
+  var MOCK_VIEWS = [];
+  function mockViewsQuery() { return { ok: true, views: MOCK_VIEWS.slice() }; }
+  function mockViewsCreate(v) {
+    var now = new Date().toISOString();
+    var ordem = MOCK_VIEWS.length ? Math.max.apply(null, MOCK_VIEWS.map(function (x) { return x.ordem; })) + 1 : 0;
+    var created = Object.assign({ id: 'mock-view-' + Date.now(), ordem: ordem, created_at: now, updated_at: now }, v);
+    MOCK_VIEWS.push(created);
+    return { ok: true, view: created };
+  }
+  function mockViewsUpdate(id, patch) {
+    var existing = null;
+    for (var i = 0; i < MOCK_VIEWS.length; i++) { if (MOCK_VIEWS[i].id === id) { existing = MOCK_VIEWS[i]; break; } }
+    var withTimestamp = Object.assign({}, patch, { updated_at: new Date().toISOString() });
+    var updated = Object.assign({}, existing || { id: id }, withTimestamp);
+    if (existing) Object.assign(existing, withTimestamp);
+    return { ok: true, view: updated };
+  }
+  function mockViewsDelete(id) {
+    for (var i = 0; i < MOCK_VIEWS.length; i++) { if (MOCK_VIEWS[i].id === id) { MOCK_VIEWS.splice(i, 1); break; } }
+    return { ok: true, id: id };
+  }
   function showDevBadge() {
     var b = document.createElement('div');
     b.textContent = 'DEV · dados fictícios';
@@ -235,6 +299,10 @@
   function apiTarefasCreate(pw, tarefa) { return IS_LOCAL_DEV ? mockDelay(mockTarefasCreate(tarefa)) : callFn(TAREFAS_FN, { token: pw, action: 'create', tarefa: tarefa }); }
   function apiTarefasUpdate(pw, id, patch) { return IS_LOCAL_DEV ? mockDelay(mockTarefasUpdate(id, patch)) : callFn(TAREFAS_FN, { token: pw, action: 'update', id: id, patch: patch }); }
   function apiTarefasDelete(pw, id) { return IS_LOCAL_DEV ? mockDelay(mockTarefasDelete(id)) : callFn(TAREFAS_FN, { token: pw, action: 'delete', id: id }); }
+  function apiViewsQuery(pw) { return IS_LOCAL_DEV ? mockDelay(mockViewsQuery()) : callFn(VIEWS_FN, { token: pw, tabela: 'tarefas' }); }
+  function apiViewsCreate(pw, view) { return IS_LOCAL_DEV ? mockDelay(mockViewsCreate(view)) : callFn(VIEWS_FN, { token: pw, action: 'create', view: Object.assign({ tabela: 'tarefas' }, view) }); }
+  function apiViewsUpdate(pw, id, patch) { return IS_LOCAL_DEV ? mockDelay(mockViewsUpdate(id, patch)) : callFn(VIEWS_FN, { token: pw, action: 'update', id: id, patch: patch }); }
+  function apiViewsDelete(pw, id) { return IS_LOCAL_DEV ? mockDelay(mockViewsDelete(id)) : callFn(VIEWS_FN, { token: pw, action: 'delete', id: id }); }
 
   /* ── Chip pickers genéricos (single ou multi-select) ────────────
      Single: clicar troca a seleção inteira (usado em status/projeto).
@@ -316,6 +384,189 @@
     clearFilters();
     renderProjetoSelect();
     loadTarefas();
+  }
+
+  /* ── Views (badges) — "Todas" (fixa, sem regra) + uma por VIEWS + "+ Nova
+     view". Clicar na badge JÁ ativa (não-Todas) abre o editor em modo
+     editar — evita precisar de um ícone de lápis à parte. Ativar uma view
+     custom força "Todos os projetos" (o backend busca por projeto — ver
+     apiTarefasQuery — então a view precisa do conjunto completo pra
+     filtrar) e desabilita o <select> de projeto enquanto durar, pra não
+     sobrepor dois filtros de projeto ao mesmo tempo. ── */
+  function setActiveView(id) {
+    ACTIVE_VIEW_ID = id;
+    $('projeto-select').disabled = !!id;
+    renderViewBadges(); /* feedback imediato — loadTarefas() abaixo pode levar um instante (rede) */
+    if (id && ACTIVE_PROJETO_ID !== '') { setActiveProjeto(''); return; } /* loadTarefas() lá dentro já chama renderAll(), que re-renderiza de novo */
+    renderAll();
+  }
+  function renderViewBadges() {
+    var host = $('view-filters'); if (!host) return;
+    host.innerHTML = '';
+    var lbl = document.createElement('span'); lbl.className = 'filters-label'; lbl.textContent = 'view:';
+    host.appendChild(lbl);
+
+    var todas = document.createElement('button');
+    todas.type = 'button'; todas.className = 'chip' + (!ACTIVE_VIEW_ID ? ' active' : '');
+    todas.textContent = 'Todas';
+    host.appendChild(todas);
+
+    VIEWS.forEach(function (v) {
+      var b = document.createElement('button');
+      b.type = 'button'; b.className = 'chip' + (v.id === ACTIVE_VIEW_ID ? ' active' : ''); b.setAttribute('data-view-id', v.id);
+      b.textContent = v.nome;
+      host.appendChild(b);
+    });
+
+    var nova = document.createElement('button');
+    nova.type = 'button'; nova.className = 'chip chip-clear'; nova.id = 'view-add-btn';
+    nova.innerHTML = '+ Nova view';
+    host.appendChild(nova);
+  }
+  function onViewBadgeClick(e) {
+    var nova = e.target.closest ? e.target.closest('#view-add-btn') : null;
+    if (nova) { openViewModal(null); return; }
+    var btn = e.target.closest ? e.target.closest('.chip') : null;
+    if (!btn) return;
+    var id = btn.getAttribute('data-view-id');
+    if (!id) { setActiveView(null); return; }
+    if (id === ACTIVE_VIEW_ID) { openViewModal(id); return; }
+    setActiveView(id);
+  }
+
+  /* ── Modal · view (criar/editar/excluir) ──────────────────────── */
+  function opcoesValoresPorCampo(campo) {
+    if (campo === 'tipo') return TIPOS_TAREFA.map(function (t) { return { value: t, label: t }; });
+    if (campo === 'status') return STATUS_TAREFA.map(function (s) { return { value: s, label: s }; });
+    return PROJETOS.map(function (p) { return { value: p.id, label: (p.emoji ? p.emoji + ' ' : '') + p.name }; });
+  }
+  function campoLabel(campo) { return campo === 'projeto' ? 'Projeto' : (campo === 'status' ? 'Status' : 'Tipo'); }
+  function renderRegrasEditor() {
+    var host = $('view-regras-list'); host.innerHTML = '';
+    VIEW_REGRAS.forEach(function (regra, idx) {
+      var row = document.createElement('div'); row.className = 'view-regra-row'; row.setAttribute('data-idx', idx);
+
+      var campoSel = document.createElement('select'); campoSel.className = 'edit-input view-regra-campo';
+      VIEW_CAMPOS.forEach(function (c) {
+        var opt = document.createElement('option'); opt.value = c; opt.textContent = campoLabel(c);
+        if (c === regra.campo) opt.selected = true;
+        campoSel.appendChild(opt);
+      });
+      row.appendChild(campoSel);
+
+      var opSel = document.createElement('select'); opSel.className = 'edit-input view-regra-operador';
+      [['incluir', 'Incluir'], ['excluir', 'Excluir']].forEach(function (p) {
+        var opt = document.createElement('option'); opt.value = p[0]; opt.textContent = p[1];
+        if (p[0] === regra.operador) opt.selected = true;
+        opSel.appendChild(opt);
+      });
+      row.appendChild(opSel);
+
+      var valores = document.createElement('div'); valores.className = 'chip-picker view-regra-valores';
+      opcoesValoresPorCampo(regra.campo).forEach(function (o) {
+        var b = document.createElement('button');
+        b.type = 'button'; b.className = 'chip-opt' + (regra.valores.indexOf(o.value) !== -1 ? ' is-selected' : '');
+        b.setAttribute('data-value', o.value); b.textContent = o.label;
+        valores.appendChild(b);
+      });
+      row.appendChild(valores);
+
+      var rm = document.createElement('button');
+      rm.type = 'button'; rm.className = 'icon-btn icon-btn-danger view-regra-remove'; rm.setAttribute('aria-label', 'Remover regra');
+      rm.innerHTML = '<i class="fad fa-trash"></i>';
+      row.appendChild(rm);
+
+      host.appendChild(row);
+    });
+  }
+  function onRegrasListChange(e) {
+    var row = e.target.closest ? e.target.closest('.view-regra-row') : null;
+    if (!row) return;
+    var idx = Number(row.getAttribute('data-idx'));
+    if (e.target.classList.contains('view-regra-campo')) { VIEW_REGRAS[idx].campo = e.target.value; VIEW_REGRAS[idx].valores = []; renderRegrasEditor(); }
+    else if (e.target.classList.contains('view-regra-operador')) { VIEW_REGRAS[idx].operador = e.target.value; }
+  }
+  function onRegrasListClick(e) {
+    var row = e.target.closest ? e.target.closest('.view-regra-row') : null;
+    if (!row) return;
+    var idx = Number(row.getAttribute('data-idx'));
+    if (e.target.closest('.view-regra-remove')) { VIEW_REGRAS.splice(idx, 1); renderRegrasEditor(); return; }
+    var chip = e.target.closest ? e.target.closest('.chip-opt') : null;
+    if (chip) { toggleMultiChip(chip, VIEW_REGRAS[idx].valores); }
+  }
+  function addRegraRow() { VIEW_REGRAS.push({ campo: 'projeto', operador: 'incluir', valores: [] }); renderRegrasEditor(); }
+
+  function setViewModo(modo) {
+    VIEW_MODO = modo;
+    var btns = document.querySelectorAll('#view-modo-picker .chip-opt');
+    for (var i = 0; i < btns.length; i++) btns[i].classList.toggle('is-selected', btns[i].getAttribute('data-value') === modo);
+  }
+
+  var VIEW_DELETE_PENDING = false;
+  function openViewModal(id) {
+    EDIT_VIEW_ID = id || null;
+    var v = id ? VIEWS.find(function (x) { return x.id === id; }) : null;
+    $('view-modal-title').textContent = v ? 'Editar view' : 'Nova view';
+    $('view-delete').hidden = !v;
+    VIEW_DELETE_PENDING = false;
+    if (v) { $('view-delete').textContent = 'Excluir'; $('view-delete').disabled = false; }
+    $('view-nome').value = v ? v.nome : '';
+    setViewModo(v ? v.modo : 'todas');
+    /* Cópia profunda — editar aqui não pode mexer no objeto de VIEWS
+       enquanto o usuário ainda não salvou (Cancelar precisa descartar). */
+    VIEW_REGRAS = v ? JSON.parse(JSON.stringify(v.regras)) : [{ campo: 'projeto', operador: 'incluir', valores: [] }];
+    renderRegrasEditor();
+    $('view-error').textContent = '';
+    setViewSaving(false);
+    $('view-modal').classList.add('open');
+  }
+  function closeViewModal() { $('view-modal').classList.remove('open'); EDIT_VIEW_ID = null; }
+  function setViewSaving(on) { $('view-save').disabled = on; $('view-save').textContent = on ? 'Salvando…' : 'Salvar'; }
+
+  function onViewSubmit(e) {
+    e.preventDefault();
+    var nome = $('view-nome').value.trim();
+    if (!nome) { $('view-error').textContent = 'nome obrigatório'; return; }
+    if (!VIEW_REGRAS.length) { $('view-error').textContent = 'adicione ao menos uma regra'; return; }
+    for (var i = 0; i < VIEW_REGRAS.length; i++) {
+      if (!VIEW_REGRAS[i].valores.length) { $('view-error').textContent = 'toda regra precisa de ao menos um valor selecionado'; return; }
+    }
+
+    setViewSaving(true);
+    $('view-error').textContent = '';
+    var payload = { nome: nome, modo: VIEW_MODO, regras: VIEW_REGRAS };
+    var req = EDIT_VIEW_ID ? apiViewsUpdate(SESSION_PW, EDIT_VIEW_ID, payload) : apiViewsCreate(SESSION_PW, payload);
+
+    req.then(function (j) {
+      var saved = j.view;
+      closeViewModal();
+      var found = false;
+      for (var i = 0; i < VIEWS.length; i++) { if (VIEWS[i].id === saved.id) { VIEWS[i] = saved; found = true; break; } }
+      if (!found) VIEWS.push(saved);
+      setActiveView(saved.id);
+      writeCache();
+    }).catch(function (err) {
+      setViewSaving(false);
+      if (err && err.code === 'unauthorized') { onLogout(); return; }
+      $('view-error').textContent = 'erro ao salvar — ' + ((err && err.detail) || 'tente de novo');
+    });
+  }
+  function onViewDeleteClick() {
+    var btn = $('view-delete');
+    var id = EDIT_VIEW_ID;
+    if (!id) return;
+    if (!VIEW_DELETE_PENDING) { VIEW_DELETE_PENDING = true; btn.textContent = 'confirmar?'; return; }
+    btn.disabled = true; btn.textContent = 'Excluindo…';
+    apiViewsDelete(SESSION_PW, id).then(function () {
+      closeViewModal();
+      for (var i = 0; i < VIEWS.length; i++) { if (VIEWS[i].id === id) { VIEWS.splice(i, 1); break; } }
+      if (ACTIVE_VIEW_ID === id) setActiveView(null); else renderViewBadges();
+      writeCache();
+    }).catch(function (err) {
+      VIEW_DELETE_PENDING = false; btn.disabled = false; btn.textContent = 'Excluir';
+      if (err && err.code === 'unauthorized') { onLogout(); return; }
+      window.alert('erro ao excluir — ' + ((err && err.detail) || 'tente de novo'));
+    });
   }
 
   /* ── Kanban ──────────────────────────────────────────────────── */
@@ -623,6 +874,7 @@
   }
 
   function renderAll() {
+    renderViewBadges();
     buildTipoFilterChips();
     renderStats();
     renderStatusChart();
@@ -655,6 +907,7 @@
         fetched_at: new Date().toISOString(),
         projetos: PROJETOS,
         tarefas_by_projeto: TAREFAS_CACHE,
+        views: VIEWS,
       }));
     } catch (_e) { /* quota/indisponível: cache só em memória nesta sessão */ }
   }
@@ -860,12 +1113,14 @@
     if (cache) {
       PROJETOS = cache.projetos || [];
       TAREFAS_CACHE = cache.tarefas_by_projeto || {};
+      VIEWS = cache.views || [];
       resolveActiveProjeto();
       renderProjetoSelect();
       return loadTarefas();
     }
-    return apiProjetosQuery(SESSION_PW).then(function (j) {
-      PROJETOS = j.projetos || [];
+    return Promise.all([apiProjetosQuery(SESSION_PW), apiViewsQuery(SESSION_PW)]).then(function (res) {
+      PROJETOS = res[0].projetos || [];
+      VIEWS = res[1].views || [];
       TAREFAS_CACHE = {};
       resolveActiveProjeto();
       renderProjetoSelect();
@@ -897,9 +1152,11 @@
     Promise.all([
       apiProjetosQuery(SESSION_PW),
       ACTIVE_PROJETO_ID === null ? Promise.resolve({ tarefas: [] }) : apiTarefasQuery(SESSION_PW, ACTIVE_PROJETO_ID),
+      apiViewsQuery(SESSION_PW),
     ]).then(function (res) {
       PROJETOS = res[0].projetos || [];
       TAREFAS = res[1].tarefas || [];
+      VIEWS = res[2].views || [];
       if (ACTIVE_PROJETO_ID !== null) TAREFAS_CACHE[ACTIVE_PROJETO_ID] = TAREFAS;
       writeCache();
       renderProjetoSelect();
@@ -935,10 +1192,12 @@
     localStorage.removeItem(LS_KEY);
     dropCache();
     SESSION_PW = ''; PROJETOS = []; TAREFAS = []; TAREFAS_CACHE = {}; ACTIVE_PROJETO_ID = null;
+    VIEWS = []; ACTIVE_VIEW_ID = null;
     if (TAR_STATUS_CHART) { TAR_STATUS_CHART.destroy(); TAR_STATUS_CHART = null; }
     if (TAR_TIPO_CHART) { TAR_TIPO_CHART.destroy(); TAR_TIPO_CHART = null; }
     clearFilters(); switchTarView('kanban');
-    closeTarefaModal();
+    closeTarefaModal(); closeViewModal();
+    $('projeto-select').disabled = false;
     $('gate-input').value = ''; $('gate-remember').checked = false; $('gate-error').textContent = '';
     showGateForm();
   }
@@ -1037,6 +1296,20 @@
       if (chip) toggleTipoFilter(chip.getAttribute('data-tipo'));
     });
 
+    $('view-filters').addEventListener('click', onViewBadgeClick);
+    $('view-add-regra').addEventListener('click', addRegraRow);
+    $('view-regras-list').addEventListener('change', onRegrasListChange);
+    $('view-regras-list').addEventListener('click', onRegrasListClick);
+    $('view-modo-picker').addEventListener('click', function (e) {
+      var btn = e.target.closest ? e.target.closest('.chip-opt') : null;
+      if (btn) setViewModo(btn.getAttribute('data-value'));
+    });
+    $('view-form').addEventListener('submit', onViewSubmit);
+    $('view-cancel').addEventListener('click', closeViewModal);
+    $('view-modal-close').addEventListener('click', closeViewModal);
+    $('view-modal').addEventListener('click', function (e) { if (e.target === $('view-modal')) closeViewModal(); });
+    $('view-delete').addEventListener('click', onViewDeleteClick);
+
     $('tarefa-status-picker').addEventListener('click', function (e) {
       var btn = e.target.closest ? e.target.closest('.chip-opt') : null;
       if (btn) setSingleChip('tarefa-status-picker', 'tarefa-status', btn.getAttribute('data-value'));
@@ -1062,6 +1335,7 @@
     document.addEventListener('keydown', function (e) {
       if (e.key !== 'Escape') return;
       if ($('tarefa-modal').classList.contains('open')) { closeTarefaModal(); return; }
+      if ($('view-modal').classList.contains('open')) { closeViewModal(); return; }
     });
 
     boot();

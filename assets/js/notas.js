@@ -25,10 +25,11 @@
   var CFG_FN_BASE = (window.LIFEOS_CONFIG ? window.LIFEOS_CONFIG.supabaseUrl : '') + '/functions/v1/';
   var PROJETOS_FN = CFG_FN_BASE + 'lifeos-projetos';
   var NOTAS_FN = CFG_FN_BASE + 'lifeos-notas';
+  var VIEWS_FN = CFG_FN_BASE + 'lifeos-views';
   var ANON_KEY = window.LIFEOS_CONFIG ? window.LIFEOS_CONFIG.anonKey : '';
   var LS_KEY = (window.LIFEOS_CONFIG && window.LIFEOS_CONFIG.sessionKey) || 'financas_master';    /* mesma chave de /financas, /tarefas e /lifeos */
   var CACHE_KEY = 'notas_cache';     /* cache persistente (localStorage) — ver LIFEOS.md */
-  var CACHE_V = 1;
+  var CACHE_V = 2;                   /* bump: cache ganhou o campo `views` */
 
   /* Os 12 valores reais da base Notion (ver NOTAS.md) — mais do que os 9
      listados no CLAUDE.md pessoal (Pessoal/Relato/Documentação faltavam lá). */
@@ -79,6 +80,18 @@
   var PROJETO_FILTRO = '';       /* '' = Todos os projetos */
   var TIPO_FILTRO = new Set();
   var BUSCA_FILTRO = '';
+
+  /* ── Views salvas (filtros combináveis, persistem via lifeos-views) ────
+     A view "Todas" (sem filtro) é IMPLÍCITA — não é uma linha de VIEWS,
+     ACTIVE_VIEW_ID null representa ela. Compõe (E lógico) com
+     PROJETO_FILTRO/TIPO_FILTRO/BUSCA_FILTRO acima, em vez de substituí-los
+     — ver matchesFiltro(). */
+  var VIEWS = [];
+  var ACTIVE_VIEW_ID = null;
+  var EDIT_VIEW_ID = null;       /* null = #view-modal em modo "criar" */
+  var VIEW_MODO = 'todas';       /* 'todas' (E) | 'qualquer' (OU) — estado do editor */
+  var VIEW_REGRAS = [];          /* estado do editor de regras do #view-modal, ver renderRegrasEditor */
+  var VIEW_CAMPOS = ['projeto', 'tipo']; /* campos válidos pra views de Notas (sem status — só Tarefas tem) */
 
   var EDIT_NOTA_ID = null;       /* null = modal de nota em modo "criar" */
   var DETAIL_NOTA_ID = null;     /* nota aberta no modal de detalhe */
@@ -157,10 +170,38 @@
     return s.length > 140 ? s.slice(0, 140).trim() + '…' : s;
   }
 
+  /* Valor bruto de uma nota pro campo de uma regra — único ponto que muda
+     por tabela (cópia isolada equivalente existe em tarefas.js/lifeos.js,
+     ver LIFEOS.md §2). */
+  function getCampoNota(campo, n) {
+    if (campo === 'projeto') return n.projeto_ids || [];
+    if (campo === 'tipo') return n.tipo || [];
+    return [];
+  }
+  /* '__sem_projeto__' é o sentinela pro estado "nota sem projeto nenhum" —
+     só existe pra Notas (única tabela onde isso é um estado real de
+     verdade, ver NOTAS.md §1). */
+  function matchesRegra(campoVal, regra) {
+    var arr = Array.isArray(campoVal) ? campoVal : [campoVal];
+    var bate = regra.valores.some(function (v) { return arr.indexOf(v) !== -1; }) ||
+      (regra.campo === 'projeto' && !arr.length && regra.valores.indexOf('__sem_projeto__') !== -1);
+    return regra.operador === 'excluir' ? !bate : bate;
+  }
+  function matchesView(n, view) {
+    if (!view || !view.regras.length) return true;
+    var results = view.regras.map(function (r) { return matchesRegra(getCampoNota(r.campo, n), r); });
+    return view.modo === 'qualquer' ? results.some(Boolean) : results.every(Boolean);
+  }
+  function activeView() {
+    if (!ACTIVE_VIEW_ID) return null;
+    return VIEWS.find(function (v) { return v.id === ACTIVE_VIEW_ID; }) || null;
+  }
+
   function matchesFiltro(n) {
     if (PROJETO_FILTRO && (n.projeto_ids || []).indexOf(PROJETO_FILTRO) === -1) return false;
     if (TIPO_FILTRO.size && !(n.tipo || []).some(function (t) { return TIPO_FILTRO.has(t); })) return false;
     if (BUSCA_FILTRO && n.name.toLowerCase().indexOf(BUSCA_FILTRO) === -1) return false;
+    if (!matchesView(n, activeView())) return false;
     return true;
   }
   function visibleNotas() { return NOTAS.filter(matchesFiltro); }
@@ -205,6 +246,27 @@
         created_at: '2026-03-01T09:00:00.000Z', updated_at: '2026-03-01T09:00:00.000Z',
       },
     ];
+  }
+  var MOCK_VIEWS = [];
+  function mockViewsQuery() { return { ok: true, views: MOCK_VIEWS.slice() }; }
+  function mockViewsCreate(v) {
+    var now = new Date().toISOString();
+    var ordem = MOCK_VIEWS.length ? Math.max.apply(null, MOCK_VIEWS.map(function (x) { return x.ordem; })) + 1 : 0;
+    var created = Object.assign({ id: 'mock-view-' + Date.now(), ordem: ordem, created_at: now, updated_at: now }, v);
+    MOCK_VIEWS.push(created);
+    return { ok: true, view: created };
+  }
+  function mockViewsUpdate(id, patch) {
+    var existing = null;
+    for (var i = 0; i < MOCK_VIEWS.length; i++) { if (MOCK_VIEWS[i].id === id) { existing = MOCK_VIEWS[i]; break; } }
+    var withTimestamp = Object.assign({}, patch, { updated_at: new Date().toISOString() });
+    var updated = Object.assign({}, existing || { id: id }, withTimestamp);
+    if (existing) Object.assign(existing, withTimestamp);
+    return { ok: true, view: updated };
+  }
+  function mockViewsDelete(id) {
+    for (var i = 0; i < MOCK_VIEWS.length; i++) { if (MOCK_VIEWS[i].id === id) { MOCK_VIEWS.splice(i, 1); break; } }
+    return { ok: true, id: id };
   }
   function mockProjetosQuery() { if (!MOCK_PROJETOS) seedMockData(); return { ok: true, projetos: MOCK_PROJETOS.slice() }; }
   function mockNotasQuery() { if (!MOCK_NOTAS) seedMockData(); return { ok: true, notas: MOCK_NOTAS.slice() }; }
@@ -256,6 +318,10 @@
   function apiNotasCreate(pw, nota) { return IS_LOCAL_DEV ? mockDelay(mockNotasCreate(nota)) : callFn(NOTAS_FN, { token: pw, action: 'create', nota: nota }); }
   function apiNotasUpdate(pw, id, patch) { return IS_LOCAL_DEV ? mockDelay(mockNotasUpdate(id, patch)) : callFn(NOTAS_FN, { token: pw, action: 'update', id: id, patch: patch }); }
   function apiNotasDelete(pw, id) { return IS_LOCAL_DEV ? mockDelay(mockNotasDelete(id)) : callFn(NOTAS_FN, { token: pw, action: 'delete', id: id }); }
+  function apiViewsQuery(pw) { return IS_LOCAL_DEV ? mockDelay(mockViewsQuery()) : callFn(VIEWS_FN, { token: pw, tabela: 'notas' }); }
+  function apiViewsCreate(pw, view) { return IS_LOCAL_DEV ? mockDelay(mockViewsCreate(view)) : callFn(VIEWS_FN, { token: pw, action: 'create', view: Object.assign({ tabela: 'notas' }, view) }); }
+  function apiViewsUpdate(pw, id, patch) { return IS_LOCAL_DEV ? mockDelay(mockViewsUpdate(id, patch)) : callFn(VIEWS_FN, { token: pw, action: 'update', id: id, patch: patch }); }
+  function apiViewsDelete(pw, id) { return IS_LOCAL_DEV ? mockDelay(mockViewsDelete(id)) : callFn(VIEWS_FN, { token: pw, action: 'delete', id: id }); }
 
   /* ── Chip pickers genéricos (multi-select) ──────────────────────
      Clicar alterna aquele valor num array — usado em Tipo e Projetos, os
@@ -345,6 +411,182 @@
     renderAll();
   }
   function clearTipoFilter() { TIPO_FILTRO.clear(); renderAll(); }
+
+  /* ── Views (badges) — "Todas" (fixa, sem regra) + uma por VIEWS + "+ Nova
+     view". Clicar na badge JÁ ativa (não-Todas) abre o editor em modo
+     editar — evita precisar de um ícone de lápis à parte. ── */
+  function renderViewBadges() {
+    var host = $('view-filters'); if (!host) return;
+    host.innerHTML = '';
+    var lbl = document.createElement('span'); lbl.className = 'filters-label'; lbl.textContent = 'view:';
+    host.appendChild(lbl);
+
+    var todas = document.createElement('button');
+    todas.type = 'button'; todas.className = 'chip' + (!ACTIVE_VIEW_ID ? ' active' : '');
+    todas.textContent = 'Todas';
+    host.appendChild(todas);
+
+    VIEWS.forEach(function (v) {
+      var b = document.createElement('button');
+      b.type = 'button'; b.className = 'chip' + (v.id === ACTIVE_VIEW_ID ? ' active' : ''); b.setAttribute('data-view-id', v.id);
+      b.textContent = v.nome;
+      host.appendChild(b);
+    });
+
+    var nova = document.createElement('button');
+    nova.type = 'button'; nova.className = 'chip chip-clear'; nova.id = 'view-add-btn';
+    nova.innerHTML = '+ Nova view';
+    host.appendChild(nova);
+  }
+  function onViewBadgeClick(e) {
+    var nova = e.target.closest ? e.target.closest('#view-add-btn') : null;
+    if (nova) { openViewModal(null); return; }
+    var btn = e.target.closest ? e.target.closest('.chip') : null;
+    if (!btn) return;
+    var id = btn.getAttribute('data-view-id');
+    if (!id) { ACTIVE_VIEW_ID = null; renderAll(); return; }
+    if (id === ACTIVE_VIEW_ID) { openViewModal(id); return; }
+    ACTIVE_VIEW_ID = id; renderAll();
+  }
+
+  /* ── Modal · view (criar/editar/excluir) ──────────────────────── */
+  function opcoesValoresPorCampo(campo) {
+    if (campo === 'tipo') return TIPOS_NOTA.map(function (t) { return { value: t, label: t }; });
+    /* projeto: TODOS (não só "Em Progresso") — a view é um filtro passivo,
+       não cria vínculo novo, então referenciar um projeto já Feito/Pausado
+       continua fazendo sentido. '__sem_projeto__' é o sentinela de "nota
+       sem projeto nenhum" (ver matchesRegra). */
+    var opts = PROJETOS.map(function (p) { return { value: p.id, label: projetoLabel(p) }; });
+    opts.push({ value: '__sem_projeto__', label: '— sem projeto —' });
+    return opts;
+  }
+  function renderRegrasEditor() {
+    var host = $('view-regras-list'); host.innerHTML = '';
+    VIEW_REGRAS.forEach(function (regra, idx) {
+      var row = document.createElement('div'); row.className = 'view-regra-row'; row.setAttribute('data-idx', idx);
+
+      var campoSel = document.createElement('select'); campoSel.className = 'edit-input view-regra-campo';
+      VIEW_CAMPOS.forEach(function (c) {
+        var opt = document.createElement('option'); opt.value = c; opt.textContent = c === 'projeto' ? 'Projeto' : 'Tipo';
+        if (c === regra.campo) opt.selected = true;
+        campoSel.appendChild(opt);
+      });
+      row.appendChild(campoSel);
+
+      var opSel = document.createElement('select'); opSel.className = 'edit-input view-regra-operador';
+      [['incluir', 'Incluir'], ['excluir', 'Excluir']].forEach(function (p) {
+        var opt = document.createElement('option'); opt.value = p[0]; opt.textContent = p[1];
+        if (p[0] === regra.operador) opt.selected = true;
+        opSel.appendChild(opt);
+      });
+      row.appendChild(opSel);
+
+      var valores = document.createElement('div'); valores.className = 'chip-picker view-regra-valores';
+      opcoesValoresPorCampo(regra.campo).forEach(function (o) {
+        var b = document.createElement('button');
+        b.type = 'button'; b.className = 'chip-opt' + (regra.valores.indexOf(o.value) !== -1 ? ' is-selected' : '');
+        b.setAttribute('data-value', o.value); b.textContent = o.label;
+        valores.appendChild(b);
+      });
+      row.appendChild(valores);
+
+      var rm = document.createElement('button');
+      rm.type = 'button'; rm.className = 'icon-btn icon-btn-danger view-regra-remove'; rm.setAttribute('aria-label', 'Remover regra');
+      rm.innerHTML = '<i class="fad fa-trash"></i>';
+      row.appendChild(rm);
+
+      host.appendChild(row);
+    });
+  }
+  function onRegrasListChange(e) {
+    var row = e.target.closest ? e.target.closest('.view-regra-row') : null;
+    if (!row) return;
+    var idx = Number(row.getAttribute('data-idx'));
+    if (e.target.classList.contains('view-regra-campo')) { VIEW_REGRAS[idx].campo = e.target.value; VIEW_REGRAS[idx].valores = []; renderRegrasEditor(); }
+    else if (e.target.classList.contains('view-regra-operador')) { VIEW_REGRAS[idx].operador = e.target.value; }
+  }
+  function onRegrasListClick(e) {
+    var row = e.target.closest ? e.target.closest('.view-regra-row') : null;
+    if (!row) return;
+    var idx = Number(row.getAttribute('data-idx'));
+    if (e.target.closest('.view-regra-remove')) { VIEW_REGRAS.splice(idx, 1); renderRegrasEditor(); return; }
+    var chip = e.target.closest ? e.target.closest('.chip-opt') : null;
+    if (chip) { toggleMultiChip(chip, VIEW_REGRAS[idx].valores); }
+  }
+  function addRegraRow() { VIEW_REGRAS.push({ campo: 'projeto', operador: 'incluir', valores: [] }); renderRegrasEditor(); }
+
+  function setViewModo(modo) {
+    VIEW_MODO = modo;
+    var btns = document.querySelectorAll('#view-modo-picker .chip-opt');
+    for (var i = 0; i < btns.length; i++) btns[i].classList.toggle('is-selected', btns[i].getAttribute('data-value') === modo);
+  }
+
+  function openViewModal(id) {
+    EDIT_VIEW_ID = id || null;
+    var v = id ? VIEWS.find(function (x) { return x.id === id; }) : null;
+    $('view-modal-title').textContent = v ? 'Editar view' : 'Nova view';
+    $('view-icon-actions').hidden = !v;
+    if (v) resetDeletePendingUI($('view-delete'), '<i class="fad fa-trash"></i>');
+    $('view-nome').value = v ? v.nome : '';
+    setViewModo(v ? v.modo : 'todas');
+    /* Cópia profunda — editar aqui não pode mexer no objeto de VIEWS
+       enquanto o usuário ainda não salvou (Cancelar precisa descartar). */
+    VIEW_REGRAS = v ? JSON.parse(JSON.stringify(v.regras)) : [{ campo: 'projeto', operador: 'incluir', valores: [] }];
+    renderRegrasEditor();
+    $('view-error').textContent = '';
+    setViewSaving(false);
+    $('view-modal').classList.add('open');
+  }
+  function closeViewModal() { $('view-modal').classList.remove('open'); EDIT_VIEW_ID = null; }
+  function setViewSaving(on) { $('view-save').disabled = on; $('view-save').textContent = on ? 'Salvando…' : 'Salvar'; }
+
+  function onViewSubmit(e) {
+    e.preventDefault();
+    var nome = $('view-nome').value.trim();
+    if (!nome) { $('view-error').textContent = 'nome obrigatório'; return; }
+    if (!VIEW_REGRAS.length) { $('view-error').textContent = 'adicione ao menos uma regra'; return; }
+    for (var i = 0; i < VIEW_REGRAS.length; i++) {
+      if (!VIEW_REGRAS[i].valores.length) { $('view-error').textContent = 'toda regra precisa de ao menos um valor selecionado'; return; }
+    }
+
+    setViewSaving(true);
+    $('view-error').textContent = '';
+    var payload = { nome: nome, modo: VIEW_MODO, regras: VIEW_REGRAS };
+    var req = EDIT_VIEW_ID ? apiViewsUpdate(SESSION_PW, EDIT_VIEW_ID, payload) : apiViewsCreate(SESSION_PW, payload);
+
+    req.then(function (j) {
+      var saved = j.view;
+      closeViewModal();
+      var found = false;
+      for (var i = 0; i < VIEWS.length; i++) { if (VIEWS[i].id === saved.id) { VIEWS[i] = saved; found = true; break; } }
+      if (!found) VIEWS.push(saved);
+      ACTIVE_VIEW_ID = saved.id;
+      writeCache();
+      renderAll();
+    }).catch(function (err) {
+      setViewSaving(false);
+      if (err && err.code === 'unauthorized') { onLogout(); return; }
+      $('view-error').textContent = 'erro ao salvar — ' + ((err && err.detail) || 'tente de novo');
+    });
+  }
+  function onViewDeleteClick() {
+    var btn = $('view-delete');
+    var id = EDIT_VIEW_ID;
+    if (!id) return;
+    if (!DELETE_PENDING) { DELETE_PENDING = true; btn.classList.add('confirming'); btn.textContent = 'confirmar?'; return; }
+    btn.disabled = true; btn.textContent = 'Excluindo…';
+    apiViewsDelete(SESSION_PW, id).then(function () {
+      closeViewModal();
+      for (var i = 0; i < VIEWS.length; i++) { if (VIEWS[i].id === id) { VIEWS.splice(i, 1); break; } }
+      if (ACTIVE_VIEW_ID === id) ACTIVE_VIEW_ID = null;
+      writeCache();
+      renderAll();
+    }).catch(function (err) {
+      resetDeletePendingUI(btn, '<i class="fad fa-trash"></i>');
+      if (err && err.code === 'unauthorized') { onLogout(); return; }
+      window.alert('erro ao excluir — ' + ((err && err.detail) || 'tente de novo'));
+    });
+  }
 
   /* ── Visão · Lista (tabela) ──────────────────────────────────── */
   function renderListView() {
@@ -455,6 +697,7 @@
   }
 
   function renderAll() {
+    renderViewBadges();
     buildTipoFilterChips();
     renderListView();
     renderCardsView();
@@ -476,7 +719,7 @@
   function writeCache() {
     try {
       localStorage.setItem(CACHE_KEY, JSON.stringify({
-        v: CACHE_V, fetched_at: new Date().toISOString(), projetos: PROJETOS, notas: NOTAS,
+        v: CACHE_V, fetched_at: new Date().toISOString(), projetos: PROJETOS, notas: NOTAS, views: VIEWS,
       }));
     } catch (_e) { /* quota/indisponível: cache só em memória nesta sessão */ }
   }
@@ -495,15 +738,17 @@
     if (cache) {
       PROJETOS = cache.projetos || [];
       NOTAS = cache.notas || [];
+      VIEWS = cache.views || [];
       renderProjetoSelect();
       renderAll();
       updateFetchedLabel();
       return Promise.resolve();
     }
     setLoading(true);
-    return Promise.all([apiProjetosQuery(SESSION_PW), apiNotasQuery(SESSION_PW)]).then(function (res) {
+    return Promise.all([apiProjetosQuery(SESSION_PW), apiNotasQuery(SESSION_PW), apiViewsQuery(SESSION_PW)]).then(function (res) {
       PROJETOS = res[0].projetos || [];
       NOTAS = res[1].notas || [];
+      VIEWS = res[2].views || [];
       renderProjetoSelect();
       renderAll();
       writeCache();
@@ -531,9 +776,10 @@
     NOT_REFRESHING = true;
     var btn = $('refresh-btn');
     if (btn) { btn.disabled = true; btn.classList.add('spinning'); }
-    Promise.all([apiProjetosQuery(SESSION_PW), apiNotasQuery(SESSION_PW)]).then(function (res) {
+    Promise.all([apiProjetosQuery(SESSION_PW), apiNotasQuery(SESSION_PW), apiViewsQuery(SESSION_PW)]).then(function (res) {
       PROJETOS = res[0].projetos || [];
       NOTAS = res[1].notas || [];
+      VIEWS = res[2].views || [];
       writeCache();
       renderProjetoSelect();
       renderAll();
@@ -879,7 +1125,8 @@
     localStorage.removeItem(LS_KEY);
     dropCache();
     SESSION_PW = ''; PROJETOS = []; NOTAS = []; PROJETO_FILTRO = ''; TIPO_FILTRO.clear(); BUSCA_FILTRO = '';
-    closeAttrsModal(); closeContentModal(); closeDetailModal();
+    VIEWS = []; ACTIVE_VIEW_ID = null;
+    closeAttrsModal(); closeContentModal(); closeDetailModal(); closeViewModal();
     restoreListView();
     if (parseNotaIdFromUrl()) history.replaceState(null, '', 'notas.html'); /* limpa ?nota= sem empilhar histórico */
     $('gate-input').value = ''; $('gate-remember').checked = false; $('gate-error').textContent = '';
@@ -949,6 +1196,20 @@
       if (chip) toggleTipoFilter(chip.getAttribute('data-tipo'));
     });
 
+    $('view-filters').addEventListener('click', onViewBadgeClick);
+    $('view-add-regra').addEventListener('click', addRegraRow);
+    $('view-regras-list').addEventListener('change', onRegrasListChange);
+    $('view-regras-list').addEventListener('click', onRegrasListClick);
+    $('view-modo-picker').addEventListener('click', function (e) {
+      var btn = e.target.closest ? e.target.closest('.chip-opt') : null;
+      if (btn) setViewModo(btn.getAttribute('data-value'));
+    });
+    $('view-form').addEventListener('submit', onViewSubmit);
+    $('view-cancel').addEventListener('click', closeViewModal);
+    $('view-modal-close').addEventListener('click', closeViewModal);
+    $('view-modal').addEventListener('click', function (e) { if (e.target === $('view-modal')) closeViewModal(); });
+    $('view-delete').addEventListener('click', onViewDeleteClick);
+
     $('nota-tipo-picker').addEventListener('click', function (e) {
       var btn = e.target.closest ? e.target.closest('.chip-opt') : null;
       if (btn) toggleMultiChip(btn, NOTA_TIPO_SEL);
@@ -990,6 +1251,7 @@
       if (e.key !== 'Escape') return;
       if ($('nota-attrs-modal').classList.contains('open')) { closeAttrsModal(); return; }
       if ($('nota-content-modal').classList.contains('open')) { closeContentModal(); return; }
+      if ($('view-modal').classList.contains('open')) { closeViewModal(); return; }
       if ($('detail-modal').classList.contains('open')) { closeDetailModal(); return; }
       if (!$('nota-leitura-view').hidden) { closeLeituraView(); return; }
     });

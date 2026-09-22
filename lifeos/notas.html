@@ -179,6 +179,17 @@
     .chip-opt:hover { color: var(--text); }
     .chip-opt.is-selected { background: var(--gold); border-color: var(--gold); color: #14120f; font-weight: 500; }
 
+    /* ── Editor de regras da view (#view-modal) ── */
+    .view-regras-list { display: flex; flex-direction: column; gap: 12px; margin-bottom: 10px; }
+    .view-regra-row {
+      display: flex; flex-wrap: wrap; gap: 8px; align-items: flex-start;
+      padding: 10px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface-2);
+    }
+    .view-regra-row .view-regra-campo,
+    .view-regra-row .view-regra-operador { flex: 0 0 auto; width: auto; min-width: 110px; }
+    .view-regra-row .view-regra-valores { flex: 1 1 100%; }
+    .view-regra-row .icon-btn { width: 30px; height: 30px; font-size: 12px; margin-left: auto; }
+
     .foot { margin-top: 48px; padding-top: 24px; border-top: 1px solid var(--border); display: flex; align-items: center; justify-content: center; gap: 12px; font-size: 10px; letter-spacing: 0.25em; text-transform: uppercase; color: var(--mute); }
     .foot .icon-btn { width: 28px; height: 28px; font-size: 12px; text-transform: none; letter-spacing: 0; }
 
@@ -582,6 +593,8 @@
     </div>
   </section>
 
+  <div id="view-filters" class="filters"></div>
+
   <div id="tipo-filters" class="filters" hidden></div>
 
   <div class="notas-grid" id="notas-cards-view"></div>
@@ -679,6 +692,49 @@
      editar, acima da linha de Cancelar/Salvar, separada por uma
      divisória. -->
 
+<!-- ───────────────────────── MODAL · VIEW (criar/editar/excluir) ─────────────────────────
+     Views salvas — filtros combináveis (Projeto/Tipo, incluir/excluir,
+     "todas as regras"/"qualquer regra") que persistem via lifeos-views e
+     alternam por badge (#view-filters, ver notas.js). Gerido só aqui e em
+     tarefas.html — o hub (lifeos.html) só alterna entre views já criadas. -->
+<div id="view-modal" class="modal" role="dialog" aria-modal="true">
+  <div class="modal-panel pdet-panel attrs-panel">
+    <div class="pdet-banner">
+      <button type="button" id="view-modal-close" class="pdet-close" aria-label="Fechar"><i class="fad fa-times"></i></button>
+      <div class="pdet-banner-icon"><i class="fad fa-filter"></i></div>
+    </div>
+    <div class="modal-body">
+      <div class="pdet-head"><div class="pdet-name" id="view-modal-title">Nova view</div></div>
+      <form id="view-form" class="pdet-body-pad" autocomplete="off">
+        <div class="edit-field">
+          <label class="edit-label" for="view-nome">Nome</label>
+          <input type="text" id="view-nome" class="edit-input" maxlength="80" autocomplete="off">
+        </div>
+        <div class="edit-field">
+          <label class="edit-label">Corresponde a</label>
+          <div class="chip-picker" id="view-modo-picker">
+            <button type="button" class="chip-opt" data-value="todas">Todas as regras</button>
+            <button type="button" class="chip-opt" data-value="qualquer">Qualquer regra</button>
+          </div>
+        </div>
+        <div class="edit-field">
+          <label class="edit-label">Regras</label>
+          <div id="view-regras-list" class="view-regras-list"></div>
+          <button type="button" id="view-add-regra" class="chip chip-clear">+ regra</button>
+        </div>
+        <div id="view-error" class="edit-error"></div>
+        <div class="edit-actions-icons" id="view-icon-actions" hidden>
+          <button type="button" id="view-delete" class="icon-btn icon-btn-danger" aria-label="Excluir view"><i class="fad fa-trash"></i></button>
+        </div>
+        <div class="edit-actions">
+          <button type="button" id="view-cancel" class="edit-btn edit-btn-ghost">Cancelar</button>
+          <button type="submit" id="view-save" class="edit-btn edit-btn-primary">Salvar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
 <div id="nota-attrs-modal" class="modal" role="dialog" aria-modal="true">
   <div class="modal-panel pdet-panel attrs-panel">
     <div class="pdet-banner">
@@ -752,7 +808,7 @@
 
 <script src="https://cdn.jsdelivr.net/npm/marked@12.0.2/marked.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/easymde@2.18.0/dist/easymde.min.js"></script>
-<script src="../assets/js/notas.js?v=20260918f"></script>
+<script src="../assets/js/notas.js?v=20260922"></script>
 <script src="../assets/js/back-to-top.js?v=20260617"></script>
 
 <script>

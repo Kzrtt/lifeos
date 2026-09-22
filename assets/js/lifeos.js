@@ -38,6 +38,7 @@
   var TAREFAS_FN = FN_BASE + 'lifeos-tarefas';
   var MANIFESTACOES_FN = FN_BASE + 'lifeos-manifestacoes';
   var NOTAS_FN = FN_BASE + 'lifeos-notas';
+  var VIEWS_FN = FN_BASE + 'lifeos-views';
   var ANON_KEY = CFG.anonKey;
   var LS_KEY = CFG.sessionKey; /* mesma chave de /financas e /eventos — "lembrar" vale nas três */
 
@@ -197,6 +198,86 @@
   var NOT_TIPO_CHART = null;  /* barras · distribuição de Notas por tipo (#not-chart-tipo) */
   var NOT_PROJETO_CHART = null;  /* barras · distribuição de Notas por projeto (#not-chart-projeto), 6ª rodada */
   var NOT_PROJETO_FILTRO = ''; /* '' = todos os projetos — filtro da mini-lista #not-recent, não persiste (reseta ao deslogar) */
+  /* Views salvas (filtros combináveis) — o hub só ALTERNA entre views já
+     criadas em notas.html/tarefas.html (sem criar/editar/excluir aqui, ver
+     LIFEOS.md). Duas listas independentes porque são tabelas diferentes.
+     Compõe (E lógico) com NOT_PROJETO_FILTRO/TAR_PROJETO_FILTRO — os dois
+     widgets do hub já filtram sobre um array COMPLETO em memória
+     (NOTAS_HUB/TAREFAS_ALL), então não há o problema de "backend busca por
+     projeto" que tarefas.html tem (ver setActiveView lá). */
+  var VIEWS_NOTAS = [];
+  var ACTIVE_VIEW_NOTAS_ID = null;
+  var VIEWS_TAREFAS = [];
+  var ACTIVE_VIEW_TAREFAS_ID = null;
+
+  /* Motor de regras — mesma lógica isolada de notas.js/tarefas.js (ver
+     LIFEOS.md §2), uma variante de getCampo por tabela já que aqui um
+     arquivo só serve as duas. */
+  function getCampoNota(campo, n) {
+    if (campo === 'projeto') return n.projeto_ids || [];
+    if (campo === 'tipo') return n.tipo || [];
+    return [];
+  }
+  function getCampoTarefa(campo, t) {
+    if (campo === 'projeto') return [t.projeto_id];
+    if (campo === 'tipo') return t.tipo || [];
+    if (campo === 'status') return [t.status];
+    return [];
+  }
+  function matchesRegraView(campoVal, regra) {
+    var arr = Array.isArray(campoVal) ? campoVal : [campoVal];
+    var bate = regra.valores.some(function (v) { return arr.indexOf(v) !== -1; }) ||
+      (regra.campo === 'projeto' && !arr.length && regra.valores.indexOf('__sem_projeto__') !== -1);
+    return regra.operador === 'excluir' ? !bate : bate;
+  }
+  function matchesViewGeneric(view, getCampo, row) {
+    if (!view || !view.regras.length) return true;
+    var results = view.regras.map(function (r) { return matchesRegraView(getCampo(r.campo, row), r); });
+    return view.modo === 'qualquer' ? results.some(Boolean) : results.every(Boolean);
+  }
+  function activeViewNotas() {
+    if (!ACTIVE_VIEW_NOTAS_ID) return null;
+    return VIEWS_NOTAS.find(function (v) { return v.id === ACTIVE_VIEW_NOTAS_ID; }) || null;
+  }
+  function activeViewTarefas() {
+    if (!ACTIVE_VIEW_TAREFAS_ID) return null;
+    return VIEWS_TAREFAS.find(function (v) { return v.id === ACTIVE_VIEW_TAREFAS_ID; }) || null;
+  }
+
+  /* Badge row genérica — "Todas" (fixa) + uma por `views`, sem "+ Nova
+     view" (o hub só alterna, gestão mora em notas.html/tarefas.html, ver
+     LIFEOS.md). `onPick(id|null)` troca a view ativa e re-renderiza só o
+     widget daquela tabela. */
+  function renderViewBadgesGeneric(hostId, views, activeId, onPick) {
+    var host = $(hostId); if (!host) return;
+    host.innerHTML = '';
+    var lbl = document.createElement('span'); lbl.className = 'filters-label'; lbl.textContent = 'view:';
+    host.appendChild(lbl);
+    var todas = document.createElement('button');
+    todas.type = 'button'; todas.className = 'chip' + (!activeId ? ' active' : '');
+    todas.textContent = 'Todas';
+    todas.addEventListener('click', function () { onPick(null); });
+    host.appendChild(todas);
+    views.forEach(function (v) {
+      var b = document.createElement('button');
+      b.type = 'button'; b.className = 'chip' + (v.id === activeId ? ' active' : '');
+      b.textContent = v.nome;
+      b.addEventListener('click', function () { onPick(v.id); });
+      host.appendChild(b);
+    });
+  }
+  function renderViewBadgesNotas() {
+    renderViewBadgesGeneric('not-view-filters', VIEWS_NOTAS, ACTIVE_VIEW_NOTAS_ID, function (id) {
+      ACTIVE_VIEW_NOTAS_ID = id;
+      renderNotasRecentList();
+    });
+  }
+  function renderViewBadgesTarefas() {
+    renderViewBadgesGeneric('tar-view-filters', VIEWS_TAREFAS, ACTIVE_VIEW_TAREFAS_ID, function (id) {
+      ACTIVE_VIEW_TAREFAS_ID = id;
+      renderTarMiniKanban();
+    });
+  }
   /* CRUD de Tarefas direto pelo hub (exceção documentada em LIFEOS.md,
      set/2026 — decisão explícita do autor) — estado do #tarefa-modal
      (criar/editar) e do detail-modal (que ganhou botões Editar/Excluir). */
@@ -510,6 +591,10 @@
     }
     return { ok: true, notas: MOCK_NOTAS.slice() };
   }
+  /* Hub só ALTERNA entre views já criadas (sem CRUD aqui — ver LIFEOS.md/
+     view-modal em notas.js/tarefas.js) — mock fica vazio de propósito, só
+     pra não quebrar a chamada em dev local. */
+  function mockViewsQuery() { return { ok: true, views: [] }; }
   /* create/update/delete de Projetos — CRUD completo movido de tarefas.js
      pra cá em set/2026 (ver LIFEOS.md); cópia isolada do mesmo mock. */
   function mockProjetosCreate(p) {
@@ -754,6 +839,23 @@
       return j;
     });
   }
+  /* Views: hub só ALTERNA (sem create/update/delete aqui — ver LIFEOS.md,
+     gestão mora só em notas.html/tarefas.html). */
+  function apiViewsQuery(pw, tabela) {
+    if (IS_LOCAL_DEV) return mockDelay(mockViewsQuery());
+    return fetch(VIEWS_FN, {
+      method: 'POST',
+      headers: { 'apikey': ANON_KEY, 'Authorization': 'Bearer ' + ANON_KEY, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token: pw, tabela: tabela }),
+    }).then(function (res) {
+      if (res.status === 401) return Promise.reject({ code: 'unauthorized' });
+      if (!res.ok) return Promise.reject({ code: 'server', detail: String(res.status) });
+      return res.json();
+    }).then(function (j) {
+      if (!j || !j.ok) return Promise.reject({ code: 'server', detail: (j && j.error) || 'resposta inválida' });
+      return j;
+    });
+  }
   /* CREATE de Manifestações — banner_base64/banner_content_type são
      opcionais (undefined quando nenhum arquivo foi escolhido, ver
      onManifestacaoSubmit). Upload do banner é best-effort no servidor —
@@ -952,9 +1054,12 @@
       });
       notSel.value = NOT_PROJETO_FILTRO;
     }
-    var notasFiltradas = NOT_PROJETO_FILTRO
-      ? NOTAS_HUB.filter(function (n) { return (n.projeto_ids || []).indexOf(NOT_PROJETO_FILTRO) !== -1; })
-      : NOTAS_HUB;
+    renderViewBadgesNotas();
+    var viewNotas = activeViewNotas();
+    var notasFiltradas = NOTAS_HUB.filter(function (n) {
+      if (NOT_PROJETO_FILTRO && (n.projeto_ids || []).indexOf(NOT_PROJETO_FILTRO) === -1) return false;
+      return matchesViewGeneric(viewNotas, getCampoNota, n);
+    });
 
     var recentHost = $('not-recent'); recentHost.innerHTML = '';
     if (!notasFiltradas.length) {
@@ -1892,7 +1997,12 @@
     var board = $('tar-mini-board');
     if (!board) return;
     board.innerHTML = '';
-    var rows = TAR_PROJETO_FILTRO ? TAREFAS_ALL.filter(function (t) { return t.projeto_id === TAR_PROJETO_FILTRO; }) : TAREFAS_ALL;
+    renderViewBadgesTarefas();
+    var viewTarefas = activeViewTarefas();
+    var rows = TAREFAS_ALL.filter(function (t) {
+      if (TAR_PROJETO_FILTRO && t.projeto_id !== TAR_PROJETO_FILTRO) return false;
+      return matchesViewGeneric(viewTarefas, getCampoTarefa, t);
+    });
     TAR_STATUS.forEach(function (status) {
       var col = document.createElement('div'); col.className = 'tar-mini-col'; col.setAttribute('data-status', status);
       var head = document.createElement('div'); head.className = 'tar-mini-col-head';
@@ -2686,7 +2796,7 @@
          idempotente (só busca o que falta), então isso não gera as 6
          chamadas de novo, só as que realmente faltam (geralmente zero). */
   var HUB_CACHE_KEY = 'lifeos_hub_cache';
-  var HUB_CACHE_V = 2; /* bump em set/2026: cache ganhou a 6ª fonte (notas) */
+  var HUB_CACHE_V = 3; /* bump: cache ganhou os campos views_notas/views_tarefas */
   function readHubCache() {
     try {
       var raw = localStorage.getItem(HUB_CACHE_KEY);
@@ -2707,6 +2817,8 @@
         tarefas: TAREFAS_ALL,
         manifestacoes: MANIFESTACOES,
         notas: NOTAS_HUB,
+        views_notas: VIEWS_NOTAS,
+        views_tarefas: VIEWS_TAREFAS,
       }));
     } catch (_e) { /* quota/indisponível: cache só em memória nesta sessão */ }
   }
@@ -2731,8 +2843,10 @@
       apiTarefasQuery(SESSION_PW),
       apiManifestacoesQuery(SESSION_PW),
       apiNotasQuery(SESSION_PW),
+      apiViewsQuery(SESSION_PW, 'notas'),
+      apiViewsQuery(SESSION_PW, 'tarefas'),
     ]).then(function (res) {
-      var fin = res[0], evt = res[1], proj = res[2], tar = res[3], manif = res[4], notas = res[5];
+      var fin = res[0], evt = res[1], proj = res[2], tar = res[3], manif = res[4], notas = res[5], viewsNotas = res[6], viewsTarefas = res[7];
       MROWS = fin.movimentacoes || [];
       SALDO_ABERTURA = fin.saldo_abertura || 0;
       FIN_PREV_ROWS = fin.movimentacoes_prev || [];
@@ -2744,6 +2858,8 @@
       TAREFAS_ALL = tar.tarefas || [];
       MANIFESTACOES = manif.manifestacoes || [];
       NOTAS_HUB = notas.notas || [];
+      VIEWS_NOTAS = viewsNotas.views || [];
+      VIEWS_TAREFAS = viewsTarefas.views || [];
     });
   }
 
@@ -2766,6 +2882,8 @@
     TAREFAS_ALL = cache.tarefas || [];
     MANIFESTACOES = cache.manifestacoes || [];
     NOTAS_HUB = cache.notas || [];
+    VIEWS_NOTAS = cache.views_notas || [];
+    VIEWS_TAREFAS = cache.views_tarefas || [];
     EVENTOS = (cache.eventos && cache.eventos.eventos) || [];
     HUB_EVENTOS_LOADED = (cache.eventos && cache.eventos.loaded) || {};
 
@@ -2909,6 +3027,7 @@
     addBtnReset.innerHTML = 'Adicionar <i class="fad fa-plus"></i>';
     addBtnReset.setAttribute('aria-label', 'Novo evento');
     TAR_PROJETO_FILTRO = ''; DRAG_TAREFA_ID = null;
+    VIEWS_NOTAS = []; VIEWS_TAREFAS = []; ACTIVE_VIEW_NOTAS_ID = null; ACTIVE_VIEW_TAREFAS_ID = null;
     /* não chapa 'Em Progresso': o status pode ter sido renomeado na tela
        de Tags, e o filtro precisa apontar pra algo que existe. */
     PROJ_STATUS_FILTRO = STATUS_PROJETO[1] || STATUS_PROJETO[0] || '';
