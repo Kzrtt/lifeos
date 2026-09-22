@@ -299,10 +299,14 @@ on conflict (id) do nothing;
 -- Bucket da galeria (galeria.html). Publico para leitura pelo mesmo motivo:
 -- as URLs sao renderizadas direto em <img> numa pagina publica.
 --
--- Diferente de `manifestacoes`, a ESCRITA aqui vem do browser com a anon
--- key, atras do gate de senha da propria pagina (RPC check_page_access com
--- o slug 'gallery'). E o unico ponto do sistema que escreve em Storage sem
--- passar por Edge Function -- desenho herdado, nao um padrao a repetir.
+-- ESCRITA: passa pela Edge Function `gallery-upload` (service role) --
+-- ver migration 0005_gallery_lockdown.sql. NAO cria policy nenhuma de
+-- INSERT pra `anon` aqui (nem na tabela `gallery`, nem neste bucket) --
+-- só SELECT é liberado pra `anon`, de propósito. Um desenho ANTERIOR
+-- escrevia direto do browser com a anon key (sem Edge Function nenhuma);
+-- ficou sem policy de escrita nem aqui nem na tabela desde o início
+-- deste arquivo, o que quebrava o upload de cara -- não repita esse
+-- padrão se algum dia mexer nisso de novo.
 insert into storage.buckets (id, name, public)
 values ('gallery', 'gallery', true)
 on conflict (id) do nothing;

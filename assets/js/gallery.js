@@ -4,15 +4,20 @@
  * Camada de API para a galeria com backend Supabase.
  * Expõe: window.LifeOSGallery = { fetchImages, uploadImage }
  *
- * Sem dependências externas. Usa Supabase REST API + Storage API diretamente.
+ * LEITURA (fetchImages) segue direto via REST + anon key — a tabela
+ * `gallery` permite SELECT público (policy `anon_select_gallery`), de
+ * propósito (a galeria é pública pra visitantes).
  *
- * Tabela: gallery  → colunas: id (uuid), image_url (text), updated_at (timestamptz)
- * Bucket: gallery  → público para leitura; anon key para escrita
- *
- * Fluxo de upload:
- *   1. Valida senha via RPC check_access_token
- *   2. Faz upload do arquivo para o bucket 'gallery'
- *   3. Obtém a URL pública e insere registro na tabela 'gallery'
+ * ESCRITA (uploadImage) passa pela Edge Function `gallery-upload`
+ * (service role) — NÃO insere mais direto na tabela nem sobe pro
+ * Storage com a anon key (set/2026: as duas policies de escrita para
+ * `anon` foram fechadas — ver `supabase/migrations/
+ * 0005_gallery_lockdown.sql` e `supabase/functions/gallery-upload/
+ * index.ts`. Escrever direto com a anon key exigia a tabela e o bucket
+ * ficarem abertos pra qualquer um que lesse a anon key no código-fonte
+ * do site, o mesmo anti-padrão que o LifeOS evita em todo o resto do
+ * projeto). O arquivo é lido local via FileReader e enviado em base64,
+ * mesmo padrão do banner de Manifestações no LifeOS.
  */
 (function (global) {
   'use strict';
@@ -21,8 +26,8 @@
   const CFG          = window.LIFEOS_CONFIG || {};
   const SUPABASE_URL = CFG.supabaseUrl || '';
   const ANON_KEY     = CFG.anonKey || '';
-  const BUCKET       = 'gallery';
   const TABLE        = 'gallery';
+  const UPLOAD_FN    = SUPABASE_URL + '/functions/v1/gallery-upload';
 
   const BASE_HEADERS = {
     'apikey':        ANON_KEY,
@@ -49,87 +54,49 @@
     return res.json();
   }
 
-  /* ── checkPassword ────────────────────────────────────────────
-   * Valida a senha via check_page_access com o slug 'gallery'.
-   * Mestre → sempre passa. Token limitado → passa se tiver 'gallery'
-   * em token_pages.
-   * @param {string} password
-   * @returns {Promise<boolean>}
-   */
-  async function checkPassword(password) {
-    const res = await fetch(SUPABASE_URL + '/rest/v1/rpc/check_page_access', {
-      method:  'POST',
-      headers: jsonHeaders(),
-      body:    JSON.stringify({ p_token: password, p_page: 'gallery' }),
+  /* Lê um File local como base64 puro (sem o prefixo data:...;base64,) —
+     mesmo padrão de readFileAsBase64 no upload de banner de
+     Manifestações (lifeos.js). */
+  function readFileAsBase64(file) {
+    return new Promise(function (resolve, reject) {
+      const reader = new FileReader();
+      reader.onload = function () {
+        const result = String(reader.result || '');
+        const idx = result.indexOf(',');
+        resolve(idx === -1 ? result : result.slice(idx + 1));
+      };
+      reader.onerror = function () { reject(new Error('falha ao ler o arquivo')); };
+      reader.readAsDataURL(file);
     });
-    if (!res.ok) throw new Error('Falha na verificação de senha: HTTP ' + res.status);
-    return res.json();
-  }
-
-  /* ── uploadToStorage ──────────────────────────────────────────
-   * Faz upload de um arquivo para o bucket 'gallery' no Supabase Storage.
-   * Gera um nome único com timestamp + sufixo aleatório.
-   * @param {File} file
-   * @returns {Promise<string>} URL pública do arquivo
-   */
-  async function uploadToStorage(file) {
-    const ext      = (file.name.split('.').pop() || 'jpg').toLowerCase();
-    const suffix   = Math.random().toString(36).slice(2, 7);
-    const filename = 'img-' + Date.now() + '-' + suffix + '.' + ext;
-
-    const res = await fetch(
-      SUPABASE_URL + '/storage/v1/object/' + BUCKET + '/' + filename,
-      {
-        method:  'POST',
-        headers: Object.assign({}, BASE_HEADERS, {
-          'Content-Type': file.type || 'image/jpeg',
-          'x-upsert':     'false',
-        }),
-        body: file,
-      }
-    );
-
-    if (!res.ok) {
-      const err = await res.json().catch(function () { return {}; });
-      throw new Error(err.error || err.message || 'Falha no upload: HTTP ' + res.status);
-    }
-
-    return SUPABASE_URL + '/storage/v1/object/public/' + BUCKET + '/' + filename;
-  }
-
-  /* ── insertRecord ─────────────────────────────────────────────
-   * Insere uma linha na tabela gallery com a URL pública da imagem.
-   * @param {string} imageUrl
-   */
-  async function insertRecord(imageUrl) {
-    const res = await fetch(SUPABASE_URL + '/rest/v1/' + TABLE, {
-      method:  'POST',
-      headers: jsonHeaders({ 'Prefer': 'return=minimal' }),
-      body:    JSON.stringify({ image_url: imageUrl }),
-    });
-    if (!res.ok) {
-      const err = await res.json().catch(function () { return {}; });
-      throw new Error(err.message || 'Falha ao registrar imagem: HTTP ' + res.status);
-    }
   }
 
   /* ── uploadImage ──────────────────────────────────────────────
-   * Fluxo completo: valida senha → upload → insere no banco.
-   * Lança erro se a senha for inválida ou qualquer etapa falhar.
+   * Fluxo completo: lê o arquivo local em base64 e envia junto da senha
+   * pra Edge Function gallery-upload — ela valida a senha (via
+   * check_page_access, mesma regra de antes: mestre OU token escopado
+   * a 'gallery'), sobe pro Storage e registra na tabela, tudo do lado
+   * do servidor com a service role.
    * @param {File}   file
    * @param {string} password
    * @returns {Promise<string>} URL pública da imagem enviada
    */
   async function uploadImage(file, password) {
-    const valid = await checkPassword(password);
-    if (!valid) {
+    const base64 = await readFileAsBase64(file);
+    const res = await fetch(UPLOAD_FN, {
+      method:  'POST',
+      headers: jsonHeaders(),
+      body:    JSON.stringify({ token: password, image_base64: base64, content_type: file.type || 'image/jpeg' }),
+    });
+    const j = await res.json().catch(function () { return {}; });
+    if (res.status === 401 || (j && j.error === 'unauthorized')) {
       const err = new Error('senha incorreta');
       err.isAuth = true;
       throw err;
     }
-    const url = await uploadToStorage(file);
-    await insertRecord(url);
-    return url;
+    if (!res.ok || !j || !j.ok) {
+      throw new Error((j && j.error) || 'Falha ao enviar imagem: HTTP ' + res.status);
+    }
+    return j.image_url;
   }
 
   /* ── Exporta ─────────────────────────────────────────────────── */
