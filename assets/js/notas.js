@@ -998,6 +998,7 @@
 
     $('notas-head').hidden = true;
     $('notas-filtros-bar').hidden = true;
+    $('view-filters').hidden = true;
     $('tipo-filters').hidden = true;
     $('notas-cards-view').hidden = true;
     $('notas-lista-view').hidden = true;
@@ -1018,6 +1019,7 @@
     $('nota-leitura-view').hidden = true;
     $('notas-head').hidden = false;
     $('notas-filtros-bar').hidden = false;
+    $('view-filters').hidden = false;
     $('topbar-back-label').textContent = 'LifeOS';
     buildTipoFilterChips();     /* só reaparece se houver o que filtrar — mesma lógica de sempre */
     switchNotasView(NOTAS_VIEW); /* volta pra Cards ou Lista, o que estava ativo antes de entrar na leitura */
