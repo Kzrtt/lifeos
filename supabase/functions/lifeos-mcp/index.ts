@@ -4,11 +4,20 @@
 // -- pensado pra ser cadastrado como "custom connector" em claude.ai (Settings
 // > Connectors > Add custom connector, colando a URL desta function + token).
 // Expoe tools de CONSULTA sobre todo o sistema (Notas, Tarefas, Projetos,
-// Eventos, Manifestações, Finanças) e duas tools de ESCRITA, as duas
-// restritas a Notas: create_nota e update_nota. Nenhum outro domínio ganha
-// create/update/delete por aqui -- decisão explícita do autor (8ª rodada,
-// set/2026): "vamos deixar apenas o notas com tool para create" (9ª rodada,
-// set/2026: estendida pra update_nota, mesmo domínio, mesmo racional).
+// Eventos, Manifestações, Finanças) e tools de ESCRITA em quatro domínios:
+// Notas (create_nota, update_nota), Tarefas (create_tarefa, update_tarefa),
+// Eventos (create_evento, update_evento) e Finanças (create_movimentacao,
+// update_movimentacao). Projetos e Manifestações continuam só-leitura.
+// Nenhum domínio ganha DELETE por aqui -- escrita destrutiva via MCP segue
+// fora de escopo, decisão mantida mesmo depois de abrir create/update pra
+// além de Notas (22/set/2026).
+//
+// Histórico: até 22/set/2026 só Notas tinha tool de escrita -- decisão
+// explícita do autor (8ª rodada, set/2026): "vamos deixar apenas o notas com
+// tool para create" (9ª rodada, set/2026: estendida pra update_nota, mesmo
+// domínio, mesmo racional). Revertida a pedido do próprio autor em 22/set/2026
+// pra cobrir Tarefas, Eventos e Movimentações também -- ver commit desta
+// mudança pro contexto completo.
 //
 // update_nota é SUBSTITUIÇÃO COMPLETA, nunca um patch parcial -- todos os
 // campos (name/tipo/projetos/conteudo_md) são obrigatórios em toda chamada,
@@ -20,6 +29,15 @@
 // é `conteudo_md`: exigi-lo sempre, por completo, é o que garante que o
 // modelo nunca envie só um trecho/diff do texto -- um envio parcial
 // apagaria o resto da nota.
+//
+// update_tarefa/update_evento/update_movimentacao já são PATCH parcial de
+// verdade (só os campos enviados mudam) -- ao contrário de update_nota, não
+// há aqui nenhum campo de texto livre grande cujo envio parcial arriscasse
+// apagar conteúdo, e esse é o mesmo contrato que lifeos-tarefas/
+// lifeos-movimentacoes já expõem pro próprio app (lifeos-eventos é exceção:
+// não tinha "update" nenhum até aqui -- ver handleUpdateEvento). Tarefa
+// nunca troca de projeto por update (o app também não permite isso hoje);
+// pra mover, seria preciso recriar.
 //
 // Transporte: Streamable HTTP, SEM estado entre chamadas (sem Mcp-Session-Id)
 // -- cada POST e' um JSON-RPC 2.0 completo e independente, o que combina bem
@@ -267,6 +285,44 @@ function buildTools() {
     },
   },
   {
+    name: "create_tarefa",
+    description:
+      "Cria uma nova tarefa no LifeOS. Toda tarefa é obrigatoriamente " +
+      "vinculada a um projeto existente -- use search_projetos antes se " +
+      "não souber o nome exato. status, quando omitido, começa como " +
+      "'Não Iniciado' (mesmo padrão da tela).",
+    inputSchema: {
+      type: "object",
+      properties: {
+        name: { type: "string", description: "Nome da tarefa." },
+        projeto: { type: "string", description: "Nome (ou trecho único) do projeto ao qual vincular a tarefa." },
+        status: { type: "string", enum: VOCAB.tarefa_status, description: "Status inicial (padrão: 'Não Iniciado')." },
+        tipo: { type: "array", items: { type: "string", enum: VOCAB.tarefa_tipo }, description: "Tipos/tags da tarefa (opcional, pode ficar vazio)." },
+        data_entrega: { type: "string", description: "Data de entrega YYYY-MM-DD (opcional)." },
+      },
+      required: ["name", "projeto"],
+    },
+  },
+  {
+    name: "update_tarefa",
+    description:
+      "Atualiza uma tarefa existente do LifeOS -- PATCH parcial: só os " +
+      "campos enviados mudam, os demais ficam como estão. Não é possível " +
+      "trocar o projeto vinculado por aqui (o app também não permite " +
+      "isso hoje).",
+    inputSchema: {
+      type: "object",
+      properties: {
+        id: { type: "string", description: "id da tarefa a editar (retornado por search_tarefas)." },
+        name: { type: "string", description: "Novo nome da tarefa." },
+        status: { type: "string", enum: VOCAB.tarefa_status, description: "Novo status." },
+        tipo: { type: "array", items: { type: "string", enum: VOCAB.tarefa_tipo }, description: "Conjunto final de tipos/tags -- substitui o atual por completo (pode ser [])." },
+        data_entrega: { type: "string", description: "Nova data de entrega YYYY-MM-DD, ou \"\"/null pra remover." },
+      },
+      required: ["id"],
+    },
+  },
+  {
     name: "search_projetos",
     description: "Busca projetos do LifeOS por nome, status e tags. Todos os filtros são opcionais e combináveis.",
     inputSchema: {
@@ -294,6 +350,45 @@ function buildTools() {
         data_fim: { type: "string", description: "Data máxima YYYY-MM-DD (inclusive)." },
         limit: { type: "integer", description: "Máximo de resultados (padrão 20, máximo 50)." },
       },
+    },
+  },
+  {
+    name: "create_evento",
+    description:
+      "Cria um novo evento no calendário do LifeOS. date_fim é opcional " +
+      "(só pra eventos de vários dias -- quando enviado, não pode ser " +
+      "anterior a date). projeto é opcional -- nem todo evento pertence " +
+      "a um projeto.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        name: { type: "string", description: "Nome do evento." },
+        date: { type: "string", description: "Data de início, YYYY-MM-DD." },
+        date_fim: { type: "string", description: "Data final YYYY-MM-DD, só para eventos de vários dias (opcional)." },
+        tipo: { type: "string", enum: VOCAB.evento_tipo, description: "Tipo do evento." },
+        projeto: { type: "string", description: "Nome (ou trecho único) de um projeto vinculado (opcional)." },
+      },
+      required: ["name", "date", "tipo"],
+    },
+  },
+  {
+    name: "update_evento",
+    description:
+      "Atualiza um evento existente do LifeOS -- PATCH parcial: só os " +
+      "campos enviados mudam. Envie date_fim como \"\" ou null pra " +
+      "remover a data final (voltar a ser evento de um dia só); envie " +
+      "projeto como \"\" ou null pra desvincular do projeto atual.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        id: { type: "string", description: "id do evento a editar (retornado por search_eventos)." },
+        name: { type: "string", description: "Novo nome do evento." },
+        date: { type: "string", description: "Nova data de início, YYYY-MM-DD." },
+        date_fim: { type: "string", description: "Nova data final YYYY-MM-DD, ou \"\"/null pra remover." },
+        tipo: { type: "string", enum: VOCAB.evento_tipo, description: "Novo tipo do evento." },
+        projeto: { type: "string", description: "Novo projeto vinculado, ou \"\"/null pra desvincular." },
+      },
+      required: ["id"],
     },
   },
   {
@@ -327,6 +422,44 @@ function buildTools() {
         valor_max: { type: "number", description: "Valor máximo (inclusive)." },
         limit: { type: "integer", description: "Máximo de resultados (padrão 20, máximo 50)." },
       },
+    },
+  },
+  {
+    name: "create_movimentacao",
+    description:
+      "Cria uma nova movimentação financeira no LifeOS. direcao e meio " +
+      "viram um único campo `tipo` (array) na tabela -- aqui vêm " +
+      "separados, mesmo padrão de search_movimentacoes.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        name: { type: "string", description: "Nome/descrição da movimentação." },
+        valor: { type: "number", description: "Valor (não-negativo)." },
+        date: { type: "string", description: "Data YYYY-MM-DD." },
+        direcao: { type: "string", enum: VOCAB.mov_direcao, description: "Entrada ou Saida." },
+        meio: { type: "array", items: { type: "string", enum: VOCAB.mov_meio }, description: "Meio(s) de pagamento (opcional, pode ficar vazio)." },
+      },
+      required: ["name", "valor", "date", "direcao"],
+    },
+  },
+  {
+    name: "update_movimentacao",
+    description:
+      "Atualiza uma movimentação financeira existente -- PATCH parcial: " +
+      "só os campos enviados mudam. direcao e meio são independentes -- " +
+      "enviar só um dos dois mantém o outro como está hoje (os dois " +
+      "juntos formam o `tipo` final na tabela).",
+    inputSchema: {
+      type: "object",
+      properties: {
+        id: { type: "string", description: "id da movimentação a editar (retornado por search_movimentacoes)." },
+        name: { type: "string", description: "Novo nome/descrição." },
+        valor: { type: "number", description: "Novo valor (não-negativo)." },
+        date: { type: "string", description: "Nova data YYYY-MM-DD." },
+        direcao: { type: "string", enum: VOCAB.mov_direcao, description: "Nova direção (Entrada/Saida)." },
+        meio: { type: "array", items: { type: "string", enum: VOCAB.mov_meio }, description: "Novo(s) meio(s) de pagamento." },
+      },
+      required: ["id"],
     },
   },
   ];
@@ -391,7 +524,7 @@ Deno.serve(async (req) => {
       return respond(rpcResult(id, {
         protocolVersion: params?.protocolVersion || "2025-06-18",
         capabilities: { tools: {} },
-        serverInfo: { name: "lifeos-mcp", version: "2.0.0" },
+        serverInfo: { name: "lifeos-mcp", version: "2.1.0" },
       }));
     }
 
@@ -409,10 +542,16 @@ Deno.serve(async (req) => {
         create_nota: (a) => handleCreateNota(REST, restHeaders, a),
         update_nota: (a) => handleUpdateNota(REST, restHeaders, a),
         search_tarefas: (a) => handleSearchTarefas(REST, restHeaders, a),
+        create_tarefa: (a) => handleCreateTarefa(REST, restHeaders, a),
+        update_tarefa: (a) => handleUpdateTarefa(REST, restHeaders, a),
         search_projetos: (a) => handleSearchProjetos(REST, restHeaders, a),
         search_eventos: (a) => handleSearchEventos(REST, restHeaders, a),
+        create_evento: (a) => handleCreateEvento(REST, restHeaders, a),
+        update_evento: (a) => handleUpdateEvento(REST, restHeaders, a),
         search_manifestacoes: (a) => handleSearchManifestacoes(REST, restHeaders, a),
         search_movimentacoes: (a) => handleSearchMovimentacoes(REST, restHeaders, a),
+        create_movimentacao: (a) => handleCreateMovimentacao(REST, restHeaders, a),
+        update_movimentacao: (a) => handleUpdateMovimentacao(REST, restHeaders, a),
       };
       const handler = handlers[toolName];
       if (!handler) return respond(rpcError(id, -32602, `Unknown tool: ${String(toolName)}`));
@@ -679,6 +818,91 @@ async function handleSearchTarefas(REST: string, headers: Record<string, string>
   }, null, 2));
 }
 
+// ── Tool: create_tarefa ───────────────────────────────────────────────────
+async function handleCreateTarefa(REST: string, headers: Record<string, string>, args: Record<string, any>) {
+  const name = String(args?.name ?? "").trim();
+  if (!name) return toolText("O parâmetro name (nome da tarefa) é obrigatório e não pode ser vazio.", true);
+
+  const status = args?.status ? String(args.status) : "Não Iniciado";
+  if (!VOCAB.tarefa_status.includes(status)) return toolText(`Status inválido: ${status}. Valores aceitos: ${VOCAB.tarefa_status.join(", ")}.`, true);
+
+  const tipo = strArray(args?.tipo);
+  const invalidTipo = tipo.filter((t) => !VOCAB.tarefa_tipo.includes(t));
+  if (invalidTipo.length) return toolText(`Tipo(s) inválido(s): ${invalidTipo.join(", ")}. Valores aceitos: ${VOCAB.tarefa_tipo.join(", ")}.`, true);
+
+  const projetoNome = String(args?.projeto ?? "").trim();
+  if (!projetoNome) return toolText("O parâmetro projeto é obrigatório -- toda tarefa do LifeOS pertence a um projeto.", true);
+
+  const projetos = await fetchAllProjetos(REST, headers);
+  const { resolved, naoEncontrados } = await resolveProjetoNomes(projetos, [projetoNome]);
+  if (naoEncontrados.length) {
+    return toolText(`Projeto não encontrado ou ambíguo: ${projetoNome}. Projetos existentes: ${projetos.map((p) => p.name).join(", ")}.`, true);
+  }
+  const projeto = resolved[0];
+
+  const dataEntregaRaw = args?.data_entrega;
+  const data_entrega = (typeof dataEntregaRaw === "string" && /^\d{4}-\d{2}-\d{2}$/.test(dataEntregaRaw)) ? dataEntregaRaw : null;
+
+  const insertRes = await fetch(`${REST}/lifeos_tarefas`, {
+    method: "POST",
+    headers: { ...headers, Prefer: "return=representation" },
+    body: JSON.stringify({ name, status, tipo, projeto_id: projeto.id, data_entrega }),
+  });
+  if (!insertRes.ok) return toolText(`Erro ao criar a tarefa: ${insertRes.status} ${await insertRes.text()}`, true);
+  const created = (await insertRes.json())[0];
+
+  return toolText(JSON.stringify({
+    ok: true,
+    tarefa: { id: created.id, name: created.name, status: created.status, tipo: created.tipo ?? [], projeto, data_entrega: created.data_entrega },
+  }, null, 2));
+}
+
+// ── Tool: update_tarefa (PATCH parcial -- não troca o projeto) ───────────
+async function handleUpdateTarefa(REST: string, headers: Record<string, string>, args: Record<string, any>) {
+  const id = String(args?.id ?? "").trim();
+  if (!id) return toolText("O parâmetro id (id da tarefa a editar, retornado por search_tarefas) é obrigatório.", true);
+
+  const update: Record<string, any> = {};
+
+  if (args?.name !== undefined) {
+    const name = String(args.name).trim();
+    if (!name) return toolText("O parâmetro name, quando enviado, não pode ser vazio.", true);
+    update.name = name;
+  }
+  if (args?.status !== undefined) {
+    const status = String(args.status);
+    if (!VOCAB.tarefa_status.includes(status)) return toolText(`Status inválido: ${status}. Valores aceitos: ${VOCAB.tarefa_status.join(", ")}.`, true);
+    update.status = status;
+  }
+  if (args?.tipo !== undefined) {
+    const tipo = strArray(args.tipo);
+    const invalidTipo = tipo.filter((t) => !VOCAB.tarefa_tipo.includes(t));
+    if (invalidTipo.length) return toolText(`Tipo(s) inválido(s): ${invalidTipo.join(", ")}. Valores aceitos: ${VOCAB.tarefa_tipo.join(", ")}.`, true);
+    update.tipo = tipo;
+  }
+  if (args?.data_entrega !== undefined) {
+    const v = args.data_entrega;
+    update.data_entrega = (typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v)) ? v : null;
+  }
+  if (!Object.keys(update).length) return toolText("Nenhum campo pra atualizar foi enviado -- envie ao menos um de: name, status, tipo, data_entrega.", true);
+  update.updated_at = new Date().toISOString();
+
+  const r = await fetch(`${REST}/lifeos_tarefas?id=eq.${id}`, {
+    method: "PATCH",
+    headers: { ...headers, Prefer: "return=representation" },
+    body: JSON.stringify(update),
+  });
+  if (!r.ok) return toolText(`Erro ao atualizar a tarefa: ${r.status} ${await r.text()}`, true);
+  const rows = await r.json();
+  if (!rows.length) return toolText(`Nenhuma tarefa encontrada com id ${id}.`, true);
+  const updated = rows[0];
+
+  return toolText(JSON.stringify({
+    ok: true,
+    tarefa: { id: updated.id, name: updated.name, status: updated.status, tipo: updated.tipo ?? [], projeto_id: updated.projeto_id, data_entrega: updated.data_entrega, updated_at: updated.updated_at },
+  }, null, 2));
+}
+
 // ── Tool: search_projetos ─────────────────────────────────────────────────
 async function handleSearchProjetos(REST: string, headers: Record<string, string>, args: Record<string, any>) {
   const nome = args?.nome ? String(args.nome).trim().toLowerCase() : "";
@@ -744,6 +968,135 @@ async function handleSearchEventos(REST: string, headers: Record<string, string>
   }, null, 2));
 }
 
+// ── Tool: create_evento ───────────────────────────────────────────────────
+async function handleCreateEvento(REST: string, headers: Record<string, string>, args: Record<string, any>) {
+  const name = String(args?.name ?? "").trim();
+  if (!name) return toolText("O parâmetro name (nome do evento) é obrigatório e não pode ser vazio.", true);
+
+  const date = String(args?.date ?? "");
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return toolText("O parâmetro date é obrigatório e precisa estar no formato YYYY-MM-DD.", true);
+
+  const dateFimRaw = args?.date_fim;
+  let date_fim: string | null = null;
+  if (dateFimRaw !== undefined && dateFimRaw !== null && dateFimRaw !== "") {
+    date_fim = String(dateFimRaw);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date_fim)) return toolText("O parâmetro date_fim, quando enviado, precisa estar no formato YYYY-MM-DD.", true);
+    if (date_fim < date) return toolText("date_fim não pode ser anterior a date.", true);
+  }
+
+  const tipo = String(args?.tipo ?? "");
+  if (!VOCAB.evento_tipo.includes(tipo)) return toolText(`Tipo inválido: ${tipo}. Valores aceitos: ${VOCAB.evento_tipo.join(", ")}.`, true);
+
+  let projeto: { id: string; name: string } | null = null;
+  const projetoNome = args?.projeto ? String(args.projeto).trim() : "";
+  if (projetoNome) {
+    const projetos = await fetchAllProjetos(REST, headers);
+    const { resolved, naoEncontrados } = await resolveProjetoNomes(projetos, [projetoNome]);
+    if (naoEncontrados.length) {
+      return toolText(`Projeto não encontrado ou ambíguo: ${projetoNome}. Projetos existentes: ${projetos.map((p) => p.name).join(", ")}.`, true);
+    }
+    projeto = resolved[0];
+  }
+
+  const insertRes = await fetch(`${REST}/lifeos_eventos`, {
+    method: "POST",
+    headers: { ...headers, Prefer: "return=representation" },
+    body: JSON.stringify({ name, date, date_fim, tipo, projeto_id: projeto?.id ?? null }),
+  });
+  if (!insertRes.ok) return toolText(`Erro ao criar o evento: ${insertRes.status} ${await insertRes.text()}`, true);
+  const created = (await insertRes.json())[0];
+
+  return toolText(JSON.stringify({
+    ok: true,
+    evento: { id: created.id, name: created.name, date: created.date, date_fim: created.date_fim, tipo: created.tipo, projeto },
+  }, null, 2));
+}
+
+// ── Tool: update_evento (PATCH parcial -- lifeos-eventos.ts não tem essa
+// ação pro app; esta tool é a primeira escrita de update deste domínio) ──
+async function handleUpdateEvento(REST: string, headers: Record<string, string>, args: Record<string, any>) {
+  const id = String(args?.id ?? "").trim();
+  if (!id) return toolText("O parâmetro id (id do evento a editar, retornado por search_eventos) é obrigatório.", true);
+
+  // Busca o estado atual pra validar date_fim >= date mesmo quando só um
+  // dos dois vem no patch (a constraint do banco é sobre o par final, não
+  // sobre cada campo isolado).
+  const curRes = await fetch(`${REST}/lifeos_eventos?id=eq.${id}&select=id,date,date_fim`, { headers });
+  if (!curRes.ok) throw new Error(`select evento -> ${curRes.status} ${await curRes.text()}`);
+  const curRows = await curRes.json();
+  if (!curRows.length) return toolText(`Nenhum evento encontrado com id ${id}.`, true);
+  const atual = curRows[0];
+
+  const update: Record<string, any> = {};
+
+  if (args?.name !== undefined) {
+    const name = String(args.name).trim();
+    if (!name) return toolText("O parâmetro name, quando enviado, não pode ser vazio.", true);
+    update.name = name;
+  }
+
+  let finalDate = atual.date;
+  if (args?.date !== undefined) {
+    const date = String(args.date);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return toolText("O parâmetro date, quando enviado, precisa estar no formato YYYY-MM-DD.", true);
+    update.date = date;
+    finalDate = date;
+  }
+
+  let finalDateFim = atual.date_fim;
+  if (args?.date_fim !== undefined) {
+    const v = args.date_fim;
+    if (v === null || v === "") {
+      update.date_fim = null;
+      finalDateFim = null;
+    } else {
+      const date_fim = String(v);
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(date_fim)) return toolText("O parâmetro date_fim, quando enviado, precisa estar no formato YYYY-MM-DD (ou \"\"/null pra remover).", true);
+      update.date_fim = date_fim;
+      finalDateFim = date_fim;
+    }
+  }
+  if (finalDateFim && finalDateFim < finalDate) return toolText("date_fim não pode ser anterior a date.", true);
+
+  if (args?.tipo !== undefined) {
+    const tipo = String(args.tipo);
+    if (!VOCAB.evento_tipo.includes(tipo)) return toolText(`Tipo inválido: ${tipo}. Valores aceitos: ${VOCAB.evento_tipo.join(", ")}.`, true);
+    update.tipo = tipo;
+  }
+
+  if (args?.projeto !== undefined) {
+    const projetoNome = (args.projeto === null) ? "" : String(args.projeto).trim();
+    if (!projetoNome) {
+      update.projeto_id = null;
+    } else {
+      const projetos = await fetchAllProjetos(REST, headers);
+      const { resolved, naoEncontrados } = await resolveProjetoNomes(projetos, [projetoNome]);
+      if (naoEncontrados.length) {
+        return toolText(`Projeto não encontrado ou ambíguo: ${projetoNome}. Projetos existentes: ${projetos.map((p) => p.name).join(", ")}.`, true);
+      }
+      update.projeto_id = resolved[0].id;
+    }
+  }
+
+  if (!Object.keys(update).length) return toolText("Nenhum campo pra atualizar foi enviado -- envie ao menos um de: name, date, date_fim, tipo, projeto.", true);
+  update.updated_at = new Date().toISOString();
+
+  const r = await fetch(`${REST}/lifeos_eventos?id=eq.${id}`, {
+    method: "PATCH",
+    headers: { ...headers, Prefer: "return=representation" },
+    body: JSON.stringify(update),
+  });
+  if (!r.ok) return toolText(`Erro ao atualizar o evento: ${r.status} ${await r.text()}`, true);
+  const rows = await r.json();
+  if (!rows.length) return toolText(`Nenhum evento encontrado com id ${id}.`, true);
+  const updated = rows[0];
+
+  return toolText(JSON.stringify({
+    ok: true,
+    evento: { id: updated.id, name: updated.name, date: updated.date, date_fim: updated.date_fim, tipo: updated.tipo, projeto_id: updated.projeto_id, updated_at: updated.updated_at },
+  }, null, 2));
+}
+
 // ── Tool: search_manifestacoes ────────────────────────────────────────────
 async function handleSearchManifestacoes(REST: string, headers: Record<string, string>, args: Record<string, any>) {
   const nome = args?.nome ? String(args.nome).trim().toLowerCase() : "";
@@ -804,5 +1157,111 @@ async function handleSearchMovimentacoes(REST: string, headers: Record<string, s
 
   return toolText(JSON.stringify({
     total_matches: totalMatches, returned: returned.length, truncated: totalMatches > returned.length, movimentacoes: returned,
+  }, null, 2));
+}
+
+// ── Tool: create_movimentacao ─────────────────────────────────────────────
+// direcao+meio chegam separados (mesmo padrão de search_movimentacoes) e
+// viram o array `tipo` combinado que a tabela guarda de fato -- mesma regra
+// de lifeos-movimentacoes/buildFields: exatamente UMA direção, zero ou mais
+// meios.
+async function handleCreateMovimentacao(REST: string, headers: Record<string, string>, args: Record<string, any>) {
+  const name = String(args?.name ?? "").trim();
+  if (!name) return toolText("O parâmetro name (nome/descrição da movimentação) é obrigatório e não pode ser vazio.", true);
+
+  const valor = Number(args?.valor);
+  if (!Number.isFinite(valor) || valor < 0) return toolText("O parâmetro valor é obrigatório e precisa ser um número não-negativo.", true);
+
+  const date = String(args?.date ?? "");
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return toolText("O parâmetro date é obrigatório e precisa estar no formato YYYY-MM-DD.", true);
+
+  const direcao = String(args?.direcao ?? "");
+  if (!VOCAB.mov_direcao.includes(direcao)) return toolText(`Direção inválida: ${direcao}. Valores aceitos: ${VOCAB.mov_direcao.join(", ")}.`, true);
+
+  const meio = strArray(args?.meio);
+  const invalidMeio = meio.filter((m) => !VOCAB.mov_meio.includes(m));
+  if (invalidMeio.length) return toolText(`Meio(s) inválido(s): ${invalidMeio.join(", ")}. Valores aceitos: ${VOCAB.mov_meio.join(", ")}.`, true);
+
+  const tipo = [direcao, ...meio];
+  const valorFinal = Math.round(valor * 100) / 100;
+
+  const insertRes = await fetch(`${REST}/lifeos_movimentacoes`, {
+    method: "POST",
+    headers: { ...headers, Prefer: "return=representation" },
+    body: JSON.stringify({ name, valor: valorFinal, date, tipo }),
+  });
+  if (!insertRes.ok) return toolText(`Erro ao criar a movimentação: ${insertRes.status} ${await insertRes.text()}`, true);
+  const created = (await insertRes.json())[0];
+
+  return toolText(JSON.stringify({
+    ok: true,
+    movimentacao: { id: created.id, name: created.name, valor: Number(created.valor), date: created.date, tipo: created.tipo ?? [] },
+  }, null, 2));
+}
+
+// ── Tool: update_movimentacao (PATCH parcial -- direcao/meio recompõem o
+// `tipo` final a partir do valor ATUAL da tabela quando só um dos dois é
+// enviado, pra não perder a outra metade do array sem querer) ───────────
+async function handleUpdateMovimentacao(REST: string, headers: Record<string, string>, args: Record<string, any>) {
+  const id = String(args?.id ?? "").trim();
+  if (!id) return toolText("O parâmetro id (id da movimentação a editar, retornado por search_movimentacoes) é obrigatório.", true);
+
+  const update: Record<string, any> = {};
+
+  if (args?.name !== undefined) {
+    const name = String(args.name).trim();
+    if (!name) return toolText("O parâmetro name, quando enviado, não pode ser vazio.", true);
+    update.name = name;
+  }
+  if (args?.valor !== undefined) {
+    const valor = Number(args.valor);
+    if (!Number.isFinite(valor) || valor < 0) return toolText("O parâmetro valor, quando enviado, precisa ser um número não-negativo.", true);
+    update.valor = Math.round(valor * 100) / 100;
+  }
+  if (args?.date !== undefined) {
+    const date = String(args.date);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return toolText("O parâmetro date, quando enviado, precisa estar no formato YYYY-MM-DD.", true);
+    update.date = date;
+  }
+
+  let direcao: string | undefined;
+  if (args?.direcao !== undefined) {
+    direcao = String(args.direcao);
+    if (!VOCAB.mov_direcao.includes(direcao)) return toolText(`Direção inválida: ${direcao}. Valores aceitos: ${VOCAB.mov_direcao.join(", ")}.`, true);
+  }
+  let meio: string[] | undefined;
+  if (args?.meio !== undefined) {
+    meio = strArray(args.meio);
+    const invalidMeio = meio.filter((m) => !VOCAB.mov_meio.includes(m));
+    if (invalidMeio.length) return toolText(`Meio(s) inválido(s): ${invalidMeio.join(", ")}. Valores aceitos: ${VOCAB.mov_meio.join(", ")}.`, true);
+  }
+
+  if (direcao !== undefined || meio !== undefined) {
+    const curRes = await fetch(`${REST}/lifeos_movimentacoes?id=eq.${id}&select=tipo`, { headers });
+    if (!curRes.ok) throw new Error(`select movimentacao -> ${curRes.status} ${await curRes.text()}`);
+    const curRows = await curRes.json();
+    if (!curRows.length) return toolText(`Nenhuma movimentação encontrada com id ${id}.`, true);
+    const tipoAtual: string[] = curRows[0].tipo ?? [];
+    const direcaoAtual = tipoAtual.find((t) => VOCAB.mov_direcao.includes(t));
+    const meioAtual = tipoAtual.filter((t) => VOCAB.mov_meio.includes(t));
+    update.tipo = [direcao ?? direcaoAtual, ...(meio ?? meioAtual)];
+  }
+
+  if (!Object.keys(update).length) return toolText("Nenhum campo pra atualizar foi enviado -- envie ao menos um de: name, valor, date, direcao, meio.", true);
+  update.updated_at = new Date().toISOString();
+
+  const r = await fetch(`${REST}/lifeos_movimentacoes?id=eq.${id}`, {
+    method: "PATCH",
+    headers: { ...headers, Prefer: "return=representation" },
+    body: JSON.stringify(update),
+  });
+  if (!r.ok) return toolText(`Erro ao atualizar a movimentação: ${r.status} ${await r.text()}`, true);
+  const rows = await r.json();
+  if (!rows.length) return toolText(`Nenhuma movimentação encontrada com id ${id}.`, true);
+  const updated = rows[0];
+
+  return toolText(JSON.stringify({
+    ok: true,
+    movimentacao: { id: updated.id, name: updated.name, valor: Number(updated.valor), date: updated.date, tipo: updated.tipo ?? [], updated_at: updated.updated_at },
   }, null, 2));
 }
