@@ -343,6 +343,12 @@
   function faturaDestino(ym, dia) { var prox = nextMonth(ym); return (dia < lastDayOfMonth(ym)) ? prox : nextMonth(prox); }
   function monthLabel(ym) { var p = ym.split('-'); return MESES[(+p[1]) - 1] + ' ' + p[0]; }
   function fmtDate(d) { if (!d) return '—'; var p = d.split('-'); return p[2] + '/' + p[1]; }
+  /* Evento de um dia só mostra só a data; com date_fim preenchido (e
+     diferente de date), mostra o intervalo -- usado em todo lugar que
+     exibe a data de um evento (detail-modal, timeline). */
+  function fmtEventoData(ev) {
+    return (ev.date_fim && ev.date_fim !== ev.date) ? (fmtDate(ev.date) + ' → ' + fmtDate(ev.date_fim)) : fmtDate(ev.date);
+  }
   function tagClass(t) { return t.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z]/g, ''); }
   function isRealizado(m) { return !m.date || m.date <= todayISO(); }
   var brl = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
@@ -490,11 +496,23 @@
       var day = 1 + Math.floor(rnd() * (lastDayOfMonth(ym) - 1));
       out.push({ id: 'mock-evt-' + i, name: MOCK_EVT_NAMES[i % MOCK_EVT_NAMES.length], date: ym + '-' + String(day).padStart(2, '0'), tipo: MOCK_EVT_TIPOS[i % MOCK_EVT_TIPOS.length] });
     }
+    /* Um evento de vários dias no meio do mês corrente, pra testar o
+       dot-em-cada-dia do mini-calendário e a linha "até dd/mm" sem precisar
+       criar um manualmente toda vez que o mock reseta. */
+    var multiDay = 5 + Math.floor(rnd() * 5);
+    out.push({
+      id: 'mock-evt-multiday', name: 'Viagem', tipo: 'lazer',
+      date: t + '-' + String(multiDay).padStart(2, '0'),
+      date_fim: t + '-' + String(multiDay + 3).padStart(2, '0'),
+    });
     return out;
   }
+  /* Mesma semântica de SOBREPOSIÇÃO do backend real (ver lifeos-eventos):
+     um evento de vários dias que começou antes de `from` mas ainda está em
+     curso dentro da janela precisa aparecer mesmo assim. */
   function mockEventosQuery(from, to) {
     if (!MOCK_EVENTOS) MOCK_EVENTOS = seedMockEventos();
-    return { ok: true, eventos: MOCK_EVENTOS.filter(function (e) { return e.date >= from && e.date <= to; }) };
+    return { ok: true, eventos: MOCK_EVENTOS.filter(function (e) { return e.date <= to && (e.date_fim || e.date) >= from; }) };
   }
   /* create/delete mutam o MESMO array que mockEventosQuery lê — sem servidor,
      mesmo espírito do mock de movimentações em financas.js. */
@@ -1357,11 +1375,20 @@
        resto do render (loop de dots) sem precisar saber o modo de novo. */
     var byDay = {};
     if (CAL_MODE === 'eventos') {
+      /* Evento de vários dias (date_fim preenchido) marca TODO dia do
+         intervalo dentro deste mês, não só o dia de início -- é o que faz a
+         data final valer a pena visualmente (uma viagem de 5 dias aparece
+         nos 5 dias, não só no 1º). totalDays já foi calculado acima. */
       EVENTOS.forEach(function (e) {
-        if (!e.date || e.date.slice(0, 7) !== HUB_CAL_YM) return;
-        var day = parseInt(e.date.slice(8, 10), 10);
-        if (!byDay[day]) byDay[day] = [];
-        byDay[day].push(EVENTO_COR[e.tipo] || 'var(--mute)');
+        if (!e.date) return;
+        var fim = e.date_fim || e.date;
+        if (fim.slice(0, 7) < HUB_CAL_YM || e.date.slice(0, 7) > HUB_CAL_YM) return;
+        for (var day = 1; day <= totalDays; day++) {
+          var ds = HUB_CAL_YM + '-' + String(day).padStart(2, '0');
+          if (ds < e.date || ds > fim) continue;
+          if (!byDay[day]) byDay[day] = [];
+          byDay[day].push(EVENTO_COR[e.tipo] || 'var(--mute)');
+        }
       });
     } else {
       TAREFAS_ALL.forEach(function (t) {
@@ -1518,7 +1545,7 @@
       CURRENT_DETAIL_TAREFA_ID = null; CURRENT_DETAIL_NOTA_ID = null;
       bannerIcon.innerHTML = '<i class="fad fa-calendar-alt"></i>';
       banner.style.setProperty('--pdet-accent', EVENTO_COR[obj.tipo] || 'var(--gold)');
-      addDetailField(body, 'Data', fmtDate(obj.date));
+      addDetailField(body, 'Data', fmtEventoData(obj));
       addDetailField(body, 'Tipo', obj.tipo || '—');
       var proj = findProjetoById(obj.projeto_id);
       if (proj) addDetailField(body, 'Projeto', (proj.emoji ? proj.emoji + ' ' : '') + proj.name);
@@ -1656,12 +1683,33 @@
     for (var i = 0; i < NOTAS_HUB.length; i++) { if (String(NOTAS_HUB[i].id) === String(id)) { n = NOTAS_HUB[i]; break; } }
     if (!n) return;
     buildPdfExport(n);
-    var originalTitle = document.title;
-    function restoreTitle() {
-      document.title = originalTitle;
-      window.removeEventListener('afterprint', restoreTitle);
+
+    /* O botão vive DENTRO do #detail-modal aberto, e syncModalScrollLock()
+       trava o body com position:fixed + top negativo pra travar o scroll
+       por baixo do modal (ver acima) — isso é uma posição real no layout,
+       não só visual, e a impressão herda a MESMA árvore (não é um
+       snapshot isolado). Sem soltar isso antes, o conteúdo do PDF nasce
+       deslocado pra fora da página impressa -- resultado: folha em branco.
+       Solta só durante a impressão, restaura no 'afterprint' -- o scroll
+       real do body nunca mudou (só a posição fake do fixed), então isso
+       não pisca nem perde a posição de scroll de quando o modal abriu. */
+    var hadScrollLock = document.body.classList.contains('modal-scroll-lock');
+    var prevPosition = document.body.style.position, prevTop = document.body.style.top, prevWidth = document.body.style.width;
+    if (hadScrollLock) {
+      document.body.classList.remove('modal-scroll-lock');
+      document.body.style.position = ''; document.body.style.top = ''; document.body.style.width = '';
     }
-    window.addEventListener('afterprint', restoreTitle);
+
+    var originalTitle = document.title;
+    function restore() {
+      document.title = originalTitle;
+      if (hadScrollLock) {
+        document.body.classList.add('modal-scroll-lock');
+        document.body.style.position = prevPosition; document.body.style.top = prevTop; document.body.style.width = prevWidth;
+      }
+      window.removeEventListener('afterprint', restore);
+    }
+    window.addEventListener('afterprint', restore);
     document.title = n.name;
     window.print();
   }
@@ -1700,7 +1748,9 @@
     var body = $('day-modal-body'); body.innerHTML = '';
 
     if (CAL_MODE === 'eventos') {
-      var dayEvents = EVENTOS.filter(function (e) { return e.date === dateStr; })
+      /* Sobreposição, não igualdade exata -- um dia no MEIO de um evento de
+         vários dias também precisa listar ele (ver renderMiniCal). */
+      var dayEvents = EVENTOS.filter(function (e) { return e.date <= dateStr && (e.date_fim || e.date) >= dateStr; })
         .sort(function (a, b) { return (a.name || '').localeCompare(b.name || ''); });
       if (!dayEvents.length) {
         var empty = document.createElement('div'); empty.className = 'hub-list-empty'; empty.textContent = 'nenhum evento nesse dia';
@@ -1708,7 +1758,16 @@
       } else {
         dayEvents.forEach(function (e) {
           var row = document.createElement('div'); row.className = 'hub-list-row is-clickable';
+          var main = document.createElement('div'); main.className = 'hub-list-main';
           var n = document.createElement('span'); n.className = 'hub-list-name'; n.textContent = e.name;
+          main.appendChild(n);
+          /* Evento de vários dias -- mostra o intervalo pra ficar claro que
+             este dia é só um trecho do evento, não um evento de um dia só
+             que coincidiu de cair aqui. */
+          if (e.date_fim && e.date_fim !== e.date) {
+            var range = document.createElement('span'); range.className = 'hub-list-proj'; range.textContent = fmtEventoData(e);
+            main.appendChild(range);
+          }
           var tag = document.createElement('span'); tag.className = 'hub-evt-tag'; tag.textContent = e.tipo;
           var cor = EVENTO_COR[e.tipo] || 'var(--mute)'; tag.style.color = cor; tag.style.borderColor = cor;
           var actions = document.createElement('span'); actions.className = 'row-actions';
@@ -1720,7 +1779,7 @@
           actions.appendChild(delBtn);
           row.setAttribute('data-detail-kind', 'evento');
           row.setAttribute('data-detail-id', String(e.id));
-          row.appendChild(n); row.appendChild(tag); row.appendChild(actions);
+          row.appendChild(main); row.appendChild(tag); row.appendChild(actions);
           body.appendChild(row);
         });
       }
@@ -1870,6 +1929,7 @@
     if ($('day-modal').classList.contains('open')) closeDayModal();
     $('evento-nome').value = '';
     $('evento-date').value = todayISO();
+    $('evento-date-fim').value = '';
     setEventoTipo('vida');
     setEventoProjeto('');
     $('evento-error').textContent = '';
@@ -1884,13 +1944,18 @@
     e.preventDefault();
     var nome = $('evento-nome').value.trim();
     var d = $('evento-date').value;
+    var dFim = $('evento-date-fim').value || null;
     var tipo = $('evento-tipo').value;
     var projeto_id = $('evento-projeto-id').value || null;
     if (!nome) { $('evento-error').textContent = 'nome obrigatório'; return; }
     if (!d) { $('evento-error').textContent = 'data inválida'; return; }
+    /* Opcional -- a maioria dos eventos é de um dia só (ver campo no HTML).
+       Quando presente, não pode vir antes da data de início -- mesmo CHECK
+       validado no servidor, checado aqui também pra dar feedback na hora. */
+    if (dFim && dFim < d) { $('evento-error').textContent = 'data final não pode ser antes da data de início'; return; }
     setEventoSaving(true);
     $('evento-error').textContent = '';
-    apiEventosCreate(SESSION_PW, { name: nome, date: d, tipo: tipo, projeto_id: projeto_id }).then(function (j) {
+    apiEventosCreate(SESSION_PW, { name: nome, date: d, date_fim: dFim, tipo: tipo, projeto_id: projeto_id }).then(function (j) {
       EVENTOS.push(j.evento);
       closeEventoModal();
       /* o mês do evento criado pode estar fora da janela já carregada —
@@ -1966,16 +2031,27 @@
     if (!host) return;
     host.innerHTML = '';
     var today = todayISO();
-    var source, getDate, buildRow;
+    var source, getDate, getEndDate, buildRow;
 
     if (CAL_MODE === 'eventos') {
-      source = EVENTOS; getDate = function (e) { return e.date; };
+      /* getEndDate decide passado/futuro -- um evento de vários dias que
+         começou antes de hoje mas ainda está em curso não é "passado", tem
+         que continuar na agenda (ver uso abaixo). getDate (data de início)
+         segue sendo a chave de ORDENAÇÃO -- a ordem cronológica natural. */
+      source = EVENTOS; getDate = function (e) { return e.date; }; getEndDate = function (e) { return e.date_fim || e.date; };
       buildRow = function (ev, isPast) {
         var r = document.createElement('div'); r.className = 'hub-list-row is-clickable' + (isPast ? ' is-past' : '');
         var d = document.createElement('span'); d.className = 'hub-list-date'; d.textContent = fmtDate(ev.date);
         var main = document.createElement('div'); main.className = 'hub-list-main';
         var n = document.createElement('span'); n.className = 'hub-list-name'; n.textContent = ev.name;
         main.appendChild(n);
+        /* .hub-list-date (36px) só cabe "DD/MM" -- o intervalo completo de
+           um evento de vários dias entra aqui embaixo, no mesmo padrão de
+           linha secundária que o vínculo de projeto já usa. */
+        if (ev.date_fim && ev.date_fim !== ev.date) {
+          var rangeSpan = document.createElement('span'); rangeSpan.className = 'hub-list-proj'; rangeSpan.textContent = 'até ' + fmtDate(ev.date_fim);
+          main.appendChild(rangeSpan);
+        }
         var proj = findProjetoById(ev.projeto_id);
         if (proj) {
           var pspan = document.createElement('span'); pspan.className = 'hub-list-proj';
@@ -1990,7 +2066,7 @@
         return r;
       };
     } else {
-      source = TAREFAS_ALL.filter(function (t) { return t.data_entrega; }); getDate = function (t) { return t.data_entrega; };
+      source = TAREFAS_ALL.filter(function (t) { return t.data_entrega; }); getDate = function (t) { return t.data_entrega; }; getEndDate = getDate;
       buildRow = function (t, isPast) {
         var r = document.createElement('div'); r.className = 'hub-list-row is-clickable' + (isPast ? ' is-past' : '');
         var d = document.createElement('span'); d.className = 'hub-list-date'; d.textContent = fmtDate(t.data_entrega);
@@ -2023,8 +2099,12 @@
        nenhum) e já foi sem corte nenhum (enchia de passado antigo). Este é o
        meio-termo: limita o que é contexto, preserva o que é agenda. */
     var PAST_MAX = 3;
-    var past = source.filter(function (x) { return getDate(x) < today; }).sort(function (a, b) { return getDate(a).localeCompare(getDate(b)); }).slice(-PAST_MAX);
-    var future = source.filter(function (x) { return getDate(x) >= today; }).sort(function (a, b) { return getDate(a).localeCompare(getDate(b)); });
+    /* getEndDate (não getDate) decide o lado -- um evento de vários dias
+       que começou antes de hoje mas ainda está em curso fica do lado
+       FUTURO (ainda é agenda ativa, não histórico). getDate segue sendo só
+       a chave de ordenação dos dois lados. */
+    var past = source.filter(function (x) { return getEndDate(x) < today; }).sort(function (a, b) { return getDate(a).localeCompare(getDate(b)); }).slice(-PAST_MAX);
+    var future = source.filter(function (x) { return getEndDate(x) >= today; }).sort(function (a, b) { return getDate(a).localeCompare(getDate(b)); });
     if (!past.length && !future.length) {
       var empty = document.createElement('div'); empty.className = 'hub-list-empty';
       empty.textContent = CAL_MODE === 'eventos' ? 'nenhum evento por perto' : 'nenhuma tarefa com entrega por perto';

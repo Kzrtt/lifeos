@@ -147,11 +147,17 @@ Deno.serve(async (req) => {
 });
 
 function normalizeRow(r: any) {
-  return { id: r.id, name: r.name, date: r.date, tipo: r.tipo, projeto_id: r.projeto_id ?? null };
+  return { id: r.id, name: r.name, date: r.date, date_fim: r.date_fim ?? null, tipo: r.tipo, projeto_id: r.projeto_id ?? null };
 }
 
+// Range de datas é por SOBREPOSIÇÃO, não só "date dentro de [from,to]" --
+// um evento de vários dias que começou ANTES de `from` mas ainda está em
+// curso dentro da janela precisa aparecer mesmo assim (ex.: viagem de
+// 28/set a 03/out, janela do calendário começando em 01/out). Condição:
+// date <= to E (date_fim >= from OU (date_fim é nulo E date >= from)).
 async function handleQuery(REST: string, headers: Record<string, string>, from: string, to: string) {
-  const r = await fetch(`${REST}/lifeos_eventos?date=gte.${from}&date=lte.${to}&order=date.asc`, { headers });
+  const filtro = `or=(date_fim.gte.${from},and(date_fim.is.null,date.gte.${from}))`;
+  const r = await fetch(`${REST}/lifeos_eventos?date=lte.${to}&${filtro}&order=date.asc`, { headers });
   if (!r.ok) throw new Error(`select eventos -> ${r.status} ${await r.text()}`);
   const rows = await r.json();
   return json({ ok: true, eventos: rows.map(normalizeRow) });
@@ -166,6 +172,18 @@ async function handleCreate(REST: string, headers: Record<string, string>, event
   const date = String(evento.date ?? "");
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return json({ ok: false, error: "invalid_date" }, 400);
 
+  // Opcional -- a maioria dos eventos é de um dia só. Quando presente,
+  // precisa ser uma data válida e não pode vir antes de `date` (mesmo CHECK
+  // do banco, validado aqui também pra devolver um erro claro em vez de
+  // estourar 502 na constraint).
+  const dateFimRaw = evento.date_fim;
+  let date_fim: string | null = null;
+  if (dateFimRaw !== undefined && dateFimRaw !== null && dateFimRaw !== "") {
+    date_fim = String(dateFimRaw);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date_fim)) return json({ ok: false, error: "invalid_date_fim" }, 400);
+    if (date_fim < date) return json({ ok: false, error: "date_fim_antes_de_date" }, 400);
+  }
+
   const tipo = String(evento.tipo ?? "");
   if (!vocab("evento_tipo", TIPOS_VALIDOS).includes(tipo)) return json({ ok: false, error: "invalid_tipo" }, 400);
 
@@ -175,7 +193,7 @@ async function handleCreate(REST: string, headers: Record<string, string>, event
   const r = await fetch(`${REST}/lifeos_eventos`, {
     method: "POST",
     headers: { ...headers, Prefer: "return=representation" },
-    body: JSON.stringify({ name, date, tipo, projeto_id }),
+    body: JSON.stringify({ name, date, date_fim, tipo, projeto_id }),
   });
   if (!r.ok) return json({ ok: false, error: `db_error: ${r.status} ${await r.text()}` }, 502);
   const rows = await r.json();

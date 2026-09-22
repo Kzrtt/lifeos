@@ -290,7 +290,7 @@ function buildTools() {
         nome: { type: "string", description: "Trecho do nome do evento." },
         tipo: { type: "array", items: { type: "string", enum: VOCAB.evento_tipo }, description: "Um ou mais tipos -- entra se tiver QUALQUER UM." },
         projetos: { type: "array", items: { type: "string" }, description: "Nomes (ou trechos) do projeto vinculado (nem todo evento tem um)." },
-        data_inicio: { type: "string", description: "Data mínima YYYY-MM-DD (inclusive)." },
+        data_inicio: { type: "string", description: "Data mínima YYYY-MM-DD (inclusive) -- eventos de vários dias que se SOBREPÕEM ao intervalo também entram, não só os que começam dentro dele." },
         data_fim: { type: "string", description: "Data máxima YYYY-MM-DD (inclusive)." },
         limit: { type: "integer", description: "Máximo de resultados (padrão 20, máximo 50)." },
       },
@@ -721,17 +721,20 @@ async function handleSearchEventos(REST: string, headers: Record<string, string>
   const projetoById = new Map(projetos.map((p) => [p.id, p]));
   const { ids: projetoIdsFiltro, warnings } = resolveProjetoFiltro(projetos, strArray(args?.projetos));
 
-  let eventos = rows.map((r: any) => ({ id: r.id, name: r.name, date: r.date, tipo: r.tipo, projeto_id: r.projeto_id ?? null }));
+  let eventos = rows.map((r: any) => ({ id: r.id, name: r.name, date: r.date, date_fim: r.date_fim ?? null, tipo: r.tipo, projeto_id: r.projeto_id ?? null }));
 
   if (nome) eventos = eventos.filter((e: any) => e.name.toLowerCase().includes(nome));
   if (tipoFiltro.length) eventos = eventos.filter((e: any) => tipoFiltro.includes(e.tipo));
   if (projetoIdsFiltro) eventos = eventos.filter((e: any) => e.projeto_id && projetoIdsFiltro.has(e.projeto_id));
-  if (dataInicio) eventos = eventos.filter((e: any) => e.date >= dataInicio);
+  // Sobreposição, não só "date dentro do range" -- um evento de vários dias
+  // que começou antes de data_inicio mas ainda estava em curso precisa
+  // entrar (mesmo racional de handleQuery em lifeos-eventos).
+  if (dataInicio) eventos = eventos.filter((e: any) => (e.date_fim || e.date) >= dataInicio);
   if (dataFim) eventos = eventos.filter((e: any) => e.date <= dataFim);
 
   const totalMatches = eventos.length;
   const returned = eventos.slice(0, limit).map((e: any) => ({
-    id: e.id, name: e.name, date: e.date, tipo: e.tipo,
+    id: e.id, name: e.name, date: e.date, date_fim: e.date_fim, tipo: e.tipo,
     projeto: (e.projeto_id && projetoById.has(e.projeto_id)) ? { id: e.projeto_id, name: projetoLabel(projetoById.get(e.projeto_id)!) } : null,
   }));
 

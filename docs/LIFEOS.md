@@ -547,8 +547,26 @@ exatamente a previsão que já estava aqui antes de Tarefas existir.
   obrigatório (ver §4) e não cabe duplicar esse formulário (com seletor de
   projeto e tudo) só pra essa tela.
 - **Criar evento**: botão "Adicionar" (modo eventos) abre `#evento-modal`
-  (nome/data/tipo/projeto opcional — ver §6.1). Ao salvar, navega
-  `HUB_CAL_YM` pro mês do evento criado.
+  (nome/data/**data final opcional**/tipo/projeto opcional — ver §6.1). Ao
+  salvar, navega `HUB_CAL_YM` pro mês do evento criado.
+- **Evento de vários dias (`date_fim`, set/2026)**: quando preenchida, a
+  data final faz o evento aparecer em **todo dia do intervalo**
+  `[date, date_fim]` no mini-calendário (`renderMiniCal()` — um ponto por
+  dia, não só no dia de início), não um badge/faixa contínua — mesmo
+  tratamento visual de um evento normal, só repetido em cada célula do
+  range. `openDayModal()` filtra por SOBREPOSIÇÃO
+  (`e.date <= dateStr && (e.date_fim || e.date) >= dateStr`), não igualdade
+  exata, então clicar em QUALQUER dia do meio do intervalo já lista o
+  evento; a linha ganha um subtítulo "até dd/mm" (`.hub-list-proj`, mesma
+  classe do vínculo de projeto) pra deixar claro que aquele dia é só um
+  trecho do evento. `renderEventosTimeline()` ordena pela data de início
+  (`getDate`) mas decide passado/futuro pela data **final efetiva**
+  (`getEndDate` — `date_fim || date`): um evento de vários dias que começou
+  antes de hoje mas ainda está em curso fica do lado FUTURO, não vira
+  "passado" só porque já começou. `fmtEventoData()` (só em `lifeos.js` —
+  eventos não existem em `notas.js`) é quem formata "dd/mm → dd/mm" no
+  `#detail-modal` de leitura; a timeline usa a forma curta "até dd/mm" por
+  causa do espaço.
 - **Ver + excluir (modo eventos) / só ver (modo tarefas)**: clicar numa
   célula do mini-calendário abre `#day-modal` (`openDayModal(dateStr)`).
   Em modo eventos, cada linha tem um botão de excluir
@@ -773,16 +791,25 @@ Falado por `lifeos.html` (query + create + delete — `eventos.html` está
 dormente, ver §5).
 
 - **Tabela `public.lifeos_eventos`**: `id uuid`, `name text`, `date date`,
-  `tipo text` (`check` em `faculdade|psicodelia|trabalho|lazer|vida`),
-  **`projeto_id uuid` (nullable, `references lifeos_projetos on delete set
-  null`)** — vínculo **opcional**, adicionado quando Tarefas/Projetos
-  entrou (ver §4). RLS habilitado sem policies (mesmo padrão de
-  `lifeos_movimentacoes`).
+  **`date_fim date` (nullable, `check (date_fim is null or date_fim >=
+  date)`, migration `0004_eventos_date_fim.sql`)** — data final **opcional**
+  de um evento de vários dias (viagem, congresso…); a grande maioria dos
+  eventos continua sendo de um dia só, sem essa coluna preenchida. Quando
+  presente, o evento aparece em TODO dia do intervalo no mini-calendário do
+  hub, não só no dia de início — ver §3.4. `tipo text` (`check` em
+  `faculdade|psicodelia|trabalho|lazer|vida`), **`projeto_id uuid`
+  (nullable, `references lifeos_projetos on delete set null`)** — vínculo
+  **opcional**, adicionado quando Tarefas/Projetos entrou (ver §4). RLS
+  habilitado sem policies (mesmo padrão de `lifeos_movimentacoes`).
 - **Edge Function `lifeos-eventos`** (`verify_jwt=false`, mesmo gate
-  `check_master_token`): ações `query` (`{ token, from, to }` → eventos no
-  range de datas, cada um já com `projeto_id`), `create` (`{ token,
-  action:"create", evento:{name,date,tipo,projeto_id?} }`), `delete`
-  (`{ token, action:"delete", id }`). Sem `update` nesta entrega.
+  `check_master_token`): ações `query` (`{ token, from, to }` → eventos que
+  **se sobrepõem** ao range de datas — não só os que começam dentro dele; um
+  evento de vários dias iniciado antes de `from` mas ainda em curso também
+  entra —, cada um já com `date_fim`/`projeto_id`), `create` (`{ token,
+  action:"create", evento:{name,date,date_fim?,tipo,projeto_id?} }` —
+  `date_fim`, se vier, precisa ser `>= date`, validado antes do CHECK do
+  banco pra devolver um erro claro), `delete` (`{ token, action:"delete",
+  id }`). Sem `update` nesta entrega.
 
 ### 6.2 `lifeos_projetos` e `lifeos_tarefas`
 
