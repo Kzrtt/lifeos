@@ -7,8 +7,10 @@
 //
 // Acoes: "query" (default, {projeto_id?} -- com filtro lista as tarefas de
 // UM projeto para o kanban; sem filtro lista todas, usado pelo resumo do
-// hub pra contar por status), "create", "update" (kanban muda status por
-// aqui, sem drag-and-drop nesta entrega), "delete".
+// hub pra contar por status), "create", "update" (patch parcial -- kanban
+// muda status por aqui, sem drag-and-drop nesta entrega; o modal de edicao
+// usa a mesma acao pra name/tipo/data_entrega/projeto_id, incluindo mover
+// a tarefa pra outro projeto), "delete".
 //
 // SEGURANCA: mesma postura de lifeos-projetos/lifeos-eventos.
 
@@ -221,6 +223,11 @@ async function handleUpdate(REST: string, headers: Record<string, string>, id: s
   if ("data_entrega" in patch) {
     const v = patch.data_entrega;
     update.data_entrega = (typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v)) ? v : null;
+  }
+  if ("projeto_id" in patch) {
+    const projeto_id = String(patch.projeto_id ?? "").trim();
+    if (!projeto_id) return json({ ok: false, error: "invalid_projeto_id" }, 400);
+    update.projeto_id = projeto_id;
   }
   if (!Object.keys(update).length) return json({ ok: false, error: "empty_patch" }, 400);
   update.updated_at = new Date().toISOString();

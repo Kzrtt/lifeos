@@ -35,9 +35,11 @@
 // há aqui nenhum campo de texto livre grande cujo envio parcial arriscasse
 // apagar conteúdo, e esse é o mesmo contrato que lifeos-tarefas/
 // lifeos-movimentacoes já expõem pro próprio app (lifeos-eventos é exceção:
-// não tinha "update" nenhum até aqui -- ver handleUpdateEvento). Tarefa
-// nunca troca de projeto por update (o app também não permite isso hoje);
-// pra mover, seria preciso recriar.
+// não tinha "update" nenhum até aqui -- ver handleUpdateEvento). update_tarefa
+// também troca o projeto vinculado (envie projeto) -- até 23/set/2026 isso
+// era bloqueado aqui espelhando uma limitação que na verdade era um bug em
+// lifeos-tarefas/handleUpdate (o modal de edição já mandava projeto_id, o
+// backend só ignorava); corrigido nos dois lugares.
 //
 // Transporte: Streamable HTTP, SEM estado entre chamadas (sem Mcp-Session-Id)
 // -- cada POST e' um JSON-RPC 2.0 completo e independente, o que combina bem
@@ -307,9 +309,8 @@ function buildTools() {
     name: "update_tarefa",
     description:
       "Atualiza uma tarefa existente do LifeOS -- PATCH parcial: só os " +
-      "campos enviados mudam, os demais ficam como estão. Não é possível " +
-      "trocar o projeto vinculado por aqui (o app também não permite " +
-      "isso hoje).",
+      "campos enviados mudam, os demais ficam como estão. Inclui trocar " +
+      "o projeto vinculado (envie projeto).",
     inputSchema: {
       type: "object",
       properties: {
@@ -318,6 +319,7 @@ function buildTools() {
         status: { type: "string", enum: VOCAB.tarefa_status, description: "Novo status." },
         tipo: { type: "array", items: { type: "string", enum: VOCAB.tarefa_tipo }, description: "Conjunto final de tipos/tags -- substitui o atual por completo (pode ser [])." },
         data_entrega: { type: "string", description: "Nova data de entrega YYYY-MM-DD, ou \"\"/null pra remover." },
+        projeto: { type: "string", description: "Nome (ou trecho único) do novo projeto ao qual vincular a tarefa -- toda tarefa precisa de um, não pode ficar sem." },
       },
       required: ["id"],
     },
@@ -524,7 +526,7 @@ Deno.serve(async (req) => {
       return respond(rpcResult(id, {
         protocolVersion: params?.protocolVersion || "2025-06-18",
         capabilities: { tools: {} },
-        serverInfo: { name: "lifeos-mcp", version: "2.1.0" },
+        serverInfo: { name: "lifeos-mcp", version: "2.1.1" },
       }));
     }
 
@@ -857,7 +859,7 @@ async function handleCreateTarefa(REST: string, headers: Record<string, string>,
   }, null, 2));
 }
 
-// ── Tool: update_tarefa (PATCH parcial -- não troca o projeto) ───────────
+// ── Tool: update_tarefa (PATCH parcial) ───────────────────────────────────
 async function handleUpdateTarefa(REST: string, headers: Record<string, string>, args: Record<string, any>) {
   const id = String(args?.id ?? "").trim();
   if (!id) return toolText("O parâmetro id (id da tarefa a editar, retornado por search_tarefas) é obrigatório.", true);
@@ -884,7 +886,17 @@ async function handleUpdateTarefa(REST: string, headers: Record<string, string>,
     const v = args.data_entrega;
     update.data_entrega = (typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v)) ? v : null;
   }
-  if (!Object.keys(update).length) return toolText("Nenhum campo pra atualizar foi enviado -- envie ao menos um de: name, status, tipo, data_entrega.", true);
+  if (args?.projeto !== undefined) {
+    const projetoNome = String(args.projeto ?? "").trim();
+    if (!projetoNome) return toolText("O parâmetro projeto, quando enviado, não pode ser vazio -- toda tarefa precisa de um projeto vinculado.", true);
+    const projetos = await fetchAllProjetos(REST, headers);
+    const { resolved, naoEncontrados } = await resolveProjetoNomes(projetos, [projetoNome]);
+    if (naoEncontrados.length) {
+      return toolText(`Projeto não encontrado ou ambíguo: ${projetoNome}. Projetos existentes: ${projetos.map((p) => p.name).join(", ")}.`, true);
+    }
+    update.projeto_id = resolved[0].id;
+  }
+  if (!Object.keys(update).length) return toolText("Nenhum campo pra atualizar foi enviado -- envie ao menos um de: name, status, tipo, data_entrega, projeto.", true);
   update.updated_at = new Date().toISOString();
 
   const r = await fetch(`${REST}/lifeos_tarefas?id=eq.${id}`, {
