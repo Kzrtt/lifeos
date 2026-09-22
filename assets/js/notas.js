@@ -660,10 +660,10 @@
       if (snip) { snippet.textContent = snip; } else { snippet.textContent = 'sem conteúdo'; snippet.classList.add('is-empty'); }
       card.appendChild(snippet);
 
-      /* Ícone-botões (Tela cheia / Editar) do lado OPOSTO da data — pedido
-         explícito do autor, 4ª rodada. data-action é lido pelo listener de
-         clique de #notas-cards-view, que intercepta ANTES de cair no
-         fallback de abrir o detalhe (ver init()). */
+      /* Ícone-botões (Tela cheia / Editar / Exportar PDF) do lado OPOSTO da
+         data — pedido explícito do autor, 4ª rodada. data-action é lido pelo
+         listener de clique de #notas-cards-view, que intercepta ANTES de
+         cair no fallback de abrir o detalhe (ver init()). */
       var foot = document.createElement('div'); foot.className = 'nota-card-foot';
       var actionsWrap = document.createElement('div'); actionsWrap.className = 'nota-card-actions';
       var expandBtn = document.createElement('button');
@@ -674,7 +674,11 @@
       editBtn.type = 'button'; editBtn.className = 'nota-card-action-btn'; editBtn.setAttribute('aria-label', 'Editar nota');
       editBtn.setAttribute('data-action', 'edit'); editBtn.setAttribute('data-id', n.id);
       editBtn.innerHTML = '<i class="fad fa-pen"></i>';
-      actionsWrap.appendChild(expandBtn); actionsWrap.appendChild(editBtn);
+      var exportBtn = document.createElement('button');
+      exportBtn.type = 'button'; exportBtn.className = 'nota-card-action-btn'; exportBtn.setAttribute('aria-label', 'Exportar PDF');
+      exportBtn.setAttribute('data-action', 'export'); exportBtn.setAttribute('data-id', n.id);
+      exportBtn.innerHTML = '<i class="fad fa-file-pdf"></i>';
+      actionsWrap.appendChild(expandBtn); actionsWrap.appendChild(editBtn); actionsWrap.appendChild(exportBtn);
       foot.appendChild(actionsWrap);
       var date = document.createElement('span'); date.className = 'nota-card-date'; date.textContent = fmtDate(n.data);
       foot.appendChild(date);
@@ -823,6 +827,89 @@
     $('detail-modal').classList.add('open');
   }
   function closeDetailModal() { $('detail-modal').classList.remove('open'); DETAIL_NOTA_ID = null; }
+
+  /* ── Exportar PDF — print-to-PDF nativo do navegador ────────────────
+     Sem dependência nova: popula #pdf-export-root (fora do fluxo normal,
+     só visível via @media print — ver CSS) com um header simples do
+     sistema, os atributos da nota (Tipo/Projeto(s)/Data) e o corpo via o
+     MESMO renderMarkdown() já usado na leitura — nunca duplica a lógica de
+     parse nem perde estilização, porque .pdf-content reusa .nota-content e
+     as MESMAS variáveis CSS, só recoloridas pra papel branco (ver CSS).
+     window.print() abre o diálogo nativo; o usuário escolhe "Salvar como
+     PDF" — resultado é vetorial, texto selecionável/pesquisável. */
+  function buildPdfExport(n) {
+    var root = $('pdf-export-root'); root.innerHTML = '';
+
+    var header = document.createElement('div'); header.className = 'pdf-header';
+    var brand = document.createElement('span'); brand.className = 'pdf-brand';
+    brand.textContent = '✦ LifeOS · LifeOS · Notas';
+    var gen = document.createElement('span'); gen.className = 'pdf-generated';
+    gen.textContent = 'Gerado em ' + new Date().toLocaleString('pt-BR');
+    header.appendChild(brand); header.appendChild(gen);
+    root.appendChild(header);
+    var headerRule = document.createElement('div'); headerRule.className = 'pdf-header-rule';
+    root.appendChild(headerRule);
+
+    var title = document.createElement('div'); title.className = 'pdf-title'; title.textContent = n.name;
+    root.appendChild(title);
+
+    /* Atributos — mesma ordem de .detail-meta/.leitura-meta (Tipo, depois
+       Projeto(s)); Data sempre aparece (mesmo padrão de fmtDate() na
+       coluna Data da tabela — '—' quando vazia, nunca escondida). */
+    var attrs = document.createElement('div'); attrs.className = 'pdf-attrs';
+    if ((n.tipo || []).length) {
+      var tipoRow = document.createElement('div'); tipoRow.className = 'pdf-attrs-row';
+      var tipoLbl = document.createElement('span'); tipoLbl.className = 'pdf-attrs-label'; tipoLbl.textContent = 'Tipo';
+      var tipoTags = document.createElement('div'); tipoTags.className = 'pdf-attrs-tags';
+      n.tipo.forEach(function (t) { var s = document.createElement('span'); s.className = 'pdf-tag'; s.textContent = t; tipoTags.appendChild(s); });
+      tipoRow.appendChild(tipoLbl); tipoRow.appendChild(tipoTags);
+      attrs.appendChild(tipoRow);
+    }
+    if ((n.projeto_ids || []).length) {
+      var projRow = document.createElement('div'); projRow.className = 'pdf-attrs-row';
+      var projLbl = document.createElement('span'); projLbl.className = 'pdf-attrs-label'; projLbl.textContent = 'Projeto(s)';
+      var projTags = document.createElement('div'); projTags.className = 'pdf-attrs-tags';
+      n.projeto_ids.forEach(function (pid) {
+        var p = findProjeto(pid);
+        var s = document.createElement('span'); s.className = 'pdf-tag'; s.textContent = p ? projetoLabel(p) : '?';
+        projTags.appendChild(s);
+      });
+      projRow.appendChild(projLbl); projRow.appendChild(projTags);
+      attrs.appendChild(projRow);
+    }
+    var dataRow = document.createElement('div'); dataRow.className = 'pdf-attrs-row';
+    var dataLbl = document.createElement('span'); dataLbl.className = 'pdf-attrs-label'; dataLbl.textContent = 'Data';
+    var dataVal = document.createElement('span'); dataVal.className = 'pdf-attrs-value'; dataVal.textContent = fmtDate(n.data);
+    dataRow.appendChild(dataLbl); dataRow.appendChild(dataVal);
+    attrs.appendChild(dataRow);
+    root.appendChild(attrs);
+
+    var divider = document.createElement('div'); divider.className = 'pdf-divider';
+    root.appendChild(divider);
+
+    var content = document.createElement('div'); content.className = 'nota-content pdf-content';
+    content.innerHTML = renderMarkdown(n.conteudo_md);
+    root.appendChild(content);
+  }
+  /* O navegador sugere document.title como nome de arquivo no diálogo de
+     "Salvar como PDF" — troca temporária pro nome da nota (em vez do
+     título fixo da aba, "Psychḗs · Notas"), restaurado no 'afterprint'
+     (dispara tanto ao salvar quanto ao cancelar o diálogo). */
+  function exportNotaPdf(id) {
+    if (!id) return;
+    var n = null;
+    for (var i = 0; i < NOTAS.length; i++) { if (NOTAS[i].id === id) { n = NOTAS[i]; break; } }
+    if (!n) return;
+    buildPdfExport(n);
+    var originalTitle = document.title;
+    function restoreTitle() {
+      document.title = originalTitle;
+      window.removeEventListener('afterprint', restoreTitle);
+    }
+    window.addEventListener('afterprint', restoreTitle);
+    document.title = n.name;
+    window.print();
+  }
 
   /* Excluir — confirmação inline de dois cliques, cópia isolada do mesmo
      padrão de tarefas.js/financas.js (ver LIFEOS.md §2/§7). Generalizada
@@ -1183,6 +1270,7 @@
         var action = actionBtn.getAttribute('data-action');
         if (action === 'expand') openLeituraView(id);
         else if (action === 'edit') openAttrsModal(id);
+        else if (action === 'export') exportNotaPdf(id);
         return;
       }
       var card = e.target.closest ? e.target.closest('.nota-card[data-id]') : null;
@@ -1233,6 +1321,7 @@
     $('detail-modal-close').addEventListener('click', closeDetailModal);
     $('detail-modal').addEventListener('click', function (e) { if (e.target === $('detail-modal')) closeDetailModal(); });
     $('detail-fullscreen').addEventListener('click', function () { var id = DETAIL_NOTA_ID; closeDetailModal(); openLeituraView(id); });
+    $('detail-export-pdf').addEventListener('click', function () { exportNotaPdf(DETAIL_NOTA_ID); });
 
     /* ── View de leitura em tela cheia — mesmos handlers de edição/exclusão
        do #detail-modal, só que fechando a view (não um modal) antes de
@@ -1246,6 +1335,7 @@
     $('leitura-edit-attrs').addEventListener('click', function () { var id = DETAIL_NOTA_ID; closeLeituraView(); openAttrsModal(id); });
     $('leitura-edit-content').addEventListener('click', function () { var id = DETAIL_NOTA_ID; closeLeituraView(); openContentModal(id); });
     $('leitura-delete').addEventListener('click', function () { onDeleteClick($('leitura-delete'), closeLeituraView, DETAIL_NOTA_ID); });
+    $('leitura-export-pdf').addEventListener('click', function () { exportNotaPdf(DETAIL_NOTA_ID); });
 
     document.addEventListener('keydown', function (e) {
       if (e.key !== 'Escape') return;

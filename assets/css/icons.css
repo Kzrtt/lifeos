@@ -97,6 +97,7 @@
 .fa-file-code::before { content: "\f1c9"; }
 .fa-file-invoice-dollar::before { content: "\f571"; }
 .fa-file-lock::before { content: "\f15c"; }
+.fa-file-pdf::before { content: "\f1c1"; }
 .fa-folder-open::before { content: "\f07c"; }
 .fa-grid-2::before { content: "\f009"; }
 .fa-history::before { content: "\f1da"; }
