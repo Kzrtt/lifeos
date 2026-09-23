@@ -48,7 +48,7 @@ dependia do Notion (ver [`NOTAS.md`](NOTAS.md)).
     `<a href="notas.html">`) pra qualquer ação de escrita.
   - **Nativo do hub** — quando o módulo é simples o bastante pra não
     justificar uma tela própria. Hoje **Eventos/Calendário**: view +
-    CRUD completo (criar, ver detalhes, excluir) moram dentro de
+    CRUD completo (criar, ver detalhes, editar, excluir) moram dentro de
     `lifeos.html`/`assets/js/lifeos.js`, no card de Calendário e no modal de
     detalhes do dia. `eventos.html`/`assets/js/eventos.js` (a página própria
     que o módulo tinha antes) ficou **dormente** — sem link nenhum
@@ -73,7 +73,7 @@ dependia do Notion (ver [`NOTAS.md`](NOTAS.md)).
     - **Botão "Adicionar"** (`#add-tarefa-btn`, ao lado de "Abrir" no
       cabeçalho de `#hero-tarefas`) abre o `#tarefa-modal` em modo criar.
     - **`#detail-modal`** ganhou uma coluna de ações (`#detail-modal-actions`,
-      só visível pra tarefa — eventos continuam sem editar/excluir aqui):
+      visível pra tarefa e — desde set/2026 — pra evento também, ver §3.4):
       "Editar" fecha o detail-modal e abre o `#tarefa-modal` já preenchido;
       "Excluir" usa a mesma confirmação inline de dois cliques
       (`confirmDelete`/`resetDeletePending`, cópia isolada — ver §7) já usada
@@ -352,8 +352,8 @@ rolam até Manifestações):
     `apiTarefasQuery` sem filtro). **Clicar num card** (qualquer
     dispositivo) abre `#detail-modal` — leitura completa da tarefa
     (incluindo descrição renderizada em markdown) **com botões Editar/
-    Excluir** (`#detail-modal-actions`, só aparecem pra tarefa, não pra
-    evento): Editar fecha o detail-modal e abre `#tarefa-modal` já
+    Excluir** (`#detail-modal-actions`, aparecem pra tarefa e evento, nunca
+    pra nota): Editar fecha o detail-modal e abre `#tarefa-modal` já
     preenchido; Excluir usa a confirmação inline de dois cliques
     (`confirmDelete`, cópia isolada — ver §7).
     **Drag-and-drop entre colunas** (só **desktop**, `IS_DESKTOP` —
@@ -427,8 +427,8 @@ rolam até Manifestações):
       leitura — "Tela cheia" é a única ação, e virou icon-button ao lado do
       Fechar (`.pdet-banner-top-actions`, ambos reusando `.pdet-close`) em
       vez do botão-texto que ficava num rodapé (`.detail-modal-foot`) —
-      esse rodapé agora serve exclusivamente tarefa (Editar/Excluir); pra
-      nota e evento fica sempre `hidden`. Leva pra `notas.html?nota=<id>`,
+      esse rodapé agora serve só tarefa e evento (Editar/Excluir); pra
+      nota fica sempre `hidden`. Leva pra `notas.html?nota=<id>`,
       ver `NOTAS.md` §2 — nunca dois modais abertos ao mesmo tempo.
 - **`#hero-manifestacoes`** (última hero-section — ver §3.3): grid de
   `.manif-card` (`.manif-grid`, **3 colunas fixas no desktop**
@@ -567,14 +567,30 @@ exatamente a previsão que já estava aqui antes de Tarefas existir.
   eventos não existem em `notas.js`) é quem formata "dd/mm → dd/mm" no
   `#detail-modal` de leitura; a timeline usa a forma curta "até dd/mm" por
   causa do espaço.
-- **Ver + excluir (modo eventos) / só ver (modo tarefas)**: clicar numa
+- **Editar evento (set/2026, pedido do autor — "da mesma maneira que
+  funciona para as tarefas")**: o MESMO `#evento-modal` serve criar e
+  editar (`openEventoModal(id)`, `EDIT_EVENTO_ID` null = criar, título
+  `#evento-modal-title` troca pra "Editar evento"), mesmo padrão do
+  `#tarefa-modal`. Duas entradas: botão **Editar** do `#detail-modal`
+  (`#detail-modal-actions`, o mesmo rodapé da tarefa — o dispatcher decide
+  por `CURRENT_DETAIL_EVENTO_ID` vs `CURRENT_DETAIL_TAREFA_ID`) e o
+  **lápis** de cada linha do `#day-modal`, ao lado do lixinho. Todos os
+  campos editáveis (nome, data, data final — apagar volta a ser evento de
+  um dia só —, tipo, projeto). O picker de projeto mantém o projeto atual
+  mesmo fora de "Em Progresso" (mesma exceção do picker de Tarefas). Ao
+  salvar, `HUB_CAL_YM` navega pro mês do evento; se a edição moveu o
+  evento pra um mês ainda não buscado, `ensureHubCalMonth` busca o resto
+  daquele mês (não marca como carregado só por ter este evento em
+  memória). Backend: ação `update` de `lifeos-eventos` (§6.1).
+- **Ver + editar + excluir (modo eventos) / só ver (modo tarefas)**: clicar numa
   célula do mini-calendário abre `#day-modal` (`openDayModal(dateStr)`).
-  Em modo eventos, cada linha tem um botão de excluir
+  Em modo eventos, cada linha tem um botão de editar e um de excluir
   (`.row-action-btn.row-action-danger`, sempre visível, não hover-only —
   dentro de um modal já focado, hover não ajuda e não existe em touch) com
   a confirmação inline de dois cliques (`confirmDelete`/
   `resetDeletePending`, cópia própria — ver §2/§7); excluir re-renderiza o
-  modal no lugar (sem fechar). Em modo tarefas, a lista é só leitura (nome +
+  modal no lugar (sem fechar). O `#detail-modal` de um evento também tem
+  Excluir (fecha o detail-modal no sucesso). Em modo tarefas, a lista é só leitura (nome +
   projeto + tag de status), sem botão nenhum.
 - **"Hoje" no mini-calendário**: wash dourado translúcido
   (`rgba(196,145,58,0.30)`, texto `var(--gold)`), não um bloco sólido
@@ -787,8 +803,8 @@ a decisão de centralizar tudo em `lifeos.html` foi deliberada.
 
 ### 6.1 `lifeos_eventos`
 
-Falado por `lifeos.html` (query + create + delete — `eventos.html` está
-dormente, ver §5).
+Falado por `lifeos.html` (query + create + update + delete — `eventos.html`
+está dormente, ver §5).
 
 - **Tabela `public.lifeos_eventos`**: `id uuid`, `name text`, `date date`,
   **`date_fim date` (nullable, `check (date_fim is null or date_fim >=
@@ -808,8 +824,12 @@ dormente, ver §5).
   entra —, cada um já com `date_fim`/`projeto_id`), `create` (`{ token,
   action:"create", evento:{name,date,date_fim?,tipo,projeto_id?} }` —
   `date_fim`, se vier, precisa ser `>= date`, validado antes do CHECK do
-  banco pra devolver um erro claro), `delete` (`{ token, action:"delete",
-  id }`). Sem `update` nesta entrega.
+  banco pra devolver um erro claro), `update` (`{ token, action:"update",
+  id, patch:{name?,date?,date_fim?,tipo?,projeto_id?} }` — PATCH parcial,
+  mesmo contrato de `lifeos-tarefas`; `date_fim`/`projeto_id` aceitam
+  `null` pra limpar; a checagem `date_fim >= date` usa a data EFETIVA — se
+  o patch só traz uma das duas, a outra vem da linha atual; set/2026),
+  `delete` (`{ token, action:"delete", id }`).
 
 ### 6.2 `lifeos_projetos` e `lifeos_tarefas`
 
@@ -954,6 +974,17 @@ clique dentro da janela chama `run()` (a chamada de API) e, no sucesso,
 `onDone()` (atualiza o array em memória + re-renderiza). Um módulo novo
 com exclusão deve **copiar** esse padrão pro seu próprio arquivo, não
 importar de outro (ver §2).
+
+**Armadilha (bug real, corrigido em set/2026 em `lifeos.js` — "não consigo
+excluir eventos"):** um listener em `document` que cancela a confirmação
+pendente ao clicar fora de `.row-action-btn` **não pode** usar
+`e.target.closest(...)`. O clique quase sempre cai no `<i>` do ícone, e
+`confirmDelete` troca o conteúdo do botão por "confirmar?" durante o
+próprio dispatch — o `<i>` fica solto do DOM, `closest()` devolve `null`, e
+o reset desfaz a confirmação no mesmo clique (o segundo clique nunca
+encontra nada pendente). Use `e.composedPath()`, que é congelado no início
+do dispatch. Os listeners delegados de `financas.js`/`eventos.js` não
+sofrem disso porque rodam o `closest` ANTES de trocar o conteúdo.
 
 ---
 

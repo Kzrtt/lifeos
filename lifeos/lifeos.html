@@ -1444,9 +1444,9 @@
       <div class="pdet-head"><div class="pdet-name" id="detail-modal-title">—</div></div>
       <div class="pdet-body-pad" id="detail-modal-body"></div>
     </div>
-    <!-- Editar/Excluir só aparecem pra tarefa (ver openDetailModal) —
-         eventos continuam só leitura aqui, excluir mora no modal do dia
-         (§3.4 LIFEOS.md); nota não usa mais este rodapé (5ª rodada,
+    <!-- Editar/Excluir aparecem pra tarefa e evento (ver openDetailModal —
+         evento ganhou os dois em set/2026, além do lixinho do modal do
+         dia, §3.4 LIFEOS.md); nota não usa mais este rodapé (5ª rodada,
          set/2026 — Tela cheia virou icon-button no banner acima, e
          Excluir/Editar de nota nunca moraram aqui, ver notas.html). Fica
          no rodapé (fora da área com scroll), não no header, pra continuar
@@ -1458,7 +1458,7 @@
   </div>
 </div>
 
-<!-- ───────────────────────── MODAL · NOVO EVENTO ─────────────────────────
+<!-- ───────────────────────── MODAL · EVENTO (criar/editar) ─────────────────────────
      Banner com cor dinâmica pelo tipo selecionado (EVENTO_COR) — ver
      setEventoTipo em lifeos.js, que atualiza --pdet-accent a cada clique
      no chip, junto do #evento-tipo hidden. -->
@@ -1469,7 +1469,7 @@
       <div class="pdet-banner-icon"><i class="fad fa-calendar-alt"></i></div>
     </div>
     <div class="modal-body">
-      <div class="pdet-head"><div class="pdet-name">Novo evento</div></div>
+      <div class="pdet-head"><div class="pdet-name" id="evento-modal-title">Novo evento</div></div>
       <form id="evento-form" class="pdet-body-pad" autocomplete="off">
         <div class="edit-field">
           <label class="edit-label" for="evento-nome">Nome</label>
@@ -1790,7 +1790,7 @@
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.6/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/marked@12.0.2/marked.min.js"></script>
-<script src="../assets/js/lifeos.js?v=20260922c"></script>
+<script src="../assets/js/lifeos.js?v=20260923a"></script>
 <script src="../assets/js/back-to-top.js?v=20260617"></script>
 
 <script>

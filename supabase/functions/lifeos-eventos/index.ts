@@ -4,8 +4,9 @@
 // lifeos.html -- ver LIFEOS.md). Mesmo padrao de gate/CORS de
 // lifeos-movimentacoes.
 //
-// Acoes: "query" (default, por range de datas), "create", "delete". Sem
-// "update" nesta primeira entrega -- a UI so cria/apaga eventos por ora.
+// Acoes: "query" (default, por range de datas), "create", "update" (PATCH
+// parcial, desde set/2026 -- o hub ganhou edicao de evento pelo mesmo
+// fluxo de modal das tarefas), "delete".
 //
 // projeto_id (opcional): vinculo a um lifeos_projetos, diferente de
 // lifeos_tarefas onde o vinculo e obrigatorio -- nem todo evento pertence
@@ -117,6 +118,7 @@ Deno.serve(async (req) => {
   try {
     let token = "", action = "query", id = "", from = "", to = "";
     let evento: Record<string, any> | null = null;
+    let patch: Record<string, any> | null = null;
     try {
       const body = await req.json();
       token = (body?.token ?? "").toString().trim();
@@ -125,6 +127,7 @@ Deno.serve(async (req) => {
       from = (body?.from ?? "").toString().trim();
       to = (body?.to ?? "").toString().trim();
       evento = (body?.evento && typeof body.evento === "object") ? body.evento : null;
+      patch = (body?.patch && typeof body.patch === "object") ? body.patch : null;
     } catch {
       return json({ ok: false, error: "bad_request" }, 400);
     }
@@ -134,6 +137,7 @@ Deno.serve(async (req) => {
     if (isMaster !== true) return json({ ok: false, error: "unauthorized" }, 401);
 
     if (action === "create") return await handleCreate(REST, restHeaders, evento);
+    if (action === "update") return await handleUpdate(REST, restHeaders, id, patch);
     if (action === "delete") return await handleDelete(REST, restHeaders, id);
 
     // query (default)
@@ -197,6 +201,71 @@ async function handleCreate(REST: string, headers: Record<string, string>, event
   });
   if (!r.ok) return json({ ok: false, error: `db_error: ${r.status} ${await r.text()}` }, 502);
   const rows = await r.json();
+  return json({ ok: true, evento: normalizeRow(rows[0]) });
+}
+
+// PATCH parcial -- so os campos presentes em `patch` mudam (mesmo contrato
+// de lifeos-tarefas/handleUpdate). date_fim e projeto_id aceitam null/""
+// pra LIMPAR (evento volta a ser de um dia so / perde o vinculo). A
+// checagem date_fim >= date precisa da data de inicio EFETIVA: se o patch
+// so traz uma das duas, a outra vem da linha atual.
+async function handleUpdate(REST: string, headers: Record<string, string>, id: string, patch: Record<string, any> | null) {
+  if (!id) return json({ ok: false, error: "missing_id" }, 400);
+  if (!patch || !Object.keys(patch).length) return json({ ok: false, error: "empty_patch" }, 400);
+
+  const update: Record<string, any> = {};
+  if ("name" in patch) {
+    const name = String(patch.name ?? "").trim();
+    if (!name) return json({ ok: false, error: "invalid_name" }, 400);
+    update.name = name;
+  }
+  if ("date" in patch) {
+    const date = String(patch.date ?? "");
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return json({ ok: false, error: "invalid_date" }, 400);
+    update.date = date;
+  }
+  if ("date_fim" in patch) {
+    const v = patch.date_fim;
+    if (v === null || v === undefined || v === "") {
+      update.date_fim = null;
+    } else {
+      const date_fim = String(v);
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(date_fim)) return json({ ok: false, error: "invalid_date_fim" }, 400);
+      update.date_fim = date_fim;
+    }
+  }
+  if ("tipo" in patch) {
+    const tipo = String(patch.tipo ?? "");
+    if (!vocab("evento_tipo", TIPOS_VALIDOS).includes(tipo)) return json({ ok: false, error: "invalid_tipo" }, 400);
+    update.tipo = tipo;
+  }
+  if ("projeto_id" in patch) {
+    const v = patch.projeto_id;
+    update.projeto_id = (typeof v === "string" && v.trim()) ? v.trim() : null;
+  }
+  if (!Object.keys(update).length) return json({ ok: false, error: "empty_patch" }, 400);
+
+  if (update.date_fim || "date" in update) {
+    let date = update.date, date_fim = update.date_fim;
+    if (date === undefined || date_fim === undefined) {
+      const cur = await fetch(`${REST}/lifeos_eventos?id=eq.${id}&select=date,date_fim`, { headers });
+      if (!cur.ok) return json({ ok: false, error: `db_error: ${cur.status} ${await cur.text()}` }, 502);
+      const rows = await cur.json();
+      if (!rows.length) return json({ ok: false, error: "not_found" }, 404);
+      if (date === undefined) date = rows[0].date;
+      if (date_fim === undefined) date_fim = rows[0].date_fim;
+    }
+    if (date_fim && date_fim < date) return json({ ok: false, error: "date_fim_antes_de_date" }, 400);
+  }
+
+  const r = await fetch(`${REST}/lifeos_eventos?id=eq.${id}`, {
+    method: "PATCH",
+    headers: { ...headers, Prefer: "return=representation" },
+    body: JSON.stringify(update),
+  });
+  if (!r.ok) return json({ ok: false, error: `db_error: ${r.status} ${await r.text()}` }, 502);
+  const rows = await r.json();
+  if (!rows.length) return json({ ok: false, error: "not_found" }, 404);
   return json({ ok: true, evento: normalizeRow(rows[0]) });
 }
 

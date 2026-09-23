@@ -287,6 +287,8 @@
   var TAREFA_DESCRICAO_MODE = 'Editar';
   var CURRENT_DETAIL_TAREFA_ID = null; /* tarefa aberta no detail-modal — alimenta Editar/Excluir */
   var CURRENT_DETAIL_NOTA_ID = null;   /* nota aberta no detail-modal — alimenta o botão "Tela cheia" */
+  var CURRENT_DETAIL_EVENTO_ID = null; /* evento aberto no detail-modal — alimenta Editar/Excluir (mesmo rodapé da tarefa) */
+  var EDIT_EVENTO_ID = null;           /* null = #evento-modal em modo "criar" */
   /* CRUD de Projetos direto pelo hub — movido de tarefas.js em set/2026 (ver
      LIFEOS.md, decisão explícita do autor de centralizar a gestão aqui). */
   var EDIT_PROJETO_ID = null;       /* null = #projeto-modal em modo "criar" */
@@ -522,6 +524,13 @@
     MOCK_EVENTOS.push(created);
     return { ok: true, evento: created };
   }
+  function mockEventosUpdate(id, patch) {
+    if (!MOCK_EVENTOS) MOCK_EVENTOS = seedMockEventos();
+    for (var i = 0; i < MOCK_EVENTOS.length; i++) {
+      if (MOCK_EVENTOS[i].id === id) { MOCK_EVENTOS[i] = Object.assign({}, MOCK_EVENTOS[i], patch); return { ok: true, evento: MOCK_EVENTOS[i] }; }
+    }
+    return { ok: false, error: 'not_found' };
+  }
   function mockEventosDelete(id) {
     if (MOCK_EVENTOS) { for (var i = 0; i < MOCK_EVENTOS.length; i++) { if (MOCK_EVENTOS[i].id === id) { MOCK_EVENTOS.splice(i, 1); break; } } }
     return { ok: true, id: id };
@@ -713,6 +722,21 @@
       method: 'POST',
       headers: { 'apikey': ANON_KEY, 'Authorization': 'Bearer ' + ANON_KEY, 'Content-Type': 'application/json' },
       body: JSON.stringify({ token: pw, action: 'create', evento: evento }),
+    }).then(function (res) {
+      if (res.status === 401) return Promise.reject({ code: 'unauthorized' });
+      if (!res.ok) return Promise.reject({ code: 'server', detail: String(res.status) });
+      return res.json();
+    }).then(function (j) {
+      if (!j || !j.ok) return Promise.reject({ code: 'server', detail: (j && j.error) || 'resposta inválida' });
+      return j;
+    });
+  }
+  function apiEventosUpdate(pw, id, patch) {
+    if (IS_LOCAL_DEV) return mockDelay(mockEventosUpdate(id, patch));
+    return fetch(EVENTOS_FN, {
+      method: 'POST',
+      headers: { 'apikey': ANON_KEY, 'Authorization': 'Bearer ' + ANON_KEY, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token: pw, action: 'update', id: id, patch: patch }),
     }).then(function (res) {
       if (res.status === 401) return Promise.reject({ code: 'unauthorized' });
       if (!res.ok) return Promise.reject({ code: 'server', detail: String(res.status) });
@@ -1355,8 +1379,8 @@
 
   /* ── Preview de Eventos: mini-calendário NAVEGÁVEL (ver §1 do LIFEOS.md —
      revertido: o autor quer poder navegar meses direto do hub, não só em
-     /eventos) + linha do tempo recentes/próximos. Criar/excluir eventos
-     continuam vivendo só em /eventos — o hub segue read-only. ── */
+     /eventos) + linha do tempo recentes/próximos. O CRUD de eventos mora
+     todo aqui no hub (§3.4) — /eventos está dormente. ── */
   function renderMiniCal() {
     var dowHost = $('mini-cal-dow'), gridHost = $('mini-cal'), labelEl = $('hub-cal-label');
     if (!gridHost) return;
@@ -1475,8 +1499,8 @@
   }
 
   /* ── Modal · detalhes do dia (clique numa célula do mini-calendário) ──
-     Modo eventos: dá pra ver E excluir (criar é pelo botão "Adicionar", ver
-     openEventoModal) — o calendário é o único lugar do LifeOS pra CRUD de
+     Modo eventos: dá pra ver, editar E excluir (criar é pelo botão
+     "Adicionar", ver openEventoModal) — o calendário é o único lugar do LifeOS pra CRUD de
      eventos. Modo tarefas: só LEITURA — tarefas exigem projeto obrigatório
      e o CRUD completo mora em tarefas.html, não faz sentido duplicar aqui
      (ver LIFEOS.md §1). Funciona pra qualquer dia do mês já carregado (em
@@ -1539,10 +1563,15 @@
     var actions = $('detail-modal-actions');
     var dateBadge = $('detail-banner-date'); dateBadge.hidden = true;
     if (kind === 'evento') {
-      actions.hidden = true;
+      /* Editar/Excluir no mesmo rodapé da tarefa (set/2026) — o dispatcher
+         dos botões decide pelo id preenchido (CURRENT_DETAIL_EVENTO_ID vs
+         CURRENT_DETAIL_TAREFA_ID, nunca os dois ao mesmo tempo). */
+      actions.hidden = false;
+      $('detail-modal-edit').setAttribute('aria-label', 'Editar evento');
+      $('detail-modal-delete').setAttribute('aria-label', 'Excluir evento');
       $('detail-modal-fullscreen').hidden = true;
       $('detail-modal-export-pdf').hidden = true;
-      CURRENT_DETAIL_TAREFA_ID = null; CURRENT_DETAIL_NOTA_ID = null;
+      CURRENT_DETAIL_TAREFA_ID = null; CURRENT_DETAIL_NOTA_ID = null; CURRENT_DETAIL_EVENTO_ID = obj.id;
       bannerIcon.innerHTML = '<i class="fad fa-calendar-alt"></i>';
       banner.style.setProperty('--pdet-accent', EVENTO_COR[obj.tipo] || 'var(--gold)');
       addDetailField(body, 'Data', fmtEventoData(obj));
@@ -1561,7 +1590,7 @@
       actions.hidden = true;
       $('detail-modal-fullscreen').hidden = false;
       $('detail-modal-export-pdf').hidden = false;
-      CURRENT_DETAIL_TAREFA_ID = null; CURRENT_DETAIL_NOTA_ID = obj.id;
+      CURRENT_DETAIL_TAREFA_ID = null; CURRENT_DETAIL_NOTA_ID = obj.id; CURRENT_DETAIL_EVENTO_ID = null;
       bannerIcon.innerHTML = '<i class="fad fa-book-open"></i>';
       banner.style.removeProperty('--pdet-accent');
       if (obj.data) { dateBadge.textContent = fmtDate(obj.data); dateBadge.hidden = false; }
@@ -1595,12 +1624,14 @@
       contentEl.innerHTML = renderMarkdown(obj.conteudo_md);
       body.appendChild(contentEl);
     } else {
-      /* Editar/Excluir só aparecem pra tarefa — parte do CRUD completo do
-         hub (exceção documentada em LIFEOS.md, set/2026). */
+      /* Editar/Excluir — parte do CRUD completo do hub (exceção documentada
+         em LIFEOS.md, set/2026). */
       actions.hidden = false;
+      $('detail-modal-edit').setAttribute('aria-label', 'Editar tarefa');
+      $('detail-modal-delete').setAttribute('aria-label', 'Excluir tarefa');
       $('detail-modal-fullscreen').hidden = true;
       $('detail-modal-export-pdf').hidden = true;
-      CURRENT_DETAIL_TAREFA_ID = obj.id; CURRENT_DETAIL_NOTA_ID = null;
+      CURRENT_DETAIL_TAREFA_ID = obj.id; CURRENT_DETAIL_NOTA_ID = null; CURRENT_DETAIL_EVENTO_ID = null;
       bannerIcon.innerHTML = '<i class="fad fa-tasks"></i>';
       banner.style.setProperty('--pdet-accent', TAR_STATUS_COR[obj.status] || 'var(--gold)');
       addDetailField(body, 'Status', obj.status || '—');
@@ -1613,7 +1644,7 @@
     $('detail-modal').classList.add('open');
     syncModalScrollLock();
   }
-  function closeDetailModal() { $('detail-modal').classList.remove('open'); CURRENT_DETAIL_TAREFA_ID = null; CURRENT_DETAIL_NOTA_ID = null; syncModalScrollLock(); }
+  function closeDetailModal() { $('detail-modal').classList.remove('open'); CURRENT_DETAIL_TAREFA_ID = null; CURRENT_DETAIL_NOTA_ID = null; CURRENT_DETAIL_EVENTO_ID = null; syncModalScrollLock(); }
 
   /* ── Exportar PDF (só nota) — print-to-PDF nativo do navegador ───────
      Cópia isolada do mesmo padrão de notas.js (ver LIFEOS.md §2): popula
@@ -1771,6 +1802,12 @@
           var tag = document.createElement('span'); tag.className = 'hub-evt-tag'; tag.textContent = e.tipo;
           var cor = EVENTO_COR[e.tipo] || 'var(--mute)'; tag.style.color = cor; tag.style.borderColor = cor;
           var actions = document.createElement('span'); actions.className = 'row-actions';
+          var editBtn = document.createElement('button');
+          editBtn.type = 'button'; editBtn.className = 'row-action-btn';
+          editBtn.setAttribute('data-action', 'edit-evento'); editBtn.setAttribute('data-id', e.id);
+          editBtn.setAttribute('aria-label', 'Editar evento');
+          editBtn.innerHTML = '<i class="fad fa-pen"></i>';
+          actions.appendChild(editBtn);
           var delBtn = document.createElement('button');
           delBtn.type = 'button'; delBtn.className = 'row-action-btn row-action-danger';
           delBtn.setAttribute('data-action', 'delete-evento'); delBtn.setAttribute('data-id', e.id);
@@ -1849,9 +1886,13 @@
     btn.textContent = 'confirmar?';
     DELETE_PENDING = { key: key, btn: btn, timeoutId: setTimeout(resetDeletePending, 3000) };
   }
+  /* Chamado tanto pelo lixinho do #day-modal quanto pelo Excluir do
+     #detail-modal — no segundo caso fecha o detail-modal (o registro não
+     existe mais) e o #day-modal por baixo, se houver, re-renderiza. */
   function onDeleteEvento(btn, id) {
     confirmDelete(btn, 'evt:' + id, function () { return apiEventosDelete(SESSION_PW, id); }, function () {
-      for (var i = 0; i < EVENTOS.length; i++) { if (EVENTOS[i].id === id) { EVENTOS.splice(i, 1); break; } }
+      for (var i = 0; i < EVENTOS.length; i++) { if (String(EVENTOS[i].id) === String(id)) { EVENTOS.splice(i, 1); break; } }
+      if (String(CURRENT_DETAIL_EVENTO_ID) === String(id)) closeDetailModal();
       writeHubCache();
       renderMiniCal();
       renderEventosTimeline();
@@ -1860,7 +1901,8 @@
     });
   }
 
-  /* ── Modal · novo evento (botão "Adicionar" do card de Calendário) ── */
+  /* ── Modal · evento — criar (botão "Adicionar" do card de Calendário) ou
+     editar (Editar do #detail-modal / lápis do #day-modal) ── */
   /* Chips clicáveis pro tipo (em vez de <select>) — clicar pra marcar é mais
      direto que abrir um dropdown. A cor de cada chip é a MESMA de
      EVENTO_COR, guardada em --opt-color pra a borda acender quando
@@ -1900,11 +1942,12 @@
      default; PROJETOS já vem carregado do boot (apiProjetosQuery).
      Só projetos "Em Progresso" entram — mesmo filtro e mesma razão do
      picker de Tarefas (buildProjetoChipPicker, acima): não faz sentido
-     vincular a um projeto Pausado/Feito/Não Iniciado. Sem a exceção do
-     "projeto atual" que existe lá — eventos não têm edição (só create/
-     delete, ver LIFEOS.md §6.1), então nunca há uma seleção prévia a
-     preservar. */
-  function renderEventoProjetoPicker() {
+     vincular a um projeto Pausado/Feito/Não Iniciado. Mesma exceção do
+     "projeto atual" de lá: ao EDITAR um evento vinculado a um projeto que
+     não está (ou deixou de estar) Em Progresso, ele continua na lista —
+     senão o chip da seleção atual sumiria e o evento pareceria "sem
+     projeto" no formulário. */
+  function renderEventoProjetoPicker(currentId) {
     var host = $('evento-projeto-picker');
     if (!host) return;
     host.innerHTML = '';
@@ -1912,7 +1955,7 @@
     nenhum.type = 'button'; nenhum.className = 'evento-projeto-opt'; nenhum.setAttribute('data-id', '');
     nenhum.textContent = 'Nenhum';
     host.appendChild(nenhum);
-    PROJETOS.filter(function (p) { return p.status === 'Em Progresso'; }).forEach(function (p) {
+    PROJETOS.filter(function (p) { return p.status === 'Em Progresso' || (currentId && p.id === currentId); }).forEach(function (p) {
       var btn = document.createElement('button');
       btn.type = 'button'; btn.className = 'evento-projeto-opt'; btn.setAttribute('data-id', p.id);
       btn.textContent = (p.emoji ? p.emoji + ' ' : '') + p.name;
@@ -1925,20 +1968,27 @@
     for (var i = 0; i < btns.length; i++) btns[i].classList.toggle('is-selected', btns[i].getAttribute('data-id') === (id || ''));
   }
 
-  function openEventoModal() {
+  /* Um único modal pros dois modos — EDIT_EVENTO_ID null = criar (mesmo
+     padrão de openTarefaModal). */
+  function openEventoModal(id) {
     if ($('day-modal').classList.contains('open')) closeDayModal();
-    $('evento-nome').value = '';
-    $('evento-date').value = todayISO();
-    $('evento-date-fim').value = '';
-    setEventoTipo('vida');
-    setEventoProjeto('');
+    EDIT_EVENTO_ID = id || null;
+    var ev = null;
+    if (id) { for (var i = 0; i < EVENTOS.length; i++) { if (String(EVENTOS[i].id) === String(id)) { ev = EVENTOS[i]; break; } } }
+    $('evento-modal-title').textContent = ev ? 'Editar evento' : 'Novo evento';
+    renderEventoProjetoPicker(ev ? ev.projeto_id : null);
+    $('evento-nome').value = ev ? ev.name : '';
+    $('evento-date').value = ev ? ev.date : todayISO();
+    $('evento-date-fim').value = (ev && ev.date_fim) ? ev.date_fim : '';
+    setEventoTipo(ev ? ev.tipo : 'vida');
+    setEventoProjeto(ev ? ev.projeto_id : '');
     $('evento-error').textContent = '';
     setEventoSaving(false);
     $('evento-modal').classList.add('open');
     syncModalScrollLock();
-    var ni = $('evento-nome'); if (ni) ni.focus();
+    if (!ev) { var ni = $('evento-nome'); if (ni) ni.focus(); }
   }
-  function closeEventoModal() { $('evento-modal').classList.remove('open'); syncModalScrollLock(); }
+  function closeEventoModal() { $('evento-modal').classList.remove('open'); EDIT_EVENTO_ID = null; syncModalScrollLock(); }
   function setEventoSaving(on) { $('evento-save').disabled = on; $('evento-save').textContent = on ? 'Salvando…' : 'Salvar'; }
   function onEventoSubmit(e) {
     e.preventDefault();
@@ -1955,15 +2005,32 @@
     if (dFim && dFim < d) { $('evento-error').textContent = 'data final não pode ser antes da data de início'; return; }
     setEventoSaving(true);
     $('evento-error').textContent = '';
-    apiEventosCreate(SESSION_PW, { name: nome, date: d, date_fim: dFim, tipo: tipo, projeto_id: projeto_id }).then(function (j) {
-      EVENTOS.push(j.evento);
+    var payload = { name: nome, date: d, date_fim: dFim, tipo: tipo, projeto_id: projeto_id };
+    var req = EDIT_EVENTO_ID
+      ? apiEventosUpdate(SESSION_PW, EDIT_EVENTO_ID, payload)
+      : apiEventosCreate(SESSION_PW, payload);
+    /* Guarda ANTES de fechar o modal — closeEventoModal() zera
+       EDIT_EVENTO_ID (mesmo bug já corrigido em onTarefaSubmit, ver
+       LIFEOS.md §9). */
+    var wasEditing = EDIT_EVENTO_ID;
+    req.then(function (j) {
+      var saved = j.evento;
       closeEventoModal();
-      /* o mês do evento criado pode estar fora da janela já carregada —
-         marca como carregado (já temos ele em memória; não precisa refetch)
-         e navega o calendário até lá, pra quem cria já ver o resultado. */
-      var evYm = j.evento.date.slice(0, 7);
-      HUB_EVENTOS_LOADED[evYm] = true;
+      if (wasEditing) {
+        for (var i = 0; i < EVENTOS.length; i++) { if (String(EVENTOS[i].id) === String(saved.id)) { EVENTOS[i] = saved; break; } }
+      } else {
+        EVENTOS.push(saved);
+      }
+      /* o mês do evento salvo pode estar fora da janela já carregada —
+         marca como carregado (o evento em si já está em memória) e navega
+         o calendário até lá, pra quem cria/edita já ver o resultado. Só
+         marca ao CRIAR: numa edição que move o evento pra um mês ainda não
+         buscado, marcar esconderia os OUTROS eventos daquele mês —
+         ensureHubCalMonth busca e o dedup por id evita duplicar este. */
+      var evYm = saved.date.slice(0, 7);
+      if (!wasEditing) HUB_EVENTOS_LOADED[evYm] = true;
       HUB_CAL_YM = evYm;
+      if (wasEditing) ensureHubCalMonth(evYm).then(function () { writeHubCache(); renderMiniCal(); syncEventTimelineHeight(); });
       writeHubCache();
       renderMiniCal();
       renderEventosTimeline();
@@ -3267,27 +3334,43 @@
     $('day-modal-body').addEventListener('click', function (e) {
       var btn = e.target.closest ? e.target.closest('.row-action-btn[data-action="delete-evento"]') : null;
       if (btn) { onDeleteEvento(btn, btn.getAttribute('data-id')); return; }
+      var editBtn = e.target.closest ? e.target.closest('.row-action-btn[data-action="edit-evento"]') : null;
+      if (editBtn) { openEventoModal(editBtn.getAttribute('data-id')); return; }
       onHubListRowActivate(e);
     });
     $('detail-modal-close').addEventListener('click', closeDetailModal);
     $('detail-modal').addEventListener('click', function (e) { if (e.target === $('detail-modal')) closeDetailModal(); });
     $('detail-modal-edit').addEventListener('click', function () {
-      var id = CURRENT_DETAIL_TAREFA_ID;
+      var tarefaId = CURRENT_DETAIL_TAREFA_ID, eventoId = CURRENT_DETAIL_EVENTO_ID;
       closeDetailModal();
-      if (id) openTarefaModal(id);
+      if (tarefaId) openTarefaModal(tarefaId);
+      else if (eventoId) openEventoModal(eventoId);
     });
     $('detail-modal-delete').addEventListener('click', function (e) {
       if (CURRENT_DETAIL_TAREFA_ID) onDeleteTarefaClick(e.currentTarget, CURRENT_DETAIL_TAREFA_ID);
+      else if (CURRENT_DETAIL_EVENTO_ID) onDeleteEvento(e.currentTarget, CURRENT_DETAIL_EVENTO_ID);
     });
     $('detail-modal-fullscreen').addEventListener('click', function () {
       if (CURRENT_DETAIL_NOTA_ID) location.href = 'notas.html?nota=' + encodeURIComponent(CURRENT_DETAIL_NOTA_ID);
     });
     $('detail-modal-export-pdf').addEventListener('click', function () { exportNotaPdf(CURRENT_DETAIL_NOTA_ID); });
     /* Clicar em qualquer lugar que NÃO seja um botão de excluir cancela uma
-       confirmação pendente na hora, em vez de esperar os 3s do timeout. */
+       confirmação pendente na hora, em vez de esperar os 3s do timeout.
+
+       Bug corrigido (set/2026 — "não consigo excluir eventos"): o clique
+       quase sempre cai no <i> do ícone, não no <button>. confirmDelete()
+       troca o conteúdo do botão por "confirmar?" (textContent), o que
+       DESANEXA esse <i> do DOM ainda durante o dispatch — quando o evento
+       chega aqui por bubbling, e.target.closest() num nó solto devolve
+       null, e o reset desfazia o "confirmar?" no mesmo clique. O segundo
+       clique nunca achava a confirmação pendente. composedPath() é
+       congelado no início do dispatch, então ainda enxerga o botão. */
     document.addEventListener('click', function (e) {
-      var btn = e.target.closest ? e.target.closest('.row-action-btn') : null;
-      if (!btn) resetDeletePending();
+      var path = e.composedPath ? e.composedPath() : [e.target];
+      for (var i = 0; i < path.length; i++) {
+        if (path[i].classList && path[i].classList.contains('row-action-btn')) return;
+      }
+      resetDeletePending();
     });
     renderEventoTipoPicker();
     $('evento-tipo-picker').addEventListener('click', function (e) {
