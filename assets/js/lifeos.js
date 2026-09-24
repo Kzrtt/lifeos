@@ -39,6 +39,7 @@
   var MANIFESTACOES_FN = FN_BASE + 'lifeos-manifestacoes';
   var NOTAS_FN = FN_BASE + 'lifeos-notas';
   var VIEWS_FN = FN_BASE + 'lifeos-views';
+  var CITACOES_FN = FN_BASE + 'lifeos-citacoes';
   var ANON_KEY = CFG.anonKey;
   var LS_KEY = CFG.sessionKey; /* mesma chave de /financas e /eventos — "lembrar" vale nas três */
 
@@ -193,6 +194,11 @@
   var MANIF_FOCUS = false;    /* modo foco do atalho rápido — ver toggleManifFocus */
   var MANIFESTACAO_TAGS_SEL = [];   /* estado do chip-picker multi-select de tags */
   var MANIFESTACAO_BANNER_FILE = null; /* File escolhido no input, null = sem banner */
+  /* Citações (set/2026) — nativo do hub: banner sorteado acima do
+     Calendário + #citacoes-modal com a lista e o CRUD. Ver LIFEOS.md §3.6. */
+  var CITACOES = [];
+  var CITACAO_ATUAL_ID = null;  /* a sorteada no banner; mantida entre renders até o próximo sorteio */
+  var EDIT_CITACAO_ID = null;   /* null = formulário em modo criar */
   var FIN_MONTH_CACHE = {};   /* ym -> movimentacoes, memoização pra carryInto (ver ensureFinMonthRows) */
   var finChart = null;
   var NOT_TIPO_CHART = null;  /* barras · distribuição de Notas por tipo (#not-chart-tipo) */
@@ -606,6 +612,38 @@
     MOCK_MANIFESTACOES.push(created);
     return { ok: true, manifestacao: created };
   }
+  /* Citações — mock local do CRUD inteiro (ver LIFEOS.md §3.6). */
+  var MOCK_CITACOES = null;
+  function mockCitacoesAll() {
+    if (!MOCK_CITACOES) {
+      MOCK_CITACOES = [
+        { id: 'mock-cit-1', texto: 'Para ser feliz, elimine *duas coisas*. O *medo* de um futuro ruim e a *memória* de um passado ruim.', autor: 'Sêneca' },
+        { id: 'mock-cit-2', texto: 'Não é porque as coisas são difíceis que não ousamos; é porque *não ousamos* que elas são difíceis.', autor: 'Sêneca' },
+        { id: 'mock-cit-3', texto: 'Aquele que tem um *porquê* para viver pode suportar quase qualquer *como*.', autor: 'Nietzsche' },
+      ];
+    }
+    return MOCK_CITACOES;
+  }
+  function mockCitacoes(body) {
+    var all = mockCitacoesAll();
+    var i;
+    if (body.action === 'create') {
+      var created = { id: 'mock-cit-new-' + Date.now(), texto: body.citacao.texto, autor: body.citacao.autor };
+      all.push(created);
+      return { ok: true, citacao: created };
+    }
+    if (body.action === 'update') {
+      for (i = 0; i < all.length; i++) {
+        if (all[i].id === body.id) { all[i] = Object.assign({}, all[i], body.patch); return { ok: true, citacao: all[i] }; }
+      }
+      return { ok: false, error: 'not_found' };
+    }
+    if (body.action === 'delete') {
+      for (i = 0; i < all.length; i++) { if (all[i].id === body.id) { all.splice(i, 1); break; } }
+      return { ok: true, id: body.id };
+    }
+    return { ok: true, citacoes: all.slice() };
+  }
   var MOCK_NOTAS = null;
   function mockNotasQuery() {
     if (!MOCK_NOTAS) {
@@ -896,6 +934,28 @@
     }).then(function (j) {
       if (!j || !j.ok) return Promise.reject({ code: 'server', detail: (j && j.error) || 'resposta inválida' });
       return j;
+    });
+  }
+  /* Citações — as quatro ações (query/create/update/delete) passam pelo
+     mesmo corpo `{token, action, ...}`, então um só helper serve todas. */
+  function apiCitacoes(pw, body) {
+    body = Object.assign({ token: pw }, body || {});
+    if (IS_LOCAL_DEV) {
+      var mocked = mockCitacoes(body);
+      return mockDelay(mocked).then(function (j) {
+        return j.ok ? j : Promise.reject({ code: 'server', detail: j.error });
+      });
+    }
+    return fetch(CITACOES_FN, {
+      method: 'POST',
+      headers: { 'apikey': ANON_KEY, 'Authorization': 'Bearer ' + ANON_KEY, 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    }).then(function (res) {
+      if (res.status === 401) return Promise.reject({ code: 'unauthorized' });
+      return res.json().catch(function () { return null; }).then(function (j) {
+        if (!res.ok || !j || !j.ok) return Promise.reject({ code: 'server', detail: (j && j.error) || String(res.status) });
+        return j;
+      });
     });
   }
   /* CREATE de Manifestações — banner_base64/banner_content_type são
@@ -1540,7 +1600,8 @@
       $('tarefa-modal').classList.contains('open') ||
       $('projeto-modal').classList.contains('open') ||
       $('projeto-detail-modal').classList.contains('open') ||
-      $('manifestacao-modal').classList.contains('open');
+      $('manifestacao-modal').classList.contains('open') ||
+      $('citacoes-modal').classList.contains('open');
     if (open) {
       if (document.body.classList.contains('modal-scroll-lock')) return;
       SCROLL_LOCK_Y = window.scrollY;
@@ -2819,6 +2880,184 @@
     });
   }
 
+  /* ── Citações: banner sorteado + #citacoes-modal (set/2026) ─────────
+     Diferente das outras listagens do hub, a área não mostra a lista de
+     cara: mostra UMA citação, sorteada a cada abertura da página (boot ou
+     ↻). A lista completa, com editar/excluir, fica no modal que o banner
+     abre. Ver LIFEOS.md §3.6. */
+
+  /* Monta o texto da citação em `host`, transformando `*trecho*` em
+     <strong> (destaque no acento). Só createElement/textContent — o texto
+     vem do banco e nunca passa por innerHTML. */
+  function fillCitacaoTexto(host, texto, comAspas) {
+    host.textContent = '';
+    if (comAspas) {
+      var qo = document.createElement('span'); qo.className = 'cit-q cit-q-open'; qo.textContent = '“';
+      host.appendChild(qo);
+    }
+    var parts = String(texto || '').split(/\*([^*]+)\*/);
+    for (var i = 0; i < parts.length; i++) {
+      if (!parts[i]) continue;
+      if (i % 2 === 1) {
+        var strong = document.createElement('strong'); strong.textContent = parts[i];
+        host.appendChild(strong);
+      } else {
+        host.appendChild(document.createTextNode(parts[i]));
+      }
+    }
+    if (comAspas) {
+      var qc = document.createElement('span'); qc.className = 'cit-q cit-q-close'; qc.textContent = '”';
+      host.appendChild(qc);
+    }
+  }
+
+  function findCitacao(id) {
+    for (var i = 0; i < CITACOES.length; i++) { if (String(CITACOES[i].id) === String(id)) return CITACOES[i]; }
+    return null;
+  }
+
+  /* Sorteia uma citação pro banner. Evita repetir a que já está na tela
+     quando há mais de uma, senão um ↻ pode "não fazer nada". */
+  function sortearCitacao() {
+    if (!CITACOES.length) { CITACAO_ATUAL_ID = null; return; }
+    var pool = CITACOES.length > 1
+      ? CITACOES.filter(function (c) { return String(c.id) !== String(CITACAO_ATUAL_ID); })
+      : CITACOES;
+    CITACAO_ATUAL_ID = pool[Math.floor(Math.random() * pool.length)].id;
+  }
+
+  function renderCitacaoBanner() {
+    var banner = $('cit-banner');
+    if (!banner) return;
+    /* A atual pode ter sido excluída no modal — sorteia outra. */
+    if (!findCitacao(CITACAO_ATUAL_ID)) sortearCitacao();
+    var c = findCitacao(CITACAO_ATUAL_ID);
+    banner.classList.toggle('is-empty', !c);
+    if (c) {
+      fillCitacaoTexto($('cit-banner-texto'), c.texto, true);
+      $('cit-banner-autor').textContent = '— ' + c.autor;
+      $('cit-banner-autor').hidden = false;
+    } else {
+      $('cit-banner-texto').textContent = 'Nenhuma citação ainda — clique para adicionar a primeira.';
+      $('cit-banner-autor').hidden = true;
+    }
+  }
+
+  function renderCitacoesList() {
+    var host = $('cit-list');
+    host.innerHTML = '';
+    var n = CITACOES.length;
+    $('cit-count').textContent = n === 1 ? '1 citação' : n + ' citações';
+    if (!n) {
+      var empty = document.createElement('div'); empty.className = 'cit-empty';
+      empty.textContent = 'nenhuma citação ainda';
+      host.appendChild(empty);
+      return;
+    }
+    CITACOES.forEach(function (c) {
+      var row = document.createElement('div'); row.className = 'cit-item';
+      var main = document.createElement('div'); main.className = 'cit-item-main';
+      var texto = document.createElement('span'); texto.className = 'cit-texto';
+      fillCitacaoTexto(texto, c.texto, true);
+      var autor = document.createElement('span'); autor.className = 'cit-autor'; autor.textContent = '— ' + c.autor;
+      main.appendChild(texto); main.appendChild(autor);
+
+      var actions = document.createElement('div'); actions.className = 'row-actions';
+      var edit = document.createElement('button');
+      edit.type = 'button'; edit.className = 'row-action-btn';
+      edit.setAttribute('data-action', 'edit-citacao'); edit.setAttribute('data-id', c.id);
+      edit.setAttribute('aria-label', 'Editar citação');
+      edit.innerHTML = '<i class="fad fa-pen"></i>';
+      var del = document.createElement('button');
+      del.type = 'button'; del.className = 'row-action-btn row-action-danger';
+      del.setAttribute('data-action', 'delete-citacao'); del.setAttribute('data-id', c.id);
+      del.setAttribute('aria-label', 'Excluir citação');
+      del.innerHTML = '<i class="fad fa-trash"></i>';
+      actions.appendChild(edit); actions.appendChild(del);
+
+      row.appendChild(main); row.appendChild(actions);
+      host.appendChild(row);
+    });
+  }
+
+  /* Estado lista ⇄ formulário dentro do mesmo modal. */
+  function showCitacoesList() {
+    EDIT_CITACAO_ID = null;
+    $('cit-form').hidden = true;
+    $('cit-list-view').hidden = false;
+    $('citacoes-modal-title').textContent = 'Citações';
+    renderCitacoesList();
+  }
+  function showCitacaoForm(id) {
+    var c = id ? findCitacao(id) : null;
+    EDIT_CITACAO_ID = c ? c.id : null;
+    $('citacoes-modal-title').textContent = c ? 'Editar citação' : 'Nova citação';
+    $('cit-texto-input').value = c ? c.texto : '';
+    $('cit-autor-input').value = c ? c.autor : '';
+    $('cit-error').textContent = '';
+    setCitacaoSaving(false);
+    $('cit-list-view').hidden = true;
+    $('cit-form').hidden = false;
+    $('cit-texto-input').focus();
+  }
+  function setCitacaoSaving(on) { $('cit-save').disabled = on; $('cit-save').textContent = on ? 'Salvando…' : 'Salvar'; }
+
+  function openCitacoesModal() {
+    /* Banner vazio: vai direto pro formulário, a lista estaria vazia. */
+    if (CITACOES.length) showCitacoesList(); else showCitacaoForm(null);
+    $('citacoes-modal').classList.add('open');
+    syncModalScrollLock();
+  }
+  function closeCitacoesModal() {
+    $('citacoes-modal').classList.remove('open');
+    EDIT_CITACAO_ID = null;
+    syncModalScrollLock();
+  }
+
+  function onCitacaoSubmit(e) {
+    e.preventDefault();
+    var texto = $('cit-texto-input').value.trim();
+    var autor = $('cit-autor-input').value.trim();
+    if (!texto) { $('cit-error').textContent = 'a citação não pode ficar vazia'; return; }
+    if (!autor) { $('cit-error').textContent = 'diga quem disse'; return; }
+
+    setCitacaoSaving(true);
+    $('cit-error').textContent = '';
+    /* Guarda ANTES de trocar de estado — showCitacoesList() zera
+       EDIT_CITACAO_ID (mesma armadilha da LIFEOS.md §9). */
+    var wasEditing = EDIT_CITACAO_ID;
+    var payload = { texto: texto, autor: autor };
+    var req = wasEditing
+      ? apiCitacoes(SESSION_PW, { action: 'update', id: wasEditing, patch: payload })
+      : apiCitacoes(SESSION_PW, { action: 'create', citacao: payload });
+    req.then(function (j) {
+      var saved = j.citacao;
+      if (wasEditing) {
+        for (var i = 0; i < CITACOES.length; i++) { if (String(CITACOES[i].id) === String(saved.id)) { CITACOES[i] = saved; break; } }
+      } else {
+        CITACOES.push(saved);
+        /* Primeira citação do sistema: o banner vazio passa a mostrá-la. */
+        if (!CITACAO_ATUAL_ID) CITACAO_ATUAL_ID = saved.id;
+      }
+      writeHubCache();
+      renderCitacaoBanner();
+      showCitacoesList();
+    }).catch(function (err) {
+      setCitacaoSaving(false);
+      if (err && err.code === 'unauthorized') { onLogout(); return; }
+      $('cit-error').textContent = 'erro ao salvar — ' + ((err && err.detail) || 'tente de novo');
+    });
+  }
+
+  function onDeleteCitacaoClick(btn, id) {
+    confirmDelete(btn, 'citacao:' + id, function () { return apiCitacoes(SESSION_PW, { action: 'delete', id: id }); }, function () {
+      for (var i = 0; i < CITACOES.length; i++) { if (String(CITACOES[i].id) === String(id)) { CITACOES.splice(i, 1); break; } }
+      writeHubCache();
+      renderCitacaoBanner();
+      renderCitacoesList();
+    });
+  }
+
   /* ── Manifestações: grid de cards (migrado do Notion, set/2026) ──────
      Cada card mostra o banner real (Storage, já re-hospedado na migração)
      ou o banner padrão estilizado quando a entrada não tem imagem real
@@ -3024,7 +3263,7 @@
          idempotente (só busca o que falta), então isso não gera as 6
          chamadas de novo, só as que realmente faltam (geralmente zero). */
   var HUB_CACHE_KEY = 'lifeos_hub_cache';
-  var HUB_CACHE_V = 3; /* bump: cache ganhou os campos views_notas/views_tarefas */
+  var HUB_CACHE_V = 4; /* bump: cache ganhou o campo citacoes */
   function readHubCache() {
     try {
       var raw = localStorage.getItem(HUB_CACHE_KEY);
@@ -3047,6 +3286,7 @@
         notas: NOTAS_HUB,
         views_notas: VIEWS_NOTAS,
         views_tarefas: VIEWS_TAREFAS,
+        citacoes: CITACOES,
       }));
     } catch (_e) { /* quota/indisponível: cache só em memória nesta sessão */ }
   }
@@ -3073,8 +3313,12 @@
       apiNotasQuery(SESSION_PW),
       apiViewsQuery(SESSION_PW, 'notas'),
       apiViewsQuery(SESSION_PW, 'tarefas'),
+      /* Citações não derrubam o boot: sem a function/tabela (instalação
+         que ainda não aplicou a migration 0006), o banner só fica vazio. */
+      apiCitacoes(SESSION_PW, { action: 'query' }).catch(function () { return { citacoes: [] }; }),
     ]).then(function (res) {
-      var fin = res[0], evt = res[1], proj = res[2], tar = res[3], manif = res[4], notas = res[5], viewsNotas = res[6], viewsTarefas = res[7];
+      var fin = res[0], evt = res[1], proj = res[2], tar = res[3], manif = res[4], notas = res[5], viewsNotas = res[6], viewsTarefas = res[7], cit = res[8];
+      CITACOES = cit.citacoes || [];
       MROWS = fin.movimentacoes || [];
       SALDO_ABERTURA = fin.saldo_abertura || 0;
       FIN_PREV_ROWS = fin.movimentacoes_prev || [];
@@ -3112,6 +3356,7 @@
     NOTAS_HUB = cache.notas || [];
     VIEWS_NOTAS = cache.views_notas || [];
     VIEWS_TAREFAS = cache.views_tarefas || [];
+    CITACOES = cache.citacoes || [];
     EVENTOS = (cache.eventos && cache.eventos.eventos) || [];
     HUB_EVENTOS_LOADED = (cache.eventos && cache.eventos.loaded) || {};
 
@@ -3130,7 +3375,14 @@
         FIN_MONTH_CACHE = {}; FIN_MONTH_CACHE[t] = MROWS; FIN_MONTH_CACHE[pt] = FIN_PREV_ROWS;
       });
     }
-    return Promise.all([finPromise, topUpEventosWindow()]);
+    /* Citações são a exceção ao "eterno até ↻": re-busca a cada boot. O
+       banner sorteia do conjunto inteiro, e citações entram também pelo MCP
+       (create_citacao) — sem isso, uma nova só concorreria ao sorteio depois
+       de um ↻ manual. Falha aqui não derruba o boot: fica o que veio do cache. */
+    var citPromise = apiCitacoes(SESSION_PW, { action: 'query' }).then(function (j) {
+      CITACOES = j.citacoes || [];
+    }).catch(function () {});
+    return Promise.all([finPromise, topUpEventosWindow(), citPromise]);
   }
 
   /* Label "sincronizado" (mesmo padrão de #fetched-at em financas.html) —
@@ -3144,6 +3396,10 @@
   }
 
   function renderAllHub() {
+    /* Novo sorteio a cada render completo (abrir o hub ou ↻) — é a
+       diferença de Citações pras outras áreas, ver LIFEOS.md §3.6. */
+    sortearCitacao();
+    renderCitacaoBanner();
     renderFinancasPreview();
     renderMiniCal();
     renderLegend();
@@ -3243,7 +3499,8 @@
     localStorage.removeItem(LS_KEY);
     dropHubCache();
     SESSION_PW = ''; MROWS = []; FIN_PREV_ROWS = []; FIN_MONTH_CACHE = {}; EVENTOS = []; HUB_EVENTOS_LOADED = {}; PROJETOS = []; TAREFAS_ALL = []; MANIFESTACOES = [];
-    closeDayModal(); closeEventoModal(); closeDetailModal(); closeTarefaModal(); closeProjetoModal(); closeManifestacaoModal(); resetDeletePending();
+    CITACOES = []; CITACAO_ATUAL_ID = null;
+    closeDayModal(); closeEventoModal(); closeDetailModal(); closeTarefaModal(); closeProjetoModal(); closeManifestacaoModal(); closeCitacoesModal(); resetDeletePending();
     TAREFA_TIPO_SEL = []; PROJETO_TAGS_SEL = []; MANIFESTACAO_TAGS_SEL = []; MANIFESTACAO_BANNER_FILE = null;
     if (MANIF_FOCUS) { MANIF_FOCUS = false; $('app').classList.remove('is-manif-focus'); $('quicknav-manifestacoes').classList.remove('is-active'); }
     /* Volta a UI do toggle/botão do calendário pro default (eventos), sem
@@ -3504,11 +3761,31 @@
     $('manifestacao-modal-close').addEventListener('click', closeManifestacaoModal);
     $('manifestacao-modal').addEventListener('click', function (e) { if (e.target === $('manifestacao-modal')) closeManifestacaoModal(); });
 
+    /* ── Citações: banner + #citacoes-modal (ver LIFEOS.md §3.6) ── */
+    $('cit-banner').addEventListener('click', openCitacoesModal);
+    $('citacoes-modal-close').addEventListener('click', closeCitacoesModal);
+    $('citacoes-modal').addEventListener('click', function (e) { if (e.target === $('citacoes-modal')) closeCitacoesModal(); });
+    $('cit-add-btn').addEventListener('click', function () { showCitacaoForm(null); });
+    $('cit-list').addEventListener('click', function (e) {
+      var editBtn = e.target.closest ? e.target.closest('.row-action-btn[data-action="edit-citacao"]') : null;
+      if (editBtn) { showCitacaoForm(editBtn.getAttribute('data-id')); return; }
+      var delBtn = e.target.closest ? e.target.closest('.row-action-btn[data-action="delete-citacao"]') : null;
+      if (delBtn) onDeleteCitacaoClick(delBtn, delBtn.getAttribute('data-id'));
+    });
+    $('cit-form').addEventListener('submit', onCitacaoSubmit);
+    /* Cancelar volta pra lista — ou fecha, se não há lista pra voltar. */
+    $('cit-cancel').addEventListener('click', function () { if (CITACOES.length) showCitacoesList(); else closeCitacoesModal(); });
+
     document.addEventListener('keydown', function (e) {
       if (e.key !== 'Escape') return;
       /* drawer primeiro: ele é o único elemento acima dos modais (z 1100),
          então é sempre ele que o ESC deve alcançar quando está aberto */
       if ($('config-drawer').classList.contains('open')) { closeDrawer(); return; }
+      if ($('citacoes-modal').classList.contains('open')) {
+        /* No formulário, ESC volta pra lista; na lista, fecha o modal. */
+        if (!$('cit-form').hidden && CITACOES.length) showCitacoesList(); else closeCitacoesModal();
+        return;
+      }
       if ($('manifestacao-modal').classList.contains('open')) { closeManifestacaoModal(); return; }
       if ($('projeto-modal').classList.contains('open')) { closeProjetoModal(); return; }
       if ($('tarefa-modal').classList.contains('open')) { closeTarefaModal(); return; }

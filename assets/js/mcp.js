@@ -66,17 +66,27 @@
     {
       nome: 'create_nota', tipo: 'escrita',
       desc: 'Cria uma nota nova. A data é sempre hoje. Exige nome, tipo, ao menos um projeto e o conteúdo.',
-      filtros: 'escrita — restrita a Notas',
+      filtros: 'nome · tipo · projetos · conteúdo — todos obrigatórios',
     },
     {
       nome: 'update_nota', tipo: 'escrita',
       desc: 'Edita uma nota existente. Substituição completa, não é um patch — toda chamada reenvia nome, tipo, projetos e o conteúdo INTEIRO, mesmo o que não mudou.',
-      filtros: 'escrita — restrita a Notas',
+      filtros: 'id + todos os campos, sempre',
     },
     {
       nome: 'search_tarefas', tipo: 'leitura',
       desc: 'Busca tarefas, com o projeto ao qual cada uma pertence.',
       filtros: 'nome · projeto · status · tipo · data de entrega',
+    },
+    {
+      nome: 'create_tarefa', tipo: 'escrita',
+      desc: 'Cria uma tarefa. Toda tarefa pertence a um projeto existente; sem status, nasce como "Não Iniciado".',
+      filtros: 'nome · projeto (obrigatórios) · status · tipo · data de entrega',
+    },
+    {
+      nome: 'update_tarefa', tipo: 'escrita',
+      desc: 'Edita uma tarefa — patch parcial: só o que for enviado muda. Serve também para trocar de projeto.',
+      filtros: 'id + qualquer campo',
     },
     {
       nome: 'search_projetos', tipo: 'leitura',
@@ -89,14 +99,44 @@
       filtros: 'nome · tipo · projeto · intervalo de data',
     },
     {
+      nome: 'create_evento', tipo: 'escrita',
+      desc: 'Cria um evento no calendário. Data final e projeto são opcionais.',
+      filtros: 'nome · data · tipo (obrigatórios) · data final · projeto',
+    },
+    {
+      nome: 'update_evento', tipo: 'escrita',
+      desc: 'Edita um evento — patch parcial. Mandar data final ou projeto vazios remove o valor.',
+      filtros: 'id + qualquer campo',
+    },
+    {
       nome: 'search_manifestacoes', tipo: 'leitura',
       desc: 'Busca manifestações — os objetivos de longo prazo do sistema.',
       filtros: 'nome · status · tags',
     },
     {
+      nome: 'search_citacoes', tipo: 'leitura',
+      desc: 'Lê as citações guardadas — as que o painel sorteia no banner acima do calendário.',
+      filtros: 'texto · autor',
+    },
+    {
+      nome: 'create_citacao', tipo: 'escrita',
+      desc: 'Adiciona uma citação (texto + quem disse). Trechos entre *asteriscos* ficam em destaque no banner.',
+      filtros: 'texto · autor — só criar, sem editar',
+    },
+    {
       nome: 'search_movimentacoes', tipo: 'leitura',
       desc: 'Busca movimentações financeiras, para a IA somar e comparar períodos.',
       filtros: 'nome · direção · meio · data · faixa de valor',
+    },
+    {
+      nome: 'create_movimentacao', tipo: 'escrita',
+      desc: 'Lança uma movimentação financeira nova.',
+      filtros: 'nome · valor · data · direção (obrigatórios) · meio',
+    },
+    {
+      nome: 'update_movimentacao', tipo: 'escrita',
+      desc: 'Edita uma movimentação — patch parcial. Direção e meio mudam de forma independente.',
+      filtros: 'id + qualquer campo',
     },
   ];
 

@@ -163,7 +163,7 @@ Streamable HTTP, pensado pra ser cadastrado como "custom connector" em
 claude.ai (Settings → Connectors), não pra ser aberto num browser. Expõe
 tools de CONSULTA sobre todo o sistema (`search_notas`, `search_tarefas`,
 `search_projetos`, `search_eventos`, `search_manifestacoes`,
-`search_movimentacoes`) e duas tools de ESCRITA, as duas restritas a Notas
+`search_citacoes`, `search_movimentacoes`) e duas tools de ESCRITA, as duas restritas a Notas
 (`create_nota`, `update_nota` — este último substituição completa, nunca
 patch parcial: toda chamada reenvia nome/tipo/projetos/conteúdo inteiro,
 mesmo o que não mudou) — decisão explícita do autor: nenhum outro domínio

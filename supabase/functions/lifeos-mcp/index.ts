@@ -4,10 +4,11 @@
 // -- pensado pra ser cadastrado como "custom connector" em claude.ai (Settings
 // > Connectors > Add custom connector, colando a URL desta function + token).
 // Expoe tools de CONSULTA sobre todo o sistema (Notas, Tarefas, Projetos,
-// Eventos, Manifestações, Finanças) e tools de ESCRITA em quatro domínios:
-// Notas (create_nota, update_nota), Tarefas (create_tarefa, update_tarefa),
-// Eventos (create_evento, update_evento) e Finanças (create_movimentacao,
-// update_movimentacao). Projetos e Manifestações continuam só-leitura.
+// Eventos, Manifestações, Citações, Finanças) e tools de ESCRITA em cinco
+// domínios: Notas (create_nota, update_nota), Tarefas (create_tarefa,
+// update_tarefa), Eventos (create_evento, update_evento), Finanças
+// (create_movimentacao, update_movimentacao) e Citações (create_citacao --
+// só criar, set/2026). Projetos e Manifestações continuam só-leitura.
 // Nenhum domínio ganha DELETE por aqui -- escrita destrutiva via MCP segue
 // fora de escopo, decisão mantida mesmo depois de abrir create/update pra
 // além de Notas (22/set/2026).
@@ -407,6 +408,36 @@ function buildTools() {
     },
   },
   {
+    name: "search_citacoes",
+    description:
+      "Lê as citações guardadas no LifeOS (texto + quem disse). Sem " +
+      "filtros devolve todas. Trechos entre *asteriscos* no texto são " +
+      "destaques visuais do app, não parte da frase.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        texto: { type: "string", description: "Trecho do texto da citação." },
+        autor: { type: "string", description: "Trecho do nome de quem disse." },
+        limit: { type: "integer", description: "Máximo de resultados (padrão 20, máximo 50)." },
+      },
+    },
+  },
+  {
+    name: "create_citacao",
+    description:
+      "Adiciona uma citação ao LifeOS. Ela passa a concorrer ao sorteio do " +
+      "banner do painel. Envolva um trecho em *asteriscos* para destacá-lo " +
+      "(ex.: \"elimine *duas coisas*\") — opcional.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        texto: { type: "string", description: "O texto da citação, sem aspas em volta." },
+        autor: { type: "string", description: "Nome de quem disse." },
+      },
+      required: ["texto", "autor"],
+    },
+  },
+  {
     name: "search_movimentacoes",
     description:
       "Busca movimentações financeiras do LifeOS por nome, direção " +
@@ -526,7 +557,7 @@ Deno.serve(async (req) => {
       return respond(rpcResult(id, {
         protocolVersion: params?.protocolVersion || "2025-06-18",
         capabilities: { tools: {} },
-        serverInfo: { name: "lifeos-mcp", version: "2.1.1" },
+        serverInfo: { name: "lifeos-mcp", version: "2.2.0" },
       }));
     }
 
@@ -551,6 +582,8 @@ Deno.serve(async (req) => {
         create_evento: (a) => handleCreateEvento(REST, restHeaders, a),
         update_evento: (a) => handleUpdateEvento(REST, restHeaders, a),
         search_manifestacoes: (a) => handleSearchManifestacoes(REST, restHeaders, a),
+        search_citacoes: (a) => handleSearchCitacoes(REST, restHeaders, a),
+        create_citacao: (a) => handleCreateCitacao(REST, restHeaders, a),
         search_movimentacoes: (a) => handleSearchMovimentacoes(REST, restHeaders, a),
         create_movimentacao: (a) => handleCreateMovimentacao(REST, restHeaders, a),
         update_movimentacao: (a) => handleUpdateMovimentacao(REST, restHeaders, a),
@@ -1133,6 +1166,53 @@ async function handleSearchManifestacoes(REST: string, headers: Record<string, s
 
   return toolText(JSON.stringify({
     total_matches: totalMatches, returned: returned.length, truncated: totalMatches > returned.length, manifestacoes: returned,
+  }, null, 2));
+}
+
+// ── Tool: search_citacoes ─────────────────────────────────────────────────
+async function handleSearchCitacoes(REST: string, headers: Record<string, string>, args: Record<string, any>) {
+  const texto = args?.texto ? String(args.texto).trim().toLowerCase() : "";
+  const autor = args?.autor ? String(args.autor).trim().toLowerCase() : "";
+  const limit = clampLimit(args?.limit);
+
+  const r = await fetch(`${REST}/lifeos_citacoes?order=created_at.asc`, { headers });
+  if (!r.ok) throw new Error(`select citacoes -> ${r.status} ${await r.text()}`);
+  const rows = await r.json();
+
+  let citacoes = rows.map((row: any) => ({ id: row.id, texto: row.texto, autor: row.autor }));
+  if (texto) citacoes = citacoes.filter((c: any) => c.texto.toLowerCase().includes(texto));
+  if (autor) citacoes = citacoes.filter((c: any) => c.autor.toLowerCase().includes(autor));
+
+  const totalMatches = citacoes.length;
+  const returned = citacoes.slice(0, limit);
+
+  return toolText(JSON.stringify({
+    total_matches: totalMatches, returned: returned.length, truncated: totalMatches > returned.length, citacoes: returned,
+  }, null, 2));
+}
+
+// ── Tool: create_citacao ──────────────────────────────────────────────────
+// Mesmos limites de lifeos-citacoes (MAX_TEXTO/MAX_AUTOR) -- cópia, não
+// import (ver LIFEOS.md §2).
+async function handleCreateCitacao(REST: string, headers: Record<string, string>, args: Record<string, any>) {
+  const texto = String(args?.texto ?? "").trim();
+  if (!texto) return toolText("O parâmetro texto é obrigatório e não pode ser vazio.", true);
+  if (texto.length > 2000) return toolText("O texto passa de 2000 caracteres -- uma citação precisa ser mais curta.", true);
+  const autor = String(args?.autor ?? "").trim();
+  if (!autor) return toolText("O parâmetro autor (quem disse) é obrigatório e não pode ser vazio.", true);
+  if (autor.length > 200) return toolText("O autor passa de 200 caracteres.", true);
+
+  const insertRes = await fetch(`${REST}/lifeos_citacoes`, {
+    method: "POST",
+    headers: { ...headers, Prefer: "return=representation" },
+    body: JSON.stringify({ texto, autor }),
+  });
+  if (!insertRes.ok) return toolText(`Erro ao criar a citação: ${insertRes.status} ${await insertRes.text()}`, true);
+  const created = (await insertRes.json())[0];
+
+  return toolText(JSON.stringify({
+    ok: true,
+    citacao: { id: created.id, texto: created.texto, autor: created.autor },
   }, null, 2));
 }
 

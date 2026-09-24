@@ -657,6 +657,40 @@ quando nada tinha mudado desde a última visita).
   tinha aceitado — app de uso pessoal single-user, não vale a complexidade
   de sincronização cross-aba/cross-página.
 
+### 3.6 Citações — banner sorteado + modal com a lista (set/2026)
+
+Uma tabela de citações (texto + quem disse) que funciona
+**diferente das outras listagens** do hub — a área não mostra a lista, mostra
+**uma** citação, sorteada a cada abertura, logo acima do Calendário. A lista
+completa fica atrás de um clique.
+
+- **`#cit-banner`** (um `<button>`, entre `.hub-masthead-rule` e
+  `#hero-eventos` — não é uma `.hero-section`, então a borda dupla entre
+  seções não muda). Mesma identidade da citação chapada no `index.html`
+  (`.notice`): fundo tingido pelo acento (`color-mix` com `--gold`), borda
+  fina nos **quatro** lados — nunca faixa lateral —, prosa em EB Garamond
+  (a fonte entrou no `<link>` do Google Fonts do hub por causa disto), aspas
+  “ ” em Playfair itálico no acento e o autor em mono miúdo alinhado à
+  direita. Segue o tema porque só usa tokens.
+- **Sorteio** (`sortearCitacao`): roda em todo `renderAllHub()` — ou seja, a
+  cada boot e a cada ↻. Com mais de uma citação, nunca repete a que já está
+  na tela. Escritas no modal **não** re-sorteiam: editar atualiza o texto no
+  lugar; excluir a que está no banner sorteia outra.
+- **Destaque**: `*trecho*` no texto vira `<strong>` no acento
+  (`fillCitacaoTexto`). O parse monta nós com `createElement`/`textContent`,
+  nunca `innerHTML` — o texto vem do banco (e do MCP).
+- **`#citacoes-modal`**: um modal só, dois estados — a lista
+  (`#cit-list-view`, com Editar/Excluir por linha) e o formulário (`#cit-form`,
+  criar/editar), que substitui a lista enquanto aberto. Excluir usa o
+  `confirmDelete` de dois cliques (§7). ESC no formulário volta pra lista; na
+  lista, fecha. Sem nenhuma citação, o banner vira um convite e o clique vai
+  direto pro formulário.
+- **Cache**: citações entram no `lifeos_hub_cache` (`HUB_CACHE_V = 4`), mas
+  são **exceção ao "eterno até ↻"** da §3.5 — re-buscam a cada boot, mesmo
+  com cache válido, porque também chegam pelo MCP (`create_citacao`) e o
+  sorteio precisa do conjunto atual. Falha nessa busca não derruba o boot.
+- **Modo foco** de Manifestações esconde o banner junto com as seções.
+
 ---
 
 ## 4. `tarefas.html` — módulo Tarefas (CRUD completo, página própria)
@@ -1084,6 +1118,7 @@ sofrem disso porque rodam o `closest` ANTES de trocar o conteúdo.
 | Projetos | ✅ Funcional, CRUD só no hub (leitura em `tarefas.html`, ver §1/§3.2) | `lifeos.html` (`tarefas.html` só lê) | `lifeos_projetos` | `lifeos-projetos` |
 | Manifestações | ✅ Funcional, nativo do hub (leitura + CREATE, modo foco — ver §3.3) | `lifeos.html` | `lifeos_manifestacoes` | `lifeos-manifestacoes` |
 | Notas | ✅ Funcional, página própria (CRUD completo) | `notas.html` | `lifeos_notas` + `lifeos_notas_projetos` | `lifeos-notas` |
+| Citações | ✅ Funcional, nativo do hub (banner sorteado + CRUD no modal — ver §3.6) | `lifeos.html` | `lifeos_citacoes` | `lifeos-citacoes` (+ `search_citacoes`/`create_citacao` no MCP) |
 
 Ver [`FINANCAS.md`](FINANCAS.md) pra tudo sobre o módulo Finanças (contrato
 da API, regras de negócio, segurança) e [`NOTAS.md`](NOTAS.md) pra tudo

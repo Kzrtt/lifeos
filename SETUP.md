@@ -30,8 +30,9 @@ branch**, branch **main**, pasta **/ (root)**. O endereço será
 >
 > 1. Crie um projeto Supabase novo chamado `lifeos` na região mais próxima de
 >    mim e espere ficar ativo.
-> 2. Aplique `supabase/migrations/0001_init.sql` e depois `supabase/seed.sql`,
->    nessa ordem, exatamente como estão no repositório.
+> 2. Aplique todos os arquivos de `supabase/migrations/` em ordem numérica
+>    (`0001_init.sql`, `0002_…`, …) e depois `supabase/seed.sql`, exatamente
+>    como estão no repositório.
 > 3. Faça o deploy de todas as funções em `supabase/functions/`, **exceto** as
 >    que começam com `notion-`. Todas com `verify_jwt = false`.
 > 4. Pegue a URL do projeto e a chave publicável (anon) e edite
@@ -70,10 +71,11 @@ a senha do banco; você não vai precisar dela agora, mas perdê-la dá trabalho
 ### 3. Crie o schema
 
 No dashboard, **SQL Editor** → **New query**. Cole o conteúdo de
-`supabase/migrations/0001_init.sql`, rode. Depois repita com
-`supabase/seed.sql`.
+`supabase/migrations/0001_init.sql` e rode. Repita com cada arquivo seguinte
+de `supabase/migrations/`, **em ordem numérica** (`0002_…`, `0003_…`, …) —
+cada um depende dos anteriores. Por último, `supabase/seed.sql`.
 
-Deve terminar sem erro. Em **Table Editor** você verá 11 tabelas; em
+Deve terminar sem erro. Em **Table Editor** você verá as tabelas `lifeos_*`; em
 `access_tokens` haverá uma linha com o token `lifeos`.
 
 ### 4. Suba as Edge Functions
@@ -92,7 +94,8 @@ O *project ref* é o código na URL do dashboard
 ```bash
 for fn in lifeos-config lifeos-senhas lifeos-projetos lifeos-tarefas \
           lifeos-eventos lifeos-notas lifeos-manifestacoes \
-          lifeos-movimentacoes lifeos-ingest lifeos-mcp; do
+          lifeos-movimentacoes lifeos-ingest lifeos-views \
+          lifeos-vocabularios lifeos-citacoes lifeos-mcp; do
   supabase functions deploy "$fn" --no-verify-jwt
 done
 ```

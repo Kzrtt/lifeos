@@ -286,7 +286,8 @@
       <strong>MCP</strong> (Model Context Protocol) é um padrão aberto que deixa um modelo de
       linguagem consultar sistemas externos por conta própria. O LifeOS expõe um servidor MCP:
       depois de conectado, a IA que você usa passa a <strong>ler o seu sistema inteiro</strong> —
-      notas, tarefas, projetos, eventos, manifestações e finanças — sem que você copie e cole nada.
+      notas, tarefas, projetos, eventos, manifestações, citações e finanças — sem que você copie
+      e cole nada, e também a <strong>escrever nele</strong>, dentro dos limites descritos abaixo.
     </p>
     <p class="sec-desc">
       Na prática, você deixa de ser o intermediário. Em vez de abrir o LifeOS, procurar a nota,
@@ -313,7 +314,7 @@
     <div class="notice alerta">
       <i class="fad fa-shield-exclamation"></i>
       <span>
-        <strong>Quem tem esta URL lê todo o seu LifeOS.</strong> O token está embutido no endereço
+        <strong>Quem tem esta URL lê todo o seu LifeOS e escreve nele.</strong> O token está embutido no endereço
         porque clientes MCP pessoais não oferecem um campo de cabeçalho — foi a única forma de
         entrar o segredo uma vez só. Trate a URL como senha: não cole em chat público, issue ou
         captura de tela. Para trocá-la, gere um valor novo
@@ -350,10 +351,11 @@
   <section class="sec">
     <div class="sec-title">O que a IA consegue fazer</div>
     <p class="sec-desc">
-      Oito ferramentas. <strong>Seis são de consulta e duas escrevem</strong> — criar e editar
-      nota. Nenhum outro domínio aceita escrita por aqui: é decisão de desenho, não limitação.
-      Uma IA que pode apagar a sua tarefa ou lançar uma movimentação financeira é um risco
-      que não compensa a conveniência.
+      Dezesseis ferramentas. <strong>Sete são de consulta e nove escrevem</strong> — criar e
+      editar notas, tarefas, eventos e movimentações, e criar citações. Projetos e
+      manifestações são só leitura. <strong>Nenhuma ferramenta apaga nada</strong>: excluir
+      continua sendo só pela tela. É decisão de desenho, não limitação — uma IA que erra uma
+      edição deixa algo para corrigir; uma que apaga não deixa nada.
     </p>
     <div class="tool-grid" id="tool-grid"></div>
   </section>
@@ -371,11 +373,12 @@
       <div class="exemplo">“Compare o que gastei em Crédito nos últimos três meses e aponte o que mais cresceu.”</div>
       <div class="exemplo">“Lê minhas notas de Pesquisa deste ano e escreve uma nova nota conectando os temas.”</div>
       <div class="exemplo">“Tem alguma manifestação parada que eu não toco há meses?”</div>
+      <div class="exemplo">“Guarda essa frase do Marco Aurélio nas minhas citações, destacando a parte principal.”</div>
     </div>
     <div class="notice">
       <i class="fad fa-lightbulb"></i>
       <span>
-        A última é a mais interessante: ela <strong>lê várias notas e escreve uma nova</strong>,
+        A quarta é a mais interessante: ela <strong>lê várias notas e escreve uma nova</strong>,
         usando <code>create_nota</code>. É o ciclo completo — o sistema alimenta a IA, e a IA
         devolve trabalho para dentro do sistema.
       </span>
@@ -389,7 +392,7 @@
 
 <div id="loading" class="loading-ov" hidden><div class="spinner"></div></div>
 
-<script src="../assets/js/mcp.js?v=20260922"></script>
+<script src="../assets/js/mcp.js?v=20260924"></script>
 
 </body>
 </html>

@@ -9,7 +9,7 @@
   <link rel="icon" href="../assets/images/favicon.svg">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,500;0,700;0,900;1,400&family=JetBrains+Mono:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,500;0,700;0,900;1,400&family=EB+Garamond:ital,wght@0,400;0,500;1,400;1,500&family=JetBrains+Mono:wght@300;400;500;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="../assets/css/icons.css">
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -808,6 +808,43 @@
        outra .hero-section no DOM, só que oculta) — divisor duplicado. */
     .app.is-manif-focus #hero-manifestacoes { border-top: none; }
     #quicknav-manifestacoes.is-active { border-color: var(--gold); color: var(--gold); background: var(--gold-wash); }
+    .app.is-manif-focus #cit-banner { display: none; }
+
+    /* ── Citações — banner sorteado acima do Calendário + #citacoes-modal ──
+       Mesma identidade da citação chapada no index.html (.notice): fundo
+       tingido pelo acento, borda fina nos QUATRO lados (nunca faixa
+       lateral), prosa em EB Garamond, aspas em Playfair itálico no acento,
+       autor em mono miúdo alinhado à direita. `*trecho*` no texto vira
+       <strong> no acento — ver citacaoHtml em lifeos.js. */
+    .cit-banner {
+      display: block; width: 100%; text-align: left; cursor: pointer;
+      margin: 4px 0 14px; padding: 18px 22px;
+      background: color-mix(in srgb, var(--gold) 9%, var(--surface));
+      border: 1px solid color-mix(in srgb, var(--gold) 35%, var(--border));
+      color: inherit; font: inherit;
+      transition: border-color 0.15s, background 0.15s;
+    }
+    .cit-banner:hover { border-color: var(--gold); background: color-mix(in srgb, var(--gold) 13%, var(--surface)); }
+    .cit-banner:focus-visible { outline: 1px solid var(--gold); outline-offset: 2px; }
+    .cit-texto { display: block; font-family: 'EB Garamond', Georgia, serif; font-size: clamp(19px, 2.8vw, 22px); line-height: 1.45; color: var(--text); }
+    .cit-texto strong { font-weight: 500; font-style: italic; color: var(--gold); }
+    .cit-q { font-family: var(--serif); font-style: italic; color: var(--gold); }
+    .cit-q-open { margin-right: 0.3em; }
+    .cit-q-close { margin-left: 0.2em; }
+    .cit-autor { display: block; margin-top: 10px; text-align: right; font-family: var(--mono); font-size: 10px; letter-spacing: 0.24em; text-transform: uppercase; color: var(--mute); }
+    .cit-banner.is-empty .cit-texto { font-size: 16px; font-style: italic; color: var(--dim); }
+
+    .cit-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 6px; }
+    .cit-count { font-size: 10px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--mute); }
+    .cit-item { display: flex; align-items: flex-start; gap: 12px; padding: 14px 0; border-bottom: 1px solid var(--border); }
+    .cit-item:last-child { border-bottom: none; }
+    .cit-item-main { flex: 1; min-width: 0; }
+    .cit-item .cit-texto { font-size: 17px; }
+    .cit-item .cit-autor { text-align: left; margin-top: 6px; }
+    .cit-item .row-actions { margin-left: 0; padding-top: 3px; }
+    .cit-empty { text-align: center; color: var(--mute); font-size: 11px; letter-spacing: 0.08em; padding: 28px 10px; }
+    .cit-hint { font-size: 10px; letter-spacing: 0.02em; color: var(--mute); margin-top: 6px; }
+    .cit-hint code { font-family: var(--mono); color: var(--dim); }
 
     .foot { margin-top: 48px; padding-top: 24px; border-top: 1px solid var(--border); display: flex; align-items: center; justify-content: center; gap: 12px; font-size: 10px; letter-spacing: 0.25em; text-transform: uppercase; color: var(--mute); }
     .foot .icon-btn { width: 28px; height: 28px; font-size: 12px; text-transform: none; letter-spacing: 0; }
@@ -1207,6 +1244,13 @@
     </nav>
   </header>
   <div class="hub-masthead-rule"></div>
+
+  <!-- Citação sorteada a cada abertura do hub (ver renderCitacaoBanner em
+       lifeos.js). Clicar abre o #citacoes-modal com a lista completa. -->
+  <button type="button" class="cit-banner" id="cit-banner" aria-label="Ver todas as citações">
+    <span class="cit-texto" id="cit-banner-texto"></span>
+    <span class="cit-autor" id="cit-banner-autor"></span>
+  </button>
 
   <section class="hero-section" id="hero-eventos">
     <div class="hero-head">
@@ -1720,6 +1764,45 @@
   </div>
 </div>
 
+<!-- ───────────────────────── MODAL · CITAÇÕES (lista + criar/editar/excluir) ─────────────────────────
+     Aberto pelo #cit-banner. Um modal só, dois estados: a lista (#cit-list-view)
+     e o formulário (#cit-form), que substitui a lista enquanto aberto — nunca
+     dois modais empilhados. -->
+<div id="citacoes-modal" class="modal" role="dialog" aria-modal="true">
+  <div class="modal-panel pdet-panel">
+    <div class="pdet-banner">
+      <button type="button" class="pdet-close" id="citacoes-modal-close" aria-label="Fechar"><i class="fad fa-times"></i></button>
+      <div class="pdet-banner-icon"><i class="fad fa-quote-right"></i></div>
+    </div>
+    <div class="modal-body">
+      <div class="pdet-head"><div class="pdet-name" id="citacoes-modal-title">Citações</div></div>
+      <div class="pdet-body-pad" id="cit-list-view">
+        <div class="cit-toolbar">
+          <span class="cit-count" id="cit-count"></span>
+          <button type="button" class="hero-link" id="cit-add-btn">Adicionar <i class="fad fa-plus"></i></button>
+        </div>
+        <div id="cit-list"></div>
+      </div>
+      <form id="cit-form" class="pdet-body-pad" autocomplete="off" hidden>
+        <div class="edit-field">
+          <label class="edit-label" for="cit-texto-input">Citação</label>
+          <textarea id="cit-texto-input" class="edit-input edit-textarea" maxlength="2000"></textarea>
+          <div class="cit-hint">Envolva um trecho em <code>*asteriscos*</code> para destacá-lo.</div>
+        </div>
+        <div class="edit-field">
+          <label class="edit-label" for="cit-autor-input">Quem disse</label>
+          <input type="text" id="cit-autor-input" class="edit-input" maxlength="200" autocomplete="off">
+        </div>
+        <div id="cit-error" class="edit-error"></div>
+        <div class="edit-actions">
+          <button type="button" id="cit-cancel" class="edit-btn edit-btn-ghost">Cancelar</button>
+          <button type="submit" id="cit-save" class="edit-btn edit-btn-primary">Salvar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
 <!-- ───────────────────────── DRAWER · CONFIGURAÇÃO ─────────────────────────
      Aberto pelo #menu-btn da topbar, que ocupa o lugar do antigo #logout-btn.
      O "Sair" desceu pra cá junto com as telas de config — a topbar tem espaço
@@ -1790,7 +1873,7 @@
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.6/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/marked@12.0.2/marked.min.js"></script>
-<script src="../assets/js/lifeos.js?v=20260923a"></script>
+<script src="../assets/js/lifeos.js?v=20260924b"></script>
 <script src="../assets/js/back-to-top.js?v=20260617"></script>
 
 <script>
