@@ -9,7 +9,7 @@
 // UM projeto para o kanban; sem filtro lista todas, usado pelo resumo do
 // hub pra contar por status), "create", "update" (patch parcial -- kanban
 // muda status por aqui, sem drag-and-drop nesta entrega; o modal de edicao
-// usa a mesma acao pra name/tipo/data_entrega/projeto_id, incluindo mover
+// usa a mesma acao pra name/tipo/data_entrega/projeto_id/descricao, incluindo mover
 // a tarefa pra outro projeto), "delete".
 //
 // SEGURANCA: mesma postura de lifeos-projetos/lifeos-eventos.
@@ -144,6 +144,7 @@ function normalizeRow(r: any) {
   return {
     id: r.id, name: r.name, status: r.status, tipo: r.tipo ?? [],
     projeto_id: r.projeto_id, data_entrega: r.data_entrega,
+    descricao: r.descricao ?? null,
     // `updated_at` NAO e decorativo: a coluna final dos dois kanbans (hub e
     // tarefas.html) ordena por ele pra mostrar a conclusao mais recente
     // primeiro. Sem o campo aqui, o comparator do front recebe undefined
@@ -151,6 +152,14 @@ function normalizeRow(r: any) {
     // na de criacao -- bug invisivel em modo local, onde o mock gera o campo.
     updated_at: r.updated_at,
   };
+}
+
+// Descricao em markdown livre. String vazia (ou so espaco) vira null --
+// e assim que o front limpa o campo.
+function cleanDescricao(v: unknown): string | null {
+  if (v === null || v === undefined) return null;
+  const s = String(v).trim();
+  return s ? s : null;
 }
 
 function validTipo(tipo: unknown): string[] | null {
@@ -190,10 +199,12 @@ async function handleCreate(REST: string, headers: Record<string, string>, taref
   const dataEntregaRaw = tarefa.data_entrega;
   const data_entrega = (typeof dataEntregaRaw === "string" && /^\d{4}-\d{2}-\d{2}$/.test(dataEntregaRaw)) ? dataEntregaRaw : null;
 
+  const descricao = cleanDescricao(tarefa.descricao);
+
   const r = await fetch(`${REST}/lifeos_tarefas`, {
     method: "POST",
     headers: { ...headers, Prefer: "return=representation" },
-    body: JSON.stringify({ name, status, tipo, projeto_id, data_entrega }),
+    body: JSON.stringify({ name, status, tipo, projeto_id, data_entrega, descricao }),
   });
   if (!r.ok) return json({ ok: false, error: `db_error: ${r.status} ${await r.text()}` }, 502);
   const rows = await r.json();
@@ -229,6 +240,7 @@ async function handleUpdate(REST: string, headers: Record<string, string>, id: s
     if (!projeto_id) return json({ ok: false, error: "invalid_projeto_id" }, 400);
     update.projeto_id = projeto_id;
   }
+  if ("descricao" in patch) update.descricao = cleanDescricao(patch.descricao);
   if (!Object.keys(update).length) return json({ ok: false, error: "empty_patch" }, 400);
   update.updated_at = new Date().toISOString();
 
