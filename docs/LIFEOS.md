@@ -346,8 +346,12 @@ rolam até Manifestações):
     isso) — as outras 2 colunas mantêm a ordem que já vem da API
     (`created_at` asc). Sem isso, com a maioria das tarefas reais já
     concluídas (69 de 75, ver §6.3), a coluna ficava dominada pelas mais
-    antigas, escondendo as concluídas recentemente. Trocar o `<select>` só
-    re-renderiza o kanban (`renderTarMiniKanban`),
+    antigas, escondendo as concluídas recentemente. À esquerda do `<select>`,
+    na mesma linha do rótulo "Kanban" (`.tar-kanban-controls`), fica uma
+    **busca por título** (`#tar-busca-input`, mesmo visual do select,
+    `TAR_BUSCA_FILTRO`) que compõe com projeto/view — só recorta o kanban,
+    nunca as contagens por status; reseta ao deslogar. Trocar o `<select>`
+    (ou digitar na busca) só re-renderiza o kanban (`renderTarMiniKanban`),
     não refaz fetch (todas as tarefas já vieram no boot via
     `apiTarefasQuery` sem filtro). **Clicar num card** (qualquer
     dispositivo) abre `#detail-modal` — leitura completa da tarefa
@@ -726,7 +730,10 @@ e §6.1) — essa assimetria é proposital, não um descuido.
   kanban (ver abaixo) e uma tabela (`.tar-table`, ordenada por data de
   entrega) com as mesmas tarefas. Um filtro por Tipo (`#tipo-filters`,
   chips — só aparece se o projeto tiver tarefas com tipo) vale pras duas
-  views.
+  views. Na mesma linha, entre o select e o toggle, uma **busca por
+  título** (`#busca-input`, `BUSCA_FILTRO`, mesmo padrão de `.busca-field`
+  em `notas.html`) também filtra kanban + lista — nunca estatísticas nem
+  gráficos; sobrevive à troca de projeto e reseta ao deslogar.
 - **Kanban** (`.kanban-board`): **3 colunas fixas** — `Não Iniciado`,
   `Em Andamento`, `Feito` — nessa ordem, com fundo colorido por status
   (cinza/dourado/verde translúcido, mesmo mapeamento do mini-kanban do hub

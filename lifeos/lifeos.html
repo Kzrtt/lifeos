@@ -291,6 +291,11 @@
       padding: 6px 10px; max-width: 100%; cursor: pointer; outline: none;
     }
     .tar-projeto-select:focus { border-color: var(--gold); }
+    /* Busca por título no mini-kanban — mesmo visual do select, colada à
+       esquerda dele (.tar-kanban-controls), na linha do rótulo "Kanban". */
+    .tar-kanban-controls { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; min-width: 0; }
+    .tar-projeto-select.tar-busca-input { width: 150px; cursor: text; }
+    .tar-busca-input::placeholder { color: var(--mute); }
 
     /* ── Badges de view (#not-view-filters/#tar-view-filters) — cópia
        isolada de .filters/.chip de notas.html/tarefas.html (ver LIFEOS.md
@@ -1347,7 +1352,10 @@
       <div class="bento-card tar-card-kanban">
         <div class="tar-kanban-head">
           <div class="bento-card-label"><i class="fad fa-columns"></i> Kanban</div>
-          <select id="tar-projeto-select" class="tar-projeto-select"></select>
+          <div class="tar-kanban-controls">
+            <input type="text" id="tar-busca-input" class="tar-projeto-select tar-busca-input" placeholder="buscar tarefa…" aria-label="Buscar tarefa pelo título" autocomplete="off" spellcheck="false">
+            <select id="tar-projeto-select" class="tar-projeto-select"></select>
+          </div>
         </div>
         <div id="tar-view-filters" class="filters"></div>
         <div class="tar-mini-board" id="tar-mini-board"></div>
@@ -1873,7 +1881,7 @@
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.6/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/marked@12.0.2/marked.min.js"></script>
-<script src="../assets/js/lifeos.js?v=20260924b"></script>
+<script src="../assets/js/lifeos.js?v=20260925"></script>
 <script src="../assets/js/back-to-top.js?v=20260617"></script>
 
 <script>

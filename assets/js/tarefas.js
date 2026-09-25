@@ -94,6 +94,7 @@
 
   var TAR_VIEW = 'kanban';       /* 'kanban' | 'lista' — toggle de view */
   var TIPO_FILTRO = new Set();   /* filtro por Tipo, aplica no kanban + na lista */
+  var BUSCA_FILTRO = '';         /* busca por título (minúsculo), aplica no kanban + na lista; sobrevive à troca de projeto */
   var TAR_STATUS_CHART = null;   /* doughnut · distribuição por status */
   var TAR_TIPO_CHART = null;     /* barras · distribuição por tipo */
   var DRAG_TAREFA_ID = null;     /* id da tarefa sendo arrastada no kanban (drag-and-drop de status) */
@@ -157,7 +158,10 @@
 
   function visibleTarefas() {
     var view = activeView();
-    return TAREFAS.filter(function (t) { return matchesTipoFiltro(t) && matchesView(t, view); });
+    return TAREFAS.filter(function (t) {
+      if (BUSCA_FILTRO && (t.name || '').toLowerCase().indexOf(BUSCA_FILTRO) === -1) return false;
+      return matchesTipoFiltro(t) && matchesView(t, view);
+    });
   }
 
   /* ── Dev mock (ambiente local) — mesmo motivo dos outros módulos. ── */
@@ -1192,7 +1196,7 @@
     localStorage.removeItem(LS_KEY);
     dropCache();
     SESSION_PW = ''; PROJETOS = []; TAREFAS = []; TAREFAS_CACHE = {}; ACTIVE_PROJETO_ID = null;
-    VIEWS = []; ACTIVE_VIEW_ID = null;
+    VIEWS = []; ACTIVE_VIEW_ID = null; BUSCA_FILTRO = ''; $('busca-input').value = '';
     if (TAR_STATUS_CHART) { TAR_STATUS_CHART.destroy(); TAR_STATUS_CHART = null; }
     if (TAR_TIPO_CHART) { TAR_TIPO_CHART.destroy(); TAR_TIPO_CHART = null; }
     clearFilters(); switchTarView('kanban');
@@ -1232,6 +1236,7 @@
     buildChipOptions('tarefa-descricao-mode', MD_MODES);
 
     $('projeto-select').addEventListener('change', function (e) { setActiveProjeto(e.target.value); });
+    $('busca-input').addEventListener('input', function (e) { BUSCA_FILTRO = e.target.value.trim().toLowerCase(); renderKanban(); renderListView(); });
     $('add-tarefa-btn').addEventListener('click', function () { openTarefaModal(null); });
 
     $('kanban-board').addEventListener('click', function (e) {

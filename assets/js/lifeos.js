@@ -2259,6 +2259,7 @@
      tarefas.js, cópia isolada ver LIFEOS.md §2). Sem gráficos — removidos
      por decisão do autor (achou desnecessários). ── */
   var TAR_PROJETO_FILTRO = '';  /* '' = todos os projetos */
+  var TAR_BUSCA_FILTRO = '';    /* busca por título (minúsculo), compõe com o projeto/view */
 
   function renderTarStatusCounts() {
     var elNao = $('tar-count-nao-iniciado'), elAnd = $('tar-count-em-andamento'), elFeito = $('tar-count-feito');
@@ -2290,6 +2291,7 @@
     var viewTarefas = activeViewTarefas();
     var rows = TAREFAS_ALL.filter(function (t) {
       if (TAR_PROJETO_FILTRO && t.projeto_id !== TAR_PROJETO_FILTRO) return false;
+      if (TAR_BUSCA_FILTRO && (t.name || '').toLowerCase().indexOf(TAR_BUSCA_FILTRO) === -1) return false;
       return matchesViewGeneric(viewTarefas, getCampoTarefa, t);
     });
     TAR_STATUS.forEach(function (status) {
@@ -3511,7 +3513,7 @@
     var addBtnReset = $('add-evento-btn');
     addBtnReset.innerHTML = 'Adicionar <i class="fad fa-plus"></i>';
     addBtnReset.setAttribute('aria-label', 'Novo evento');
-    TAR_PROJETO_FILTRO = ''; DRAG_TAREFA_ID = null;
+    TAR_PROJETO_FILTRO = ''; TAR_BUSCA_FILTRO = ''; $('tar-busca-input').value = ''; DRAG_TAREFA_ID = null;
     VIEWS_NOTAS = []; VIEWS_TAREFAS = []; ACTIVE_VIEW_NOTAS_ID = null; ACTIVE_VIEW_TAREFAS_ID = null;
     /* não chapa 'Em Progresso': o status pode ter sido renomeado na tela
        de Tags, e o filtro precisa apontar pra algo que existe. */
@@ -3807,6 +3809,10 @@
     $('quicknav-manifestacoes').addEventListener('click', toggleManifFocus);
     $('tar-projeto-select').addEventListener('change', function (e) {
       TAR_PROJETO_FILTRO = e.target.value;
+      renderTarMiniKanban();
+    });
+    $('tar-busca-input').addEventListener('input', function (e) {
+      TAR_BUSCA_FILTRO = e.target.value.trim().toLowerCase();
       renderTarMiniKanban();
     });
     $('not-projeto-filtro').addEventListener('change', function (e) {
