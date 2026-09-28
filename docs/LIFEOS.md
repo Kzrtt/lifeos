@@ -155,8 +155,11 @@ emenda deliberada, e vale entender a fronteira:
 
 Existe porque o projeto vai virar open-source: é o único arquivo que um fork
 precisa editar pra apontar pro próprio backend. Hoje `lifeos.js`, `publicar.js`,
-`senhas.js`, `temas.js` e `tema.js` consomem; `financas.js`, `tarefas.js`,
-`notas.js` e `eventos.js` ainda têm as constantes chapadas e migram depois.
+`senhas.js`, `temas.js` e `tema.js` consomem, e também `financas.js`,
+`tarefas.js`, `notas.js`, `eventos.js`, `memoria.js` e `gallery.js`. A única
+que ainda tem constantes próprias é `gate.js` (com `login.html`): é o fluxo
+de senha das páginas protegidas do arquivo público, que não carregam o
+config — ver `AUTH.md`.
 
 `assets/js/tema.js` é o segundo arquivo compartilhado, pela mesma lógica: ele
 não tem estado nem regra de negócio, só lê a config e troca o `href` de um
