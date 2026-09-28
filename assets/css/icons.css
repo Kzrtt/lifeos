@@ -66,13 +66,16 @@
 .fad::after { content: none !important; }
 
 /* ── Glifos ── */
+.fa-arrow-down::before { content: "\f063"; }
 .fa-arrow-from-bottom::before { content: "\f093"; }
 .fa-arrow-left::before { content: "\f060"; }
 .fa-arrow-right::before { content: "\f061"; }
 .fa-arrow-to-bottom::before { content: "\f019"; }
+.fa-arrow-up::before { content: "\f062"; }
 .fa-bars::before { content: "\f0c9"; }
 .fa-book::before { content: "\f02d"; }
 .fa-book-open::before { content: "\f518"; }
+.fa-brain::before { content: "\f5dc"; }
 .fa-calendar-alt::before { content: "\f073"; }
 .fa-calendar-day::before { content: "\f783"; }
 .fa-chart-bar::before { content: "\f080"; }
@@ -88,18 +91,26 @@
 .fa-circle-exclamation::before { content: "\f06a"; }
 .fa-circle-info::before { content: "\f05a"; }
 .fa-columns::before { content: "\f0db"; }
+.fa-comments::before { content: "\f086"; }
 .fa-compass::before { content: "\f14e"; }
 .fa-copy::before { content: "\f0c5"; }
+.fa-cubes::before { content: "\f1b3"; }
+.fa-cut::before { content: "\f0c4"; }
 .fa-diagram-project::before { content: "\f542"; }
 .fa-download::before { content: "\f019"; }
 .fa-exclamation-triangle::before { content: "\f071"; }
 .fa-expand::before { content: "\f065"; }
+.fa-feather::before { content: "\f52d"; }
+.fa-feather-alt::before { content: "\f56b"; }
+.fa-file-alt::before { content: "\f15c"; }
 .fa-file-code::before { content: "\f1c9"; }
 .fa-file-invoice-dollar::before { content: "\f571"; }
 .fa-file-lock::before { content: "\f15c"; }
 .fa-file-pdf::before { content: "\f1c1"; }
+.fa-filter::before { content: "\f0b0"; }
 .fa-folder-open::before { content: "\f07c"; }
 .fa-grid-2::before { content: "\f009"; }
+.fa-hand-holding-usd::before { content: "\f4c0"; }
 .fa-history::before { content: "\f1da"; }
 .fa-hourglass-half::before { content: "\f252"; }
 .fa-image::before { content: "\f03e"; }
@@ -108,6 +119,7 @@
 .fa-key-skeleton::before { content: "\f084"; }
 .fa-lightbulb::before { content: "\f0eb"; }
 .fa-list::before { content: "\f03a"; }
+.fa-lock::before { content: "\f023"; }
 .fa-mobile::before { content: "\f10b"; }
 .fa-palette::before { content: "\f53f"; }
 .fa-pen::before { content: "\f304"; }
@@ -115,11 +127,15 @@
 .fa-pencil::before { content: "\f303"; }
 .fa-plug::before { content: "\f1e6"; }
 .fa-plus::before { content: "\f067"; }
+.fa-question::before { content: "\f128"; }
 .fa-question-circle::before { content: "\f059"; }
+.fa-quote-right::before { content: "\f10e"; }
 .fa-receipt::before { content: "\f543"; }
 .fa-repeat::before { content: "\f01e"; }
+.fa-robot::before { content: "\f544"; }
 .fa-rotate-left::before { content: "\f0e2"; }
 .fa-search::before { content: "\f002"; }
+.fa-shield-alt::before { content: "\f3ed"; }
 .fa-shield-exclamation::before { content: "\f3ed"; }
 .fa-sign-out::before { content: "\f2f5"; }
 .fa-sparkles::before { content: "\f0d0"; }
@@ -134,7 +150,10 @@
 .fa-trash::before { content: "\f1f8"; }
 .fa-triangle-exclamation::before { content: "\f071"; }
 .fa-upload::before { content: "\f093"; }
+.fa-user-edit::before { content: "\f4ff"; }
+.fa-vial::before { content: "\f492"; }
 .fa-wallet::before { content: "\f555"; }
+.fa-wifi-slash::before { content: "\f0e7"; }
 
 /* Marcas (família Brands) */
 .fa-apple::before { content: "\f179"; }

@@ -21,14 +21,16 @@ lifeos/
 ├── pages/                     # As entradas do arquivo, uma por HTML autocontido
 │   └── sem-acesso.html        #   destino de quem não passa no access-gate
 │
-├── lifeos/                    # O PAINEL — 11 páginas, cada uma isolada
+├── lifeos/                    # O PAINEL — 13 páginas, cada uma isolada
+│   ├── index.html             #   apresentação pública (sem gate)
 │   ├── lifeos.html            #   hub: calendário, tarefas, saldo, notas
 │   ├── financas.html          #   movimentações, fatura, comparação de meses
 │   ├── tarefas.html           #   tarefas + projetos (kanban e lista)
 │   ├── notas.html             #   notas em markdown
+│   ├── memoria.html           #   memória de longo prazo das IAs
 │   ├── publicar.html          #   publica entrada nova + aba do token GitHub
 │   ├── senhas.html            #   senhas de acesso e escopo por página
-│   ├── temas.html             #   troca a paleta
+│   ├── temas.html             #   troca a paleta e a capa do hub
 │   ├── tags.html              #   vocabulários de todas as tabelas
 │   ├── automacao.html         #   webhook de lançamento pelo celular
 │   ├── mcp.html               #   URL do conector MCP e guia das tools
@@ -48,9 +50,9 @@ lifeos/
 │
 ├── docs/                      # Referência de arquitetura
 └── supabase/
-    ├── migrations/            # 0001_init.sql + 0002_vocabularios.sql
+    ├── migrations/            # 0001_init.sql … 0007_lifeos_memorias.sql, em ordem
     ├── seed.sql               # Senha mestre padrão + projeto inicial
-    └── functions/             # 11 Edge Functions
+    └── functions/             # 15 Edge Functions
 ```
 
 > Esta árvore descreve o repositório do **sistema**. A instância de origem

@@ -95,7 +95,8 @@ O *project ref* é o código na URL do dashboard
 for fn in lifeos-config lifeos-senhas lifeos-projetos lifeos-tarefas \
           lifeos-eventos lifeos-notas lifeos-manifestacoes \
           lifeos-movimentacoes lifeos-ingest lifeos-views \
-          lifeos-vocabularios lifeos-citacoes lifeos-mcp; do
+          lifeos-vocabularios lifeos-citacoes lifeos-memorias \
+          lifeos-mcp; do
   supabase functions deploy "$fn" --no-verify-jwt
 done
 ```

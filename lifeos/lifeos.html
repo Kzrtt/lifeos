@@ -143,6 +143,70 @@
     .hub-quicknav a i, .hub-quicknav button i { color: var(--gold); font-size: 11px; }
     .hub-masthead-rule { border-top: 3px double var(--text); margin-bottom: 14px; }
 
+    /* ── Capa imersiva (opcional) ─────────────────────────────────────────
+       Escolhida em LifeOS › menu › Temas; tema.js marca o <html> com
+       data-hub-capa="imersiva" antes da primeira pintura (ver o cabeçalho de
+       assets/js/tema.js). Mesmo desenho da apresentação (lifeos/index.html):
+       banner de ponta a ponta, topbar POR CIMA da imagem, ícone e título
+       grande empilhados. Só CSS — o markup e lifeos.js são os mesmos da capa
+       clássica, então applyIdentidade() e um banner de fork continuam valendo.
+
+       CONTRASTE: o banner padrão tem moldura de pergaminho CLARO no topo e nas
+       laterais, e um fork pode usar qualquer imagem. Nada que fica sobre ela
+       confia no que está atrás: os controles da topbar ganham fundo próprio,
+       escuro e desfocado; o título e o subtítulo ficam abaixo da imagem, sobre
+       o fundo da página (o degradê leva o banner até var(--bg)). */
+    html[data-hub-capa="imersiva"] body { overflow-x: clip; }   /* 100vw inclui a barra de rolagem */
+    html[data-hub-capa="imersiva"] .app { position: relative; }
+    html[data-hub-capa="imersiva"] .topbar {
+      position: absolute; top: 0; left: 20px; right: 20px; z-index: 4;
+      padding: calc(16px + env(safe-area-inset-top)) 0 0; border-bottom: none;
+    }
+    html[data-hub-capa="imersiva"] .topbar .back,
+    html[data-hub-capa="imersiva"] .topbar .fetched,
+    html[data-hub-capa="imersiva"] .topbar .icon-btn {
+      background: color-mix(in srgb, var(--bg) 80%, transparent);
+      -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
+      border: 1px solid color-mix(in srgb, var(--text) 16%, transparent);
+      color: var(--text);
+    }
+    html[data-hub-capa="imersiva"] .topbar .back { display: inline-flex; align-items: center; padding: 9px 15px; border-radius: 999px; }
+    html[data-hub-capa="imersiva"] .topbar .fetched { padding: 7px 12px; border-radius: 999px; }
+    html[data-hub-capa="imersiva"] .topbar .icon-btn { border-radius: 999px; }
+    html[data-hub-capa="imersiva"] .topbar .back:hover,
+    html[data-hub-capa="imersiva"] .topbar .icon-btn:hover { color: var(--gold); border-color: var(--gold); }
+
+    html[data-hub-capa="imersiva"] .hub-banner {
+      width: 100vw; margin-left: calc(50% - 50vw); margin-top: 0; border-radius: 0;
+      height: clamp(240px, 36vw, 400px);
+    }
+    html[data-hub-capa="imersiva"] .hub-banner::after {
+      inset: 0; height: auto;
+      background: linear-gradient(to bottom, color-mix(in srgb, var(--bg) 50%, transparent) 0%, transparent 30%, transparent 42%, var(--bg) 100%);
+    }
+    html[data-hub-capa="imersiva"] .hub-masthead-row {
+      flex-direction: column; align-items: flex-start; gap: 0; margin-top: -96px; padding: 0;
+    }
+    html[data-hub-capa="imersiva"] .hub-icon-wrap {
+      width: clamp(96px, 12vw, 136px); height: clamp(96px, 12vw, 136px);
+      border-radius: 18px; border-width: 3px; box-shadow: none; margin-bottom: 22px;
+    }
+    /* column-reverse: o subtítulo sobe e vira o "kicker" acima do título,
+       sem mexer na ordem do markup (applyIdentidade continua achando os dois). */
+    html[data-hub-capa="imersiva"] .hub-masthead-text { display: flex; flex-direction: column-reverse; padding-bottom: 0; }
+    html[data-hub-capa="imersiva"] .hub-masthead-text h1 {
+      font-size: clamp(60px, 11vw, 124px); line-height: 0.86; letter-spacing: -0.035em; text-shadow: none;
+    }
+    html[data-hub-capa="imersiva"] .hub-sub {
+      color: var(--gold); letter-spacing: 0.32em; margin: 0 0 14px; text-shadow: none;
+    }
+    html[data-hub-capa="imersiva"] .hub-quicknav { margin-top: 26px; }
+    @media (max-width: 560px) {
+      html[data-hub-capa="imersiva"] .topbar { left: 14px; right: 14px; }
+      html[data-hub-capa="imersiva"] .hub-masthead-row { margin-top: -70px; }
+      html[data-hub-capa="imersiva"] .hub-icon-wrap { width: 88px; height: 88px; border-radius: 16px; margin-bottom: 18px; }
+    }
+
     /* ── Hero-section: uma área do LifeOS ─────────────────────────────
        NÃO é um card — não tem fundo nem borda próprios. É só um agrupador:
        um título + um conjunto de `.bento-card`s soltos, flutuando direto
@@ -1824,6 +1888,15 @@
   <div class="drawer-head">
     <span class="drawer-brand">LifeOS</span>
     <button type="button" id="drawer-close" class="icon-btn" title="Fechar" aria-label="Fechar menu"><i class="fad fa-times"></i></button>
+  </div>
+
+  <!-- Contexto: dado, não configuração — por isso um grupo próprio, acima. -->
+  <div class="drawer-group">
+    <div class="drawer-label">Contexto</div>
+    <a class="drawer-item" href="memoria.html">
+      <i class="fad fa-brain"></i>
+      <span>Memória<span class="drawer-item-sub">o que as IAs sabem de você</span></span>
+    </a>
   </div>
 
   <div class="drawer-group">

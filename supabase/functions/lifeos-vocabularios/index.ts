@@ -73,6 +73,7 @@ const DOMINIOS: Record<string, { rotulo: string; tabela: string; coluna: string;
   manifestacao_tag:    { rotulo: "Tags de manifestação",     tabela: "lifeos_manifestacoes",  coluna: "tags",   array: true,  cor: false },
   mov_direcao:         { rotulo: "Direção de movimentação",  tabela: "lifeos_movimentacoes",  coluna: "tipo",   array: true,  cor: false },
   mov_meio:            { rotulo: "Meios de pagamento",       tabela: "lifeos_movimentacoes",  coluna: "tipo",   array: true,  cor: false },
+  memoria_categoria:   { rotulo: "Categorias de memória",    tabela: "lifeos_memorias",       coluna: "categoria", array: false, cor: false },
 };
 
 const json = (body: unknown, status = 200) =>

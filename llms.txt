@@ -28,7 +28,9 @@ exibido embaralhado, `_(x)_` em itálico.
 - [pages/](pages/): as entradas. Cada uma é um HTML autocontido, com o próprio
   CSS embutido — não há folha compartilhada nem tema comum.
 - [lifeos/](lifeos/): o painel privado. Todo o conteúdo fica atrás de senha e
-  não é indexável.
+  não é indexável — exceto `lifeos/index.html`, a apresentação pública do
+  LifeOS (módulos, regras de Finanças, o servidor MCP e a arquitetura), que
+  não exige senha e não mostra dado real.
 
 ## Documentação
 

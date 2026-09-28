@@ -89,6 +89,14 @@ window.LIFEOS_CONFIG = {
    */
   tema: 'sepia',
 
+  /* ── Capa do hub ──────────────────────────────────────────────────────
+   * 'classica' — banner arredondado dentro da coluna, ícone ao lado do título.
+   * 'imersiva' — banner de ponta a ponta, topbar por cima da imagem, ícone e
+   *              título grande empilhados (o mesmo desenho de lifeos/index.html).
+   * Padrão da instância; cada navegador pode trocar em LifeOS → menu → Temas.
+   */
+  hubCapa: 'classica',
+
   /* ── Chave de sessão ──────────────────────────────────────────────────
    * localStorage onde a senha mestre fica guardada quando "lembrar neste
    * navegador" está marcado. Compartilhada por TODAS as páginas do LifeOS

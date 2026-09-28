@@ -548,6 +548,45 @@ Parsing (schema da tabela `lifeos_movimentacoes`):
 
 ---
 
+## 9.1 As três cópias da regra (e como verificar que batem)
+
+A regra de negócio é UMA, mas o código existe em **três** lugares (LIFEOS.md
+§2 — cópia, não import; decisão do autor em set/2026, até o port pra Laravel):
+
+| Onde | Pra quê |
+|---|---|
+| `assets/js/financas.js` | a tela — **referência**; as outras duas copiam dela |
+| `assets/js/lifeos.js` | cards de saldo e fatura no hub (LIFEOS.md §3.2) |
+| `supabase/functions/lifeos-mcp/index.ts`, seção `RESUMO FINANCEIRO` | tool `resumo_financeiro` do MCP |
+
+**Por que o MCP precisa da sua cópia:** com só `search_movimentacoes`, o
+modelo recebia linhas cruas (e no máximo 50 — os meses têm ~70–130) e
+precisaria reinventar as regras. O erro provável era contar a compra no
+Crédito e o pagamento da fatura como duas saídas. `resumo_financeiro`
+devolve o mês já agregado como a tela mostra: KPIs, saldo com abertura,
+saídas/entradas por meio, fatura que fecha (pago, restante, adiantamento),
+fatura projetada, recorrências, maiores saídas e saldo mínimo; com `de`/`ate`,
+até 12 meses e um comparativo. Busca tudo até o fim do último mês pedido de
+uma vez (a cadeia `carryInto` olha pra trás sem limite fixo) e usa a mesma
+RPC `lifeos_saldo_abertura` da tela. `search_movimentacoes` continua pro
+detalhe, com teto de 300 quando há `data_inicio` e `data_fim`.
+
+**A seção do MCP é pura** (sem fetch/Deno, entre os marcadores
+`RESUMO FINANCEIRO · início/fim`) justamente pra ser testável fora do Deno.
+Verificação feita em set/2026: as funções de `financas.js` extraídas
+literalmente e a seção do MCP rodadas no Node sobre as movimentações reais de
+abr–nov/2026 — resultado idêntico centavo a centavo em todos os meses,
+incluindo as cadeias de adiantamento (jul 440, ago 150 explícito, set 800).
+Um teste de mutação (trocar `<= 0` por `< 0` no split, tirar o Crédito do
+caixa) gerou 25 divergências — o teste pega erro de verdade.
+
+**Ao mudar uma regra de Finanças, mude as três** e refaça essa comparação.
+Pra obter os dados sem expor a senha real, o mesmo recurso de sempre: token
+mestre temporário em `access_tokens`, buscar via `lifeos-movimentacoes`,
+apagar o token.
+
+---
+
 ## 10. O que NÃO foi implementado (opcional, decisão à parte)
 
 - **Categorias de despesa** semânticas (não existem como tags na base).

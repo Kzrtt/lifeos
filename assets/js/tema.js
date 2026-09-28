@@ -40,6 +40,15 @@
  * funcionar em `file://` e em localhost sem esbarrar no CORS das Edge Functions.
  *
  * Precedência: localStorage['lifeos_tema'] → LIFEOS_CONFIG.tema → 'sepia'.
+ *
+ * CAPA DO HUB (set/2026) — a segunda preferência de aparência, pelo mesmo
+ * caminho e pelo mesmo motivo (aplicar antes da pintura, sem flash):
+ * `data-hub-capa="classica|imersiva"` no <html>. Só o CSS de lifeos.html
+ * reage a ela; nas outras páginas o atributo é inerte. NÃO usar `data-capa`
+ * — esse nome é o marcador que blog.js usa pra redirecionar a capa do
+ * arquivo, e no hub viraria um loop de redirecionamento com o blog desligado.
+ *
+ * Precedência: localStorage['lifeos_hub_capa'] → LIFEOS_CONFIG.hubCapa → 'classica'.
  */
 (function () {
   'use strict';
@@ -83,8 +92,47 @@
 
   if (link) aplicar(escolhido());
 
+  /* ── Capa do hub ── mesma lógica de lista branca + precedência. */
+  var LS_CAPA = 'lifeos_hub_capa';
+  var CAPAS = ['classica', 'imersiva'];
+  var CAPA_FALLBACK = 'classica';
+
+  function capaLida() {
+    try { return localStorage.getItem(LS_CAPA); } catch (_e) { return null; }
+  }
+  function capaPadrao() {
+    var cfg = window.LIFEOS_CONFIG;
+    return (cfg && CAPAS.indexOf(cfg.hubCapa) !== -1) ? cfg.hubCapa : CAPA_FALLBACK;
+  }
+  function capaEscolhida() {
+    var salva = capaLida();
+    return (salva && CAPAS.indexOf(salva) !== -1) ? salva : capaPadrao();
+  }
+  function aplicarCapa(capa) { document.documentElement.setAttribute('data-hub-capa', capa); }
+
+  aplicarCapa(capaEscolhida());
+
   /* API usada por temas.js pra trocar o tema sem recarregar a página. */
   window.LIFEOS_TEMA = {
+    capa: capaEscolhida,
+    capas: function () { return CAPAS.slice(); },
+    capaPadrao: capaPadrao,
+    /* `null` limpa a escolha e volta ao padrão da instância. */
+    definirCapa: function (nova) {
+      if (nova === null) {
+        try { localStorage.removeItem(LS_CAPA); } catch (_e) {}
+        aplicarCapa(capaEscolhida());
+        return true;
+      }
+      if (CAPAS.indexOf(nova) === -1) return false;
+      try { localStorage.setItem(LS_CAPA, nova); } catch (_e) {}
+      aplicarCapa(nova);
+      return true;
+    },
+    usandoCapaPadrao: function () {
+      var salva = capaLida();
+      return !(salva && CAPAS.indexOf(salva) !== -1);
+    },
     atual: escolhido,
     validos: function () { return VALIDOS.slice(); },
     /* `null` limpa a escolha e devolve a página ao padrão da instância. */

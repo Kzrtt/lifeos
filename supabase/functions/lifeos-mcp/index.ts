@@ -9,6 +9,13 @@
 // update_tarefa), Eventos (create_evento, update_evento), Finanças
 // (create_movimentacao, update_movimentacao) e Citações (create_citacao --
 // só criar, set/2026). Projetos e Manifestações continuam só-leitura.
+//
+// Memória de longo prazo (27/set/2026, LIFEOS.md §17): list_memorias,
+// get_memoria, create_memoria, add_registro, update_memoria,
+// update_registro. Além das tools, o `initialize` devolve `instructions`
+// com o ÍNDICE das memórias montado na hora (buildInstructions) -- o cliente
+// injeta isso no system prompt e o modelo começa a conversa sabendo o que
+// existe, sem gastar uma tool call.
 // Nenhum domínio ganha DELETE por aqui -- escrita destrutiva via MCP segue
 // fora de escopo, decisão mantida mesmo depois de abrir create/update pra
 // além de Notas (22/set/2026).
@@ -133,6 +140,7 @@ const FALLBACK: Record<string, string[]> = {
   manifestacao_tag: ["Vida", "Financeiro", "Carreira", "Saúde", "Lazer"],
   mov_direcao: ["Entrada", "Saida"],
   mov_meio: ["Crédito", "Débito", "Pix", "Vale", "Boleto"],
+  memoria_categoria: ["Perfil", "Preferências", "Projetos", "Referências", "Vida"],
 };
 
 // Preenchido uma vez por invocação, antes de montar as tools -- o enum de
@@ -233,8 +241,7 @@ function buildTools() {
     description:
       "Cria uma nova nota no LifeOS. A data é sempre a data atual (não é um " +
       "parâmetro). Todos os outros campos são obrigatórios: nome, tipo/tags, " +
-      "ao menos um projeto vinculado, e o conteúdo completo em markdown. " +
-      "Única tool de escrita deste servidor -- todo o resto é só consulta.",
+      "ao menos um projeto vinculado, e o conteúdo completo em markdown.",
     inputSchema: {
       type: "object",
       properties: {
@@ -438,11 +445,141 @@ function buildTools() {
     },
   },
   {
+    name: "list_memorias",
+    description:
+      "Lista o ÍNDICE da memória de longo prazo sobre o usuário: título, " +
+      "categoria, descrição curta e nº de registros de cada memória -- sem " +
+      "o conteúdo. Use para descobrir quais memórias existem e depois abra " +
+      "as relevantes com get_memoria. O mesmo índice já vem nas instruções " +
+      "do servidor ao conectar; chame esta tool para conferir a versão atual.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        categoria: { type: "string", enum: VOCAB.memoria_categoria, description: "Filtra por uma categoria (opcional)." },
+      },
+    },
+  },
+  {
+    name: "get_memoria",
+    description:
+      "Abre uma ou mais memórias e devolve todos os registros de cada uma, em " +
+      "ordem cronológica, com data e origem. Cada registro reflete o que era " +
+      "verdade QUANDO foi escrito -- confira a data antes de tratar um fato " +
+      "antigo como atual.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        memorias: {
+          type: "array", items: { type: "string" }, minItems: 1,
+          description: "Títulos (exatos ou trecho único) ou ids das memórias a abrir.",
+        },
+      },
+      required: ["memorias"],
+    },
+  },
+  {
+    name: "create_memoria",
+    description:
+      "Cria uma memória nova (um TEMA) sobre o usuário. Só use quando nenhuma " +
+      "memória existente cobre o assunto -- se já existir uma, adicione um " +
+      "registro nela com add_registro. O título é único. A descrição é o que " +
+      "aparece no índice: uma ou duas frases dizendo do que a memória trata, " +
+      "pra que um modelo decida se vale abri-la sem ler o conteúdo.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        titulo: { type: "string", description: "Título curto e específico (máx. 120 caracteres)." },
+        descricao: { type: "string", description: "Uma ou duas frases sobre do que a memória trata (máx. 400 caracteres)." },
+        categoria: { type: "string", enum: VOCAB.memoria_categoria, description: "Categoria da memória." },
+        registros: { type: "array", items: { type: "string" }, description: "Registros iniciais -- um fato por item (opcional)." },
+        origem: { type: "string", description: "Quem está escrevendo: o cliente/harness, ex.: 'claude-code', 'claude.ai'." },
+      },
+      required: ["titulo", "descricao", "categoria"],
+    },
+  },
+  {
+    name: "add_registro",
+    description:
+      "Acrescenta um registro (um fato datado) a uma memória existente. É a " +
+      "forma normal de a memória crescer. Um registro = um fato autocontido, " +
+      "legível sem o resto da conversa. Não registre o que é efêmero (o que " +
+      "só importa nesta conversa) nem o que já está registrado -- se um fato " +
+      "antigo mudou, corrija-o com update_registro em vez de duplicar.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        memoria: { type: "string", description: "Título (exato ou trecho único) ou id da memória." },
+        texto: { type: "string", description: "O fato, em texto corrido (máx. 8000 caracteres)." },
+        origem: { type: "string", description: "Quem está escrevendo: o cliente/harness, ex.: 'claude-code', 'claude.ai'." },
+      },
+      required: ["memoria", "texto"],
+    },
+  },
+  {
+    name: "update_memoria",
+    description:
+      "Atualiza título, descrição e/ou categoria de uma memória -- PATCH " +
+      "parcial: só os campos enviados mudam. Os registros não são tocados.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        memoria: { type: "string", description: "Título atual (exato ou trecho único) ou id da memória." },
+        titulo: { type: "string", description: "Novo título." },
+        descricao: { type: "string", description: "Nova descrição." },
+        categoria: { type: "string", enum: VOCAB.memoria_categoria, description: "Nova categoria." },
+      },
+      required: ["memoria"],
+    },
+  },
+  {
+    name: "update_registro",
+    description:
+      "Corrige o texto de um registro existente (id vem de get_memoria). " +
+      "SUBSTITUIÇÃO: envie o TEXTO INTEIRO e final do registro, nunca só o " +
+      "trecho que mudou. A data original do registro se mantém. Excluir " +
+      "memórias ou registros não é possível por aqui -- só pela tela do LifeOS.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        id: { type: "string", description: "id do registro (retornado por get_memoria)." },
+        texto: { type: "string", description: "Texto INTEIRO e final do registro." },
+      },
+      required: ["id", "texto"],
+    },
+  },
+  {
+    name: "resumo_financeiro",
+    description:
+      "Panorama financeiro de um mês (ou comparação de até 12 meses) já " +
+      "AGREGADO com as mesmas regras da tela de Finanças do LifeOS -- use " +
+      "esta tool para qualquer pergunta sobre quanto entrou, saiu, sobrou ou " +
+      "está devendo, em vez de somar linhas de search_movimentacoes (somar " +
+      "linhas cruas conta a compra no crédito e o pagamento da fatura duas " +
+      "vezes). Significado dos campos: saidas_caixa = o que saiu do caixa no " +
+      "mês (sem compras no crédito); saidas_com_credito = todas as saídas, " +
+      "inclusive crédito; saldo = saldo_abertura (sobra dos meses anteriores) " +
+      "+ variacao_mes; lançamentos com data futura contam nos totais mas não " +
+      "no saldo. fatura_deste_mes = compras no crédito do mês anterior que " +
+      "fecham agora, com quanto já foi pago; fatura_projetada = compras no " +
+      "crédito deste mês, por fatura futura. Sem parâmetros, resume o mês atual.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        mes: { type: "string", description: "Um mês, YYYY-MM." },
+        de: { type: "string", description: "Primeiro mês de um intervalo, YYYY-MM (use com ate)." },
+        ate: { type: "string", description: "Último mês do intervalo, YYYY-MM (máx. 12 meses)." },
+      },
+    },
+  },
+  {
     name: "search_movimentacoes",
     description:
       "Busca movimentações financeiras do LifeOS por nome, direção " +
       "(Entrada/Saida), meio de pagamento, intervalo de data e faixa de " +
-      "valor. Todos os filtros são opcionais e combináveis.",
+      "valor. Todos os filtros são opcionais e combináveis. Serve pra " +
+      "descer ao detalhe (quais lançamentos, de quê); pra totais e saldo, " +
+      "use resumo_financeiro. Com data_inicio E data_fim, o limite sobe " +
+      "pra 300 -- um mês inteiro cabe numa chamada.",
     inputSchema: {
       type: "object",
       properties: {
@@ -453,7 +590,7 @@ function buildTools() {
         data_fim: { type: "string", description: "Data máxima YYYY-MM-DD (inclusive)." },
         valor_min: { type: "number", description: "Valor mínimo (inclusive)." },
         valor_max: { type: "number", description: "Valor máximo (inclusive)." },
-        limit: { type: "integer", description: "Máximo de resultados (padrão 20, máximo 50)." },
+        limit: { type: "integer", description: "Máximo de resultados (padrão 20; máximo 50, ou 300 com data_inicio e data_fim)." },
       },
     },
   },
@@ -557,7 +694,8 @@ Deno.serve(async (req) => {
       return respond(rpcResult(id, {
         protocolVersion: params?.protocolVersion || "2025-06-18",
         capabilities: { tools: {} },
-        serverInfo: { name: "lifeos-mcp", version: "2.2.0" },
+        serverInfo: { name: "lifeos-mcp", version: "2.3.0" },
+        instructions: await buildInstructions(REST, restHeaders),
       }));
     }
 
@@ -584,6 +722,13 @@ Deno.serve(async (req) => {
         search_manifestacoes: (a) => handleSearchManifestacoes(REST, restHeaders, a),
         search_citacoes: (a) => handleSearchCitacoes(REST, restHeaders, a),
         create_citacao: (a) => handleCreateCitacao(REST, restHeaders, a),
+        list_memorias: (a) => handleListMemorias(REST, restHeaders, a),
+        get_memoria: (a) => handleGetMemoria(REST, restHeaders, a),
+        create_memoria: (a) => handleCreateMemoria(REST, restHeaders, a),
+        add_registro: (a) => handleAddRegistro(REST, restHeaders, a),
+        update_memoria: (a) => handleUpdateMemoria(REST, restHeaders, a),
+        update_registro: (a) => handleUpdateRegistro(REST, restHeaders, a),
+        resumo_financeiro: (a) => handleResumoFinanceiro(REST, restHeaders, a),
         search_movimentacoes: (a) => handleSearchMovimentacoes(REST, restHeaders, a),
         create_movimentacao: (a) => handleCreateMovimentacao(REST, restHeaders, a),
         update_movimentacao: (a) => handleUpdateMovimentacao(REST, restHeaders, a),
@@ -1216,6 +1361,608 @@ async function handleCreateCitacao(REST: string, headers: Record<string, string>
   }, null, 2));
 }
 
+// ── Memória de longo prazo (LIFEOS.md §17) ───────────────────────────────
+//
+// Índice (lifeos_memorias) + registros (lifeos_memoria_registros). Os
+// limites e a regra de título único são os mesmos de lifeos-memorias --
+// cópia, não import (LIFEOS.md §2).
+//
+// Sem DELETE aqui, mesma política do resto do servidor: podar memória é
+// trabalho da tela (lifeos/memoria.html). update_registro é SUBSTITUIÇÃO do
+// texto inteiro, pelo mesmo motivo de update_nota: um envio parcial apagaria
+// o resto do fato.
+const MEM_MAX_TITULO = 120;
+const MEM_MAX_DESCRICAO = 400;
+const MEM_MAX_TEXTO = 8000;
+const MEM_MAX_ORIGEM = 60;
+
+// Teto do índice injetado nas `instructions`. Clientes costumam truncar
+// instruções longas; passando disto, o índice é cortado com um aviso e o
+// modelo usa list_memorias pra ver o resto.
+const INSTRUCTIONS_MAX_INDICE = 6000;
+
+type MemoriaIdx = {
+  id: string; titulo: string; descricao: string; categoria: string;
+  updated_at: string; registros: number;
+};
+
+async function fetchMemoriasIndice(REST: string, headers: Record<string, string>): Promise<MemoriaIdx[]> {
+  // Os ids dos registros vêm embutidos só pra contar -- mais portátil que
+  // depender de aggregate no PostgREST, e o volume é de uso pessoal.
+  const r = await fetch(
+    `${REST}/lifeos_memorias?select=id,titulo,descricao,categoria,updated_at,lifeos_memoria_registros(id)&order=titulo.asc`,
+    { headers },
+  );
+  if (!r.ok) throw new Error(`select memorias -> ${r.status} ${await r.text()}`);
+  const rows = await r.json();
+  return rows.map((m: any) => ({
+    id: m.id, titulo: m.titulo, descricao: m.descricao ?? "", categoria: m.categoria,
+    updated_at: m.updated_at, registros: (m.lifeos_memoria_registros ?? []).length,
+  }));
+}
+
+// Mesmo critério de resolveProjetoNomes: id exato, depois título exato
+// (sem caixa), depois trecho que bata com UMA memória só.
+function resolveMemoria(memorias: MemoriaIdx[], refRaw: string): { hit?: MemoriaIdx; erro?: string } {
+  const ref = refRaw.trim();
+  const lower = ref.toLowerCase();
+  let hit = memorias.find((m) => m.id === ref) ?? memorias.find((m) => m.titulo.trim().toLowerCase() === lower);
+  if (!hit) {
+    const cands = memorias.filter((m) => m.titulo.toLowerCase().includes(lower));
+    if (cands.length === 1) hit = cands[0];
+    else if (cands.length > 1) return { erro: `"${ref}" é ambíguo -- bate com: ${cands.map((m) => m.titulo).join(", ")}.` };
+  }
+  if (!hit) {
+    const todas = memorias.map((m) => m.titulo).join(", ") || "(nenhuma ainda)";
+    return { erro: `Nenhuma memória encontrada com "${ref}". Memórias existentes: ${todas}.` };
+  }
+  return { hit };
+}
+
+function cleanOrigem(v: unknown): string {
+  const s = String(v ?? "").trim().slice(0, MEM_MAX_ORIGEM);
+  return s || "mcp";
+}
+
+async function tocarMemoria(REST: string, headers: Record<string, string>, memoriaId: string) {
+  await fetch(`${REST}/lifeos_memorias?id=eq.${memoriaId}`, {
+    method: "PATCH",
+    headers,
+    body: JSON.stringify({ updated_at: new Date().toISOString() }),
+  });
+}
+
+// `instructions` do initialize: o cliente coloca isto no system prompt, então
+// o modelo começa a conversa já sabendo quais memórias existem -- sem gastar
+// uma tool call. Falhar aqui nunca derruba o handshake: sem índice, as
+// instruções saem só com o texto fixo.
+async function buildInstructions(REST: string, headers: Record<string, string>): Promise<string> {
+  const base =
+    "LifeOS é o sistema de gestão de vida do usuário (tarefas, projetos, notas, eventos, finanças, " +
+    "manifestações, citações). Este servidor também guarda a MEMÓRIA DE LONGO PRAZO sobre o usuário, " +
+    "independente de cliente ou modelo.\n\n" +
+    "Como usar a memória:\n" +
+    "- O índice abaixo lista cada memória (título — descrição). Quando o assunto da conversa tocar uma " +
+    "delas, abra com get_memoria antes de responder.\n" +
+    "- Ao aprender algo durável sobre o usuário (quem é, preferências, correções que ele fez, contexto " +
+    "de projetos, referências), registre: add_registro na memória certa, ou create_memoria se nenhuma " +
+    "cobre o tema. Informe o parâmetro origem com o nome do seu cliente.\n" +
+    "- Não registre o que é efêmero ou só vale para a conversa atual. Não duplique: se um fato mudou, " +
+    "corrija com update_registro.\n" +
+    "- Cada registro reflete o que era verdade quando foi escrito (veja a data).\n" +
+    "- Este índice foi montado na conexão; use list_memorias para a versão atual.";
+
+  let memorias: MemoriaIdx[];
+  try {
+    memorias = await fetchMemoriasIndice(REST, headers);
+  } catch {
+    return base + "\n\n(Índice de memória indisponível agora -- use list_memorias.)";
+  }
+  if (!memorias.length) return base + "\n\nÍndice de memória: vazio -- nenhuma memória registrada ainda.";
+
+  const ordem = [...VOCAB.memoria_categoria];
+  for (const m of memorias) if (!ordem.includes(m.categoria)) ordem.push(m.categoria);
+
+  let indice = "";
+  let cortado = false;
+  for (const cat of ordem) {
+    const doGrupo = memorias.filter((m) => m.categoria === cat);
+    if (!doGrupo.length) continue;
+    const bloco = `\n[${cat}]\n` + doGrupo
+      .map((m) => `- ${m.titulo}${m.descricao ? " — " + m.descricao : ""} (${m.registros} ${m.registros === 1 ? "registro" : "registros"})`)
+      .join("\n");
+    if (indice.length + bloco.length > INSTRUCTIONS_MAX_INDICE) { cortado = true; break; }
+    indice += bloco;
+  }
+  if (cortado) indice += "\n(… índice cortado por tamanho -- use list_memorias para ver todas.)";
+
+  return base + "\n\nÍndice de memória:" + indice;
+}
+
+// ── Tool: list_memorias ───────────────────────────────────────────────────
+async function handleListMemorias(REST: string, headers: Record<string, string>, args: Record<string, any>) {
+  const categoria = args?.categoria ? String(args.categoria) : "";
+  if (categoria && !VOCAB.memoria_categoria.includes(categoria)) {
+    return toolText(`Categoria inválida: ${categoria}. Valores aceitos: ${VOCAB.memoria_categoria.join(", ")}.`, true);
+  }
+  let memorias = await fetchMemoriasIndice(REST, headers);
+  if (categoria) memorias = memorias.filter((m) => m.categoria === categoria);
+
+  return toolText(JSON.stringify({
+    total: memorias.length,
+    memorias: memorias.map((m) => ({
+      id: m.id, titulo: m.titulo, categoria: m.categoria, descricao: m.descricao,
+      registros: m.registros, atualizada_em: m.updated_at,
+    })),
+  }, null, 2));
+}
+
+// ── Tool: get_memoria ─────────────────────────────────────────────────────
+async function handleGetMemoria(REST: string, headers: Record<string, string>, args: Record<string, any>) {
+  const refs = strArray(args?.memorias).map((s) => s.trim()).filter(Boolean);
+  if (!refs.length) return toolText("O parâmetro memorias é obrigatório -- envie ao menos um título ou id.", true);
+
+  const indice = await fetchMemoriasIndice(REST, headers);
+  const ids: string[] = [];
+  const warnings: string[] = [];
+  for (const ref of refs) {
+    const { hit, erro } = resolveMemoria(indice, ref);
+    if (hit) { if (!ids.includes(hit.id)) ids.push(hit.id); } else warnings.push(erro!);
+  }
+  if (!ids.length) return toolText(warnings.join("\n"), true);
+
+  const r = await fetch(
+    `${REST}/lifeos_memorias?id=in.(${ids.join(",")})&select=*,lifeos_memoria_registros(*)`,
+    { headers },
+  );
+  if (!r.ok) throw new Error(`select memorias -> ${r.status} ${await r.text()}`);
+  const rows = await r.json();
+
+  const memorias = rows.map((m: any) => {
+    const regs = (m.lifeos_memoria_registros ?? []).slice()
+      .sort((a: any, b: any) => (a.created_at < b.created_at ? -1 : a.created_at > b.created_at ? 1 : 0));
+    return {
+      id: m.id, titulo: m.titulo, categoria: m.categoria, descricao: m.descricao ?? "",
+      atualizada_em: m.updated_at,
+      registros: regs.map((x: any) => ({
+        id: x.id, texto: x.texto, origem: x.origem ?? null,
+        data: x.created_at, editado_em: x.updated_at !== x.created_at ? x.updated_at : undefined,
+      })),
+    };
+  });
+
+  return toolText(JSON.stringify({
+    warnings: warnings.length ? warnings : undefined, memorias,
+  }, null, 2));
+}
+
+// ── Tool: create_memoria ──────────────────────────────────────────────────
+async function handleCreateMemoria(REST: string, headers: Record<string, string>, args: Record<string, any>) {
+  const titulo = String(args?.titulo ?? "").trim();
+  if (!titulo) return toolText("O parâmetro titulo é obrigatório e não pode ser vazio.", true);
+  if (titulo.length > MEM_MAX_TITULO) return toolText(`O título passa de ${MEM_MAX_TITULO} caracteres.`, true);
+
+  const descricao = String(args?.descricao ?? "").trim();
+  if (!descricao) return toolText("O parâmetro descricao é obrigatório -- é o que aparece no índice.", true);
+  if (descricao.length > MEM_MAX_DESCRICAO) return toolText(`A descrição passa de ${MEM_MAX_DESCRICAO} caracteres -- ela é um resumo de índice; o conteúdo vai nos registros.`, true);
+
+  const categoria = String(args?.categoria ?? "");
+  if (!VOCAB.memoria_categoria.includes(categoria)) {
+    return toolText(`Categoria inválida: ${categoria}. Valores aceitos: ${VOCAB.memoria_categoria.join(", ")}.`, true);
+  }
+
+  const textos = strArray(args?.registros).map((s) => s.trim()).filter(Boolean);
+  const longo = textos.find((t) => t.length > MEM_MAX_TEXTO);
+  if (longo) return toolText(`Um dos registros passa de ${MEM_MAX_TEXTO} caracteres -- divida em fatos menores.`, true);
+  const origem = cleanOrigem(args?.origem);
+
+  // Checagem amigável antes do insert: o índice único do banco também
+  // barraria, mas aqui dá pra apontar a memória que já existe.
+  const indice = await fetchMemoriasIndice(REST, headers);
+  const existente = indice.find((m) => m.titulo.trim().toLowerCase() === titulo.toLowerCase());
+  if (existente) {
+    return toolText(`Já existe a memória "${existente.titulo}" (id ${existente.id}). Use add_registro para acrescentar a ela.`, true);
+  }
+
+  const insertRes = await fetch(`${REST}/lifeos_memorias`, {
+    method: "POST",
+    headers: { ...headers, Prefer: "return=representation" },
+    body: JSON.stringify({ titulo, descricao, categoria }),
+  });
+  if (!insertRes.ok) return toolText(`Erro ao criar a memória: ${insertRes.status} ${await insertRes.text()}`, true);
+  const created = (await insertRes.json())[0];
+
+  if (textos.length) {
+    const regRes = await fetch(`${REST}/lifeos_memoria_registros`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify(textos.map((texto) => ({ memoria_id: created.id, texto, origem }))),
+    });
+    if (!regRes.ok) return toolText(`Memória criada (id ${created.id}), mas falhou ao gravar os registros: ${regRes.status} ${await regRes.text()}`, true);
+  }
+
+  return toolText(JSON.stringify({
+    ok: true,
+    memoria: { id: created.id, titulo: created.titulo, categoria: created.categoria, descricao: created.descricao, registros: textos.length },
+  }, null, 2));
+}
+
+// ── Tool: add_registro ────────────────────────────────────────────────────
+async function handleAddRegistro(REST: string, headers: Record<string, string>, args: Record<string, any>) {
+  const ref = String(args?.memoria ?? "").trim();
+  if (!ref) return toolText("O parâmetro memoria (título ou id) é obrigatório.", true);
+  const texto = String(args?.texto ?? "").trim();
+  if (!texto) return toolText("O parâmetro texto é obrigatório e não pode ser vazio.", true);
+  if (texto.length > MEM_MAX_TEXTO) return toolText(`O texto passa de ${MEM_MAX_TEXTO} caracteres -- divida em registros menores.`, true);
+
+  const { hit, erro } = resolveMemoria(await fetchMemoriasIndice(REST, headers), ref);
+  if (!hit) return toolText(erro!, true);
+
+  const r = await fetch(`${REST}/lifeos_memoria_registros`, {
+    method: "POST",
+    headers: { ...headers, Prefer: "return=representation" },
+    body: JSON.stringify({ memoria_id: hit.id, texto, origem: cleanOrigem(args?.origem) }),
+  });
+  if (!r.ok) return toolText(`Erro ao gravar o registro: ${r.status} ${await r.text()}`, true);
+  const created = (await r.json())[0];
+  await tocarMemoria(REST, headers, hit.id);
+
+  return toolText(JSON.stringify({
+    ok: true,
+    memoria: { id: hit.id, titulo: hit.titulo },
+    registro: { id: created.id, texto: created.texto, origem: created.origem, data: created.created_at },
+  }, null, 2));
+}
+
+// ── Tool: update_memoria (PATCH parcial) ──────────────────────────────────
+async function handleUpdateMemoria(REST: string, headers: Record<string, string>, args: Record<string, any>) {
+  const ref = String(args?.memoria ?? "").trim();
+  if (!ref) return toolText("O parâmetro memoria (título atual ou id) é obrigatório.", true);
+
+  const indice = await fetchMemoriasIndice(REST, headers);
+  const { hit, erro } = resolveMemoria(indice, ref);
+  if (!hit) return toolText(erro!, true);
+
+  const update: Record<string, any> = {};
+  if (args?.titulo !== undefined) {
+    const titulo = String(args.titulo).trim();
+    if (!titulo) return toolText("O parâmetro titulo, quando enviado, não pode ser vazio.", true);
+    if (titulo.length > MEM_MAX_TITULO) return toolText(`O título passa de ${MEM_MAX_TITULO} caracteres.`, true);
+    const outra = indice.find((m) => m.id !== hit.id && m.titulo.trim().toLowerCase() === titulo.toLowerCase());
+    if (outra) return toolText(`Já existe outra memória chamada "${outra.titulo}".`, true);
+    update.titulo = titulo;
+  }
+  if (args?.descricao !== undefined) {
+    const descricao = String(args.descricao).trim();
+    if (descricao.length > MEM_MAX_DESCRICAO) return toolText(`A descrição passa de ${MEM_MAX_DESCRICAO} caracteres.`, true);
+    update.descricao = descricao;
+  }
+  if (args?.categoria !== undefined) {
+    const categoria = String(args.categoria);
+    if (!VOCAB.memoria_categoria.includes(categoria)) {
+      return toolText(`Categoria inválida: ${categoria}. Valores aceitos: ${VOCAB.memoria_categoria.join(", ")}.`, true);
+    }
+    update.categoria = categoria;
+  }
+  if (!Object.keys(update).length) return toolText("Nenhum campo pra atualizar foi enviado -- envie ao menos um de: titulo, descricao, categoria.", true);
+  update.updated_at = new Date().toISOString();
+
+  const r = await fetch(`${REST}/lifeos_memorias?id=eq.${hit.id}`, {
+    method: "PATCH",
+    headers: { ...headers, Prefer: "return=representation" },
+    body: JSON.stringify(update),
+  });
+  if (!r.ok) return toolText(`Erro ao atualizar a memória: ${r.status} ${await r.text()}`, true);
+  const u = (await r.json())[0];
+
+  return toolText(JSON.stringify({
+    ok: true,
+    memoria: { id: u.id, titulo: u.titulo, categoria: u.categoria, descricao: u.descricao, atualizada_em: u.updated_at },
+  }, null, 2));
+}
+
+// ── Tool: update_registro (substituição do texto inteiro) ────────────────
+async function handleUpdateRegistro(REST: string, headers: Record<string, string>, args: Record<string, any>) {
+  const id = String(args?.id ?? "").trim();
+  if (!id) return toolText("O parâmetro id (id do registro, retornado por get_memoria) é obrigatório.", true);
+  const texto = String(args?.texto ?? "").trim();
+  if (!texto) return toolText("O parâmetro texto é obrigatório e precisa ser o TEXTO INTEIRO e final do registro.", true);
+  if (texto.length > MEM_MAX_TEXTO) return toolText(`O texto passa de ${MEM_MAX_TEXTO} caracteres.`, true);
+
+  const r = await fetch(`${REST}/lifeos_memoria_registros?id=eq.${id}`, {
+    method: "PATCH",
+    headers: { ...headers, Prefer: "return=representation" },
+    body: JSON.stringify({ texto, updated_at: new Date().toISOString() }),
+  });
+  if (!r.ok) return toolText(`Erro ao atualizar o registro: ${r.status} ${await r.text()}`, true);
+  const rows = await r.json();
+  if (!rows.length) return toolText(`Nenhum registro encontrado com id ${id}.`, true);
+  const u = rows[0];
+  await tocarMemoria(REST, headers, u.memoria_id);
+
+  return toolText(JSON.stringify({
+    ok: true,
+    registro: { id: u.id, memoria_id: u.memoria_id, texto: u.texto, origem: u.origem, data: u.created_at, editado_em: u.updated_at },
+  }, null, 2));
+}
+
+// ═══ RESUMO FINANCEIRO · início ══════════════════════════════════════════
+//
+// Os números da tela de Finanças (lifeos/financas.html), calculados aqui
+// com as MESMAS regras -- terceira cópia da lógica, junto de financas.js e
+// lifeos.js (LIFEOS.md §2: cópia, não import; decisão do autor, set/2026,
+// até o port pra Laravel). Nomes e comentários seguem financas.js pra
+// facilitar comparar as três lado a lado.
+//
+// Esta seção é PURA: sem fetch, sem Deno, sem VOCAB global -- recebe as
+// linhas e devolve o resumo. É isso que permite verificar a porta rodando
+// as duas implementações sobre os mesmos dados (o teste extrai o trecho
+// entre os marcadores "RESUMO FINANCEIRO · início/fim").
+//
+// Regras (ver o modal "Como funciona" de financas.html):
+//  - Compra em Crédito não sai do caixa no mês: entra em Saídas "com
+//    crédito", fica fora do Saldo e vira fatura futura.
+//  - Saldo = saldo de abertura (RPC lifeos_saldo_abertura) + entradas
+//    realizadas − saídas de caixa realizadas. Data futura conta nos totais,
+//    mas só entra no saldo quando a data chegar.
+//  - Pagamento de fatura = Saida SEM meio com "fatura" no nome. Abate a
+//    fatura que fecha no mês; o excedente vira adiantamento da seguinte,
+//    carregado em cadeia (carryInto). "adiant" no nome = adiantamento
+//    explícito, que pula direto pra próxima fatura.
+//  - A fatura fecha no último dia do mês: compra antes dele cai em M+1; no
+//    último dia, em M+2.
+
+type Mov = { id?: string; name: string; valor: number; date: string; tipo: string[]; created_at?: string };
+
+function finNum(v: unknown): number { const n = Number(v); return Number.isFinite(n) ? n : 0; }
+function finRound2(v: number): number { return Math.round(v * 100) / 100; }
+function finHas(m: Mov, tag: string) { return Array.isArray(m.tipo) && m.tipo.includes(tag); }
+function finIsSaida(m: Mov) { return finHas(m, "Saida"); }
+function finIsEntrada(m: Mov) { return finHas(m, "Entrada"); }
+function finNextMonth(ym: string) { const [y, m] = ym.split("-").map(Number); return m === 12 ? `${y + 1}-01` : `${y}-${String(m + 1).padStart(2, "0")}`; }
+function finPrevMonth(ym: string) { const [y, m] = ym.split("-").map(Number); return m === 1 ? `${y - 1}-12` : `${y}-${String(m - 1).padStart(2, "0")}`; }
+function finLastDay(ym: string) { const [y, m] = ym.split("-").map(Number); return new Date(Date.UTC(y, m, 0)).getUTCDate(); }
+function finFaturaDestino(ym: string, dia: number) { const prox = finNextMonth(ym); return dia < finLastDay(ym) ? prox : finNextMonth(prox); }
+function finCmpByDateAsc(a: Mov, b: Mov) { return (a.date || "").localeCompare(b.date || "") || (a.created_at || "").localeCompare(b.created_at || ""); }
+function finNormName(s: string) { return (s || "").trim().toLowerCase().replace(/\s+/g, " "); }
+
+function finCtx(meios: string[], hojeISO: string) {
+  const hasAnyMeio = (m: Mov) => meios.some((me) => finHas(m, me));
+  const isSaidaCaixa = (m: Mov) => finIsSaida(m) && !finHas(m, "Crédito");
+  const isPagamentoFatura = (m: Mov) => finIsSaida(m) && !hasAnyMeio(m) && /fatura/i.test(m.name || "");
+  const isAdiantamentoExplicito = (m: Mov) => isPagamentoFatura(m) && /adiant/i.test(m.name || "");
+  const isRealizado = (m: Mov) => !m.date || m.date <= hojeISO;
+  return { hasAnyMeio, isSaidaCaixa, isPagamentoFatura, isAdiantamentoExplicito, isRealizado };
+}
+
+// Cópia de financas.js/splitPagamentosFatura -- comparação em CENTAVOS.
+function finSplitPagamentos(pagamentos: Mov[], totalFatura: number) {
+  const sorted = pagamentos.slice().sort(finCmpByDateAsc);
+  const atual: Mov[] = [], adiantamento: Mov[] = [];
+  let cumC = 0;
+  const totalC = Math.round(totalFatura * 100);
+  for (const m of sorted) {
+    const valorC = Math.round(finNum(m.valor) * 100);
+    const restanteC = totalC - cumC;
+    if (restanteC <= 0) adiantamento.push(m);
+    else if (valorC > restanteC) {
+      atual.push({ ...m, valor: restanteC / 100 });
+      adiantamento.push({ ...m, valor: (valorC - restanteC) / 100 });
+    } else atual.push(m);
+    cumC += valorC;
+  }
+  return { atual, adiantamento };
+}
+
+// Cópia de financas.js/calcularProjecaoFatura.
+function finProjecaoFatura(rows: Mov[], ym: string) {
+  const groups: Record<string, { total: number; rows: Mov[] }> = {};
+  for (const m of rows) {
+    if (!finIsSaida(m) || !finHas(m, "Crédito")) continue;
+    if (/fatura/i.test(m.name || "")) continue; // pagamento da fatura, não compra nova
+    const d = m.date ? parseInt(m.date.slice(8, 10), 10) : 0;
+    const destino = finFaturaDestino(ym, d);
+    (groups[destino] ??= { total: 0, rows: [] });
+    groups[destino].total += finNum(m.valor);
+    groups[destino].rows.push(m);
+  }
+  return groups;
+}
+
+// Resumo de UM mês. `rowsDoMes(ym)` devolve as movimentações de qualquer
+// mês (a cadeia de faturas olha pra trás); `abertura` vem da RPC.
+function calcularResumoMes(
+  rowsDoMes: (ym: string) => Mov[], ym: string, abertura: number, hojeISO: string, meios: string[],
+) {
+  const c = finCtx(meios, hojeISO);
+  const MROWS = rowsDoMes(ym);
+
+  // KPIs -- cópia de computeMonthKpis.
+  let entradas = 0, saidasTotais = 0, entradasRealizadas = 0, saidasCaixaRealizadas = 0, futuras = 0;
+  for (const m of MROWS) {
+    const v = finNum(m.valor), realizado = c.isRealizado(m);
+    if (!realizado) futuras++;
+    if (finIsEntrada(m)) { entradas += v; if (realizado) entradasRealizadas += v; }
+    if (finIsSaida(m)) saidasTotais += v;
+    if (c.isSaidaCaixa(m) && realizado) saidasCaixaRealizadas += v;
+  }
+  const variacaoMes = entradasRealizadas - saidasCaixaRealizadas;
+
+  // Por meio -- cópia de computeDonutBuckets (modos saida e entrada).
+  const porMeio = (dir: (m: Mov) => boolean) => {
+    const out: Record<string, number> = {};
+    let semMeio = 0;
+    for (const m of MROWS) {
+      if (!dir(m)) continue;
+      const v = finNum(m.valor);
+      let achou = false;
+      for (const me of meios) if (finHas(m, me)) { out[me] = (out[me] || 0) + v; achou = true; }
+      if (!achou) semMeio += v;
+    }
+    if (semMeio > 0) out["Sem meio"] = semMeio;
+    for (const k of Object.keys(out)) out[k] = finRound2(out[k]);
+    return out;
+  };
+
+  // Saldo acumulado dia a dia -- cópia de renderSaldo; aqui só o mínimo.
+  const porDia: Record<string, number> = {};
+  for (const m of MROWS) {
+    if (!c.isRealizado(m)) continue;
+    let delta = 0;
+    if (finIsEntrada(m)) delta += finNum(m.valor);
+    if (c.isSaidaCaixa(m)) delta -= finNum(m.valor);
+    porDia[m.date] = (porDia[m.date] || 0) + delta;
+  }
+  let acc = abertura, saldoMinimo: { valor: number; dia: string | null } = { valor: abertura, dia: null };
+  for (const d of Object.keys(porDia).sort()) {
+    acc += porDia[d];
+    if (acc < saldoMinimo.valor) saldoMinimo = { valor: acc, dia: d };
+  }
+
+  // Cadeia de faturas -- cópia de carryInto (síncrona: os dados já estão
+  // todos em memória; memo por mês no lugar do cache de fetch).
+  const memo: Record<string, Mov[]> = {};
+  const carryInto = (m: string): Mov[] => {
+    if (memo[m]) return memo[m];
+    const rows = rowsDoMes(m);
+    const pagamentosFatura = rows.filter(c.isPagamentoFatura);
+    let res: Mov[];
+    if (!pagamentosFatura.length) res = [];
+    else {
+      const explicitos = pagamentosFatura.filter(c.isAdiantamentoExplicito);
+      const normais = pagamentosFatura.filter((x) => !c.isAdiantamentoExplicito(x));
+      if (!normais.length) res = explicitos;
+      else {
+        const pm = finPrevMonth(m);
+        const g = finProjecaoFatura(rowsDoMes(pm), pm)[m];
+        const totalFaturaM = (g && g.rows.length) ? g.total : 0;
+        const split = finSplitPagamentos(normais.concat(carryInto(pm)), totalFaturaM);
+        res = split.adiantamento.concat(explicitos);
+      }
+    }
+    return (memo[m] = res);
+  };
+
+  // Fatura deste mês -- cópia de renderFaturaMesPassado.
+  const pYm = finPrevMonth(ym);
+  const pagamentosFaturaAtual = MROWS.filter(c.isPagamentoFatura);
+  const explicitosAtual = pagamentosFaturaAtual.filter(c.isAdiantamentoExplicito);
+  const normaisAtual = pagamentosFaturaAtual.filter((m) => !c.isAdiantamentoExplicito(m));
+  const gAtual = finProjecaoFatura(rowsDoMes(pYm), pYm)[ym];
+  const totalFatura = (gAtual && gAtual.rows.length) ? gAtual.total : 0;
+  const pagamentosFatura = normaisAtual.concat(carryInto(pYm));
+  const pago = pagamentosFatura.reduce((s, m) => s + finNum(m.valor), 0);
+  const split = finSplitPagamentos(pagamentosFatura, totalFatura);
+  const carryOut = split.adiantamento.concat(explicitosAtual);
+  const excedente = finRound2(carryOut.reduce((s, m) => s + finNum(m.valor), 0));
+
+  // Fatura projetada -- cópia de renderFaturaProjetada + nota de adiantamento
+  // (o adiantamento abate só o PRIMEIRO destino, como na tela).
+  const proj = finProjecaoFatura(MROWS, ym);
+  const faturaProjetada = Object.keys(proj).sort().map((dest, i) => ({
+    fatura: dest,
+    total: finRound2(proj[dest].total),
+    compras: proj[dest].rows.length,
+    ...(i === 0 && excedente > 0 ? { valor_apos_adiantamento: finRound2(Math.max(0, proj[dest].total - excedente)) } : {}),
+  }));
+
+  // Recorrências -- cópia de renderRecList (sem filtros), só as que repetem.
+  const grupos: Record<string, { descricao: string; items: Mov[] }> = {};
+  for (const m of MROWS) {
+    const key = finNormName(m.name) || "—";
+    (grupos[key] ??= { descricao: m.name || "—", items: [] }).items.push(m);
+  }
+  const recorrencias = Object.values(grupos).map((g) => {
+    let e = 0, s = 0;
+    for (const m of g.items) { if (finIsEntrada(m)) e += finNum(m.valor); if (finIsSaida(m)) s += finNum(m.valor); }
+    return { descricao: g.descricao, vezes: g.items.length, entradas: finRound2(e), saidas: finRound2(s), liquido: finRound2(e - s) };
+  })
+    .sort((a, b) => (b.vezes - a.vezes) || (Math.abs(b.liquido) - Math.abs(a.liquido)))
+    .filter((g) => g.vezes > 1);
+
+  const maioresSaidas = MROWS.filter(finIsSaida)
+    .sort((a, b) => finNum(b.valor) - finNum(a.valor)).slice(0, 5)
+    .map((m) => ({ data: m.date, descricao: m.name, valor: finRound2(finNum(m.valor)), meio: meios.filter((me) => finHas(m, me)) }));
+
+  return {
+    mes: ym,
+    movimentacoes: MROWS.length,
+    lancamentos_futuros: futuras,
+    entradas: finRound2(entradas),
+    saidas_caixa: finRound2(saidasCaixaRealizadas),
+    saidas_com_credito: finRound2(saidasTotais),
+    saldo_abertura: finRound2(abertura),
+    variacao_mes: finRound2(variacaoMes),
+    saldo: finRound2(abertura + variacaoMes),
+    saldo_minimo: { valor: finRound2(saldoMinimo.valor), dia: saldoMinimo.dia },
+    saidas_por_meio: porMeio(finIsSaida),
+    entradas_por_meio: porMeio(finIsEntrada),
+    fatura_deste_mes: {
+      compras_de: pYm,
+      total: finRound2(totalFatura),
+      compras: gAtual ? gAtual.rows.length : 0,
+      pago: finRound2(Math.min(pago, totalFatura)),
+      pagamentos: split.atual.length,
+      restante: finRound2(Math.max(0, totalFatura - pago)),
+      quitada: totalFatura > 0 && finRound2(Math.max(0, totalFatura - pago)) <= 0,
+      adiantamento_para_proxima: excedente,
+    },
+    fatura_projetada: faturaProjetada,
+    recorrencias: recorrencias.slice(0, 8),
+    maiores_saidas: maioresSaidas,
+  };
+}
+// ═══ RESUMO FINANCEIRO · fim ═════════════════════════════════════════════
+
+// ── Tool: resumo_financeiro ───────────────────────────────────────────────
+// Busca de uma vez tudo até o fim do último mês pedido: a cadeia de faturas
+// (carryInto) pode olhar meses pra trás sem limite fixo, e a tabela é de uso
+// pessoal (~100 linhas/mês) -- mais simples e exato que buscar sob demanda.
+async function handleResumoFinanceiro(REST: string, headers: Record<string, string>, args: Record<string, any>) {
+  const reYM = /^\d{4}-(0[1-9]|1[0-2])$/;
+  const hoje = todayInSaoPaulo();
+  const de = String(args?.de ?? args?.mes ?? hoje.slice(0, 7));
+  const ate = String(args?.ate ?? args?.mes ?? de);
+  if (!reYM.test(de) || !reYM.test(ate)) return toolText("Meses no formato YYYY-MM (ex.: 2026-09).", true);
+  if (ate < de) return toolText("O parâmetro ate não pode ser anterior a de.", true);
+
+  const meses: string[] = [];
+  for (let ym = de; ym <= ate; ym = finNextMonth(ym)) {
+    meses.push(ym);
+    if (meses.length > 12) return toolText("No máximo 12 meses por chamada.", true);
+  }
+
+  const limite = finNextMonth(ate) + "-01";
+  const r = await fetch(
+    `${REST}/lifeos_movimentacoes?select=id,name,valor,date,tipo,created_at&date=lt.${limite}&order=date.asc,created_at.asc`,
+    { headers },
+  );
+  if (!r.ok) throw new Error(`select movimentacoes -> ${r.status} ${await r.text()}`);
+  const todas: Mov[] = (await r.json()).map((m: any) => ({ ...m, valor: finNum(m.valor), tipo: m.tipo ?? [] }));
+  const porMes: Record<string, Mov[]> = {};
+  for (const m of todas) (porMes[(m.date || "").slice(0, 7)] ??= []).push(m);
+  const rowsDoMes = (ym: string) => porMes[ym] ?? [];
+
+  const aberturas = await Promise.all(meses.map(async (ym) => {
+    const a = await fetch(`${REST}/rpc/lifeos_saldo_abertura`, {
+      method: "POST", headers, body: JSON.stringify({ p_before: `${ym}-01` }),
+    });
+    if (!a.ok) throw new Error(`rpc lifeos_saldo_abertura -> ${a.status} ${await a.text()}`);
+    return finNum(await a.json());
+  }));
+
+  const resumos = meses.map((ym, i) => calcularResumoMes(rowsDoMes, ym, aberturas[i], hoje, VOCAB.mov_meio));
+
+  const comparativo = resumos.length > 1
+    ? resumos.map((x) => ({
+      mes: x.mes, entradas: x.entradas, saidas_caixa: x.saidas_caixa, saidas_com_credito: x.saidas_com_credito,
+      variacao_mes: x.variacao_mes, saldo: x.saldo, fatura_deste_mes: x.fatura_deste_mes.total,
+    }))
+    : undefined;
+
+  return toolText(JSON.stringify({ hoje, comparativo, meses: resumos }, null, 2));
+}
+
 // ── Tool: search_movimentacoes (Finanças) ─────────────────────────────────
 async function handleSearchMovimentacoes(REST: string, headers: Record<string, string>, args: Record<string, any>) {
   const nome = args?.nome ? String(args.nome).trim().toLowerCase() : "";
@@ -1228,7 +1975,9 @@ async function handleSearchMovimentacoes(REST: string, headers: Record<string, s
   const dataFim = args?.data_fim ? String(args.data_fim) : "";
   const valorMin = args?.valor_min !== undefined ? Number(args.valor_min) : null;
   const valorMax = args?.valor_max !== undefined ? Number(args.valor_max) : null;
-  const limit = clampLimit(args?.limit);
+  // Intervalo fechado de datas = pedido de "ler o período": um mês tem ~100
+  // linhas, e com teto de 50 o modelo recebia meio mês achando que era tudo.
+  const limit = clampLimit(args?.limit, 20, (dataInicio && dataFim) ? 300 : 50);
 
   const r = await fetch(`${REST}/lifeos_movimentacoes?order=date.desc`, { headers });
   if (!r.ok) throw new Error(`select movimentacoes -> ${r.status} ${await r.text()}`);

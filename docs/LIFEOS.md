@@ -131,7 +131,9 @@ temas.html + assets/js/temas.js         → paleta do painel (sem gate, sem back
 tags.html + assets/js/tags.js           → vocabulários de todas as tabelas — ver §14
 automacao.html + assets/js/automacao.js → webhook de lançamento por celular — ver §15
 mcp.html + assets/js/mcp.js             → URL do conector MCP e guia das tools — ver §13
+memoria.html + assets/js/memoria.js     → memória de longo prazo (índice + registros) — ver §17
 tutorial.html                           → guia do sistema (sem gate, sem JS próprio) — ver §13
+index.html                              → apresentação pública do LifeOS (sem gate, script inline mínimo) — ver §18
 eventos.html + assets/js/eventos.js     → DORMENTE — sem link algum apontando pra ela (ver §5)
 ```
 
@@ -223,7 +225,8 @@ cima) garante contraste do título por cima, seja qual for o conteúdo da
 imagem ali) com `.hub-icon-wrap` (imagem `assets/images/
 profile_lifeos.jpeg`, quadrado grande — `clamp(120px, 15vw, 168px)` —
 bordas arredondadas, sobreposta ao banner via `margin-top` negativo) +
-`<h1>LifeOS</h1>` + subtítulo, seguido de `.hub-quicknav` logo acima do
+`<h1>LifeOS</h1>` + subtítulo (há uma variante **imersiva** dessa capa, só
+CSS, escolhida em Temas — ver §12), seguido de `.hub-quicknav` logo acima do
 divisor (`.hub-masthead-rule`) que separa o cabeçalho do resto do conteúdo.
 **Sem entrada pra Eventos** — o card de Calendário já é a primeira
 hero-section, logo abaixo do quicknav, então um atalho pra rolar até ele
@@ -312,7 +315,9 @@ rolam até Manifestações):
     `carryInto`) que ignorava adiantamento explícito e cadeias de mais de
     um mês — mostrava valores errados sempre que havia excedente/
     adiantamento envolvido. Ver FINANCAS.md pro algoritmo completo; a regra
-    de negócio é UMA só, cada arquivo só replica o código (ver §2/§7).
+    de negócio é UMA só, cada arquivo só replica o código (ver §2/§7). Há uma
+    terceira cópia no MCP (`resumo_financeiro`) — ver `FINANCAS.md` §9.1
+    pra lista das três e como verificar que batem.
   - **Últimas transações** (largo, full-width, embaixo) — 6 linhas.
   - Link "Abrir" → `financas.html`.
 - **`#hero-tarefas`** (`.tar-bento`: 3 cards pequenos de contagem por status
@@ -1126,6 +1131,7 @@ sofrem disso porque rodam o `closest` ANTES de trocar o conteúdo.
 | Manifestações | ✅ Funcional, nativo do hub (leitura + CREATE, modo foco — ver §3.3) | `lifeos.html` | `lifeos_manifestacoes` | `lifeos-manifestacoes` |
 | Notas | ✅ Funcional, página própria (CRUD completo) | `notas.html` | `lifeos_notas` + `lifeos_notas_projetos` | `lifeos-notas` |
 | Citações | ✅ Funcional, nativo do hub (banner sorteado + CRUD no modal — ver §3.6) | `lifeos.html` | `lifeos_citacoes` | `lifeos-citacoes` (+ `search_citacoes`/`create_citacao` no MCP) |
+| Memória | ✅ Funcional, página própria no drawer (CRUD completo — ver §17) | `memoria.html` | `lifeos_memorias` + `lifeos_memoria_registros` | `lifeos-memorias` (+ 6 tools e o índice nas `instructions` do MCP) |
 
 Ver [`FINANCAS.md`](FINANCAS.md) pra tudo sobre o módulo Finanças (contrato
 da API, regras de negócio, segurança) e [`NOTAS.md`](NOTAS.md) pra tudo
@@ -1317,6 +1323,33 @@ index. O mapa está chapado em quatro lugares (`index.html`, `assets/js/index.js
 `publicar.js` e `temas.js`) e mudar uma cor exige commit em todos. Unificar isso
 mexe no render do index, que é a capa pública — trabalho separado.
 
+### Capa do hub: clássica ou imersiva (set/2026)
+
+Segunda preferência de aparência na mesma tela, seção "Capa do painel". A
+**imersiva** dá ao topo de `lifeos.html` o desenho da apresentação
+(`lifeos/index.html`, §18): banner de ponta a ponta, topbar por cima da
+imagem, ícone e título grande empilhados, subtítulo virando "kicker" dourado.
+
+- **Mesmo caminho do tema:** `tema.js` lê `localStorage['lifeos_hub_capa']`
+  → `LIFEOS_CONFIG.hubCapa` → `'classica'` e marca o `<html>` com
+  `data-hub-capa` **antes da primeira pintura** — sem flash da capa clássica.
+  API: `LIFEOS_TEMA.capa()/definirCapa(v|null)/capaPadrao()/usandoCapaPadrao()`.
+- **O atributo NÃO se chama `data-capa`.** Esse nome é o marcador que
+  `blog.js` usa pra redirecionar a capa do arquivo pro painel; no hub, com o
+  blog desligado, viraria um loop de redirecionamento.
+- **Só CSS**, sob `html[data-hub-capa="imersiva"]` em `lifeos.html`. Markup e
+  `lifeos.js` são os mesmos — `applyIdentidade()` e o banner de um fork
+  continuam valendo.
+- **Contraste:** o banner padrão tem moldura de pergaminho claro, e um fork
+  pode usar qualquer imagem. Nada sobre a imagem depende dela: "← arquivo",
+  "sincronizado" e os botões da topbar ganham fundo escuro desfocado; título e
+  subtítulo ficam abaixo, sobre `--bg` (o degradê leva o banner até ele).
+- `100vw` inclui a barra de rolagem; `body { overflow-x: clip }` (só na
+  imersiva) evita a rolagem horizontal sem criar contêiner de rolagem.
+- As prévias na tela usam `var()` de propósito (o que se compara é o formato,
+  não a cor) e as imagens de `identidade` do config, então um fork vê a
+  própria capa.
+
 ### A armadilha do `[hidden]`
 
 Toda página do LifeOS precisa desta linha no `<style>`:
@@ -1396,7 +1429,8 @@ Backend: **`lifeos-config`** (ver `AUTH.md`). O valor nunca volta do servidor
 ### `mcp.html`
 
 Mostra a URL do conector com botão de copiar, explica o que é MCP, lista as
-oito tools e traz exemplos de pergunta.
+tools (23 desde set/2026: as de Memória — ver §17 — e `resumo_financeiro`,
+ver `FINANCAS.md` §9.1) e traz exemplos de pergunta.
 
 **Tem gate**, porque a URL carrega o token de acesso embutido no path: quem a
 tiver lê todo o LifeOS.
@@ -1450,7 +1484,7 @@ Agora a fonte de verdade é a tabela `lifeos_vocabularios`, e os `CHECK`
 foram derrubados. **A validação não sumiu** — passou a ser feita pelas Edge
 Functions contra a tabela.
 
-### Os dez domínios
+### Os onze domínios
 
 | Domínio | Grava em | Formato |
 |---|---|---|
@@ -1464,6 +1498,7 @@ Functions contra a tabela.
 | `manifestacao_tag` | `lifeos_manifestacoes.tags` | array |
 | `mov_direcao` | `lifeos_movimentacoes.tipo` | array |
 | `mov_meio` | `lifeos_movimentacoes.tipo` | array |
+| `memoria_categoria` | `lifeos_memorias.categoria` | escalar (migration 0007, ver §17) |
 
 **`mov_direcao` e `mov_meio` gravam na MESMA coluna** — herdado da migração
 do Notion. É o caso que mais exige cuidado em qualquer operação de rename.
@@ -1616,3 +1651,158 @@ comportamento histórico.
 
 A escolha vale para quem **não vai publicar nada**: uma capa vazia no ar é
 pior que não ter capa.
+
+---
+
+## 17. Memória (`memoria.html`) — memória de longo prazo fora do harness
+
+Set/2026, migration `0007_lifeos_memorias.sql`. Pedido do autor: o que uma IA
+aprende sobre ele (preferências, contexto de projetos, correções) vivia na
+memória do próprio cliente — trocar de harness ou de modelo perdia tudo. Agora
+esse entendimento mora no LifeOS, e qualquer cliente conectado ao MCP lê e
+escreve nele.
+
+### Modelo: índice + registros
+
+Mesmo formato de um `MEMORY.md` + arquivos:
+
+| Tabela | Papel | Campos |
+|---|---|---|
+| `lifeos_memorias` | o **índice** — uma linha por tema | `titulo` (único, sem diferenciar caixa/espaços), `descricao` (1–2 frases, ≤400), `categoria` (vocabulário `memoria_categoria`) |
+| `lifeos_memoria_registros` | o **conteúdo** — N fatos datados por memória | `texto` (≤8000), `origem` (quem escreveu: `manual`, `claude-code`, `claude.ai`… texto livre), `created_at` |
+
+- **A descrição é o índice.** É o que o modelo vê antes de abrir uma memória,
+  então precisa bastar pra ele decidir se vale abrir. O limite de 400 é
+  apertado de propósito.
+- **Registros crescem por append** e cada um é datado: memória envelhece, e a
+  data deixa o modelo desconfiar de um fato antigo.
+- **Qualquer escrita num registro toca o `updated_at` da memória-mãe** — o
+  "atualizada em" reflete o último fato, não só o último rename.
+- `on delete cascade`: apagar a memória leva os registros.
+- Categorias iniciais: `Perfil`, `Preferências`, `Projetos`, `Referências`
+  (espelham os tipos user/feedback/project/reference do Claude Code, pra a
+  migração de lá ser direta) e `Vida`. Editáveis em Tags (§14).
+
+### A tela
+
+Página própria, alcançada pelo drawer do hub num grupo novo **"Contexto"**,
+acima de "Configuração" — memória é dado, não configuração. Segue o padrão das
+outras páginas de drawer (gate, mock local, skin, tudo por cópia — §2).
+
+- Lista agrupada por categoria (ordem do vocabulário; categoria órfã cai num
+  grupo no fim em vez de sumir), título em ordem alfabética dentro do grupo.
+- Busca por título, descrição **e texto dos registros**; chips de categoria.
+- **Origem visível e filtrável.** A origem é do *registro*, não da memória
+  (uma memória junta fatos de clientes diferentes). Cada origem tem cor +
+  ícone + rótulo (`ORIGENS` em `memoria.js`: `claude-code` → Claude Code,
+  `claude.ai` → Claude web, `manual` → Você (tela), `mcp` → MCP); uma origem
+  desconhecida ganha uma cor estável derivada do nome, sem cadastro. A cor
+  chega por `--oc` e pinta a pill do registro, o ponto da linha do tempo e o
+  chip de filtro. O cabeçalho de cada memória resume as origens com a contagem
+  de cada uma, sempre sobre todos os registros.
+- Filtro por origem (chips gerados dos dados, ordenados por volume): mostra só
+  as memórias com algum registro daquela origem e, dentro delas, só esses
+  registros; a contagem vira "2 de 6 registros" e um botão "N ocultos pelo
+  filtro — mostrar todos" limpa o filtro. Com o filtro ativo, a busca ignora o
+  texto dos registros ocultos.
+- Cada memória expande no lugar: linha do tempo dos registros (data, origem,
+  "editado em" se foi corrigido), editar/excluir por registro, e um composer
+  pra registrar um fato novo (Ctrl/⌘+Enter envia).
+- Editar a memória (título/descrição/categoria) e criar uma nova usam o mesmo
+  modal; ao criar dá pra já escrever o primeiro registro.
+- Registros em **EB Garamond** — são prosa, mesmo precedente do banner de
+  Citações (§3.6).
+- **A tela exclui; o MCP não.** Memória errada é pior que nenhuma, e podar é
+  trabalho de humano. Exclusão com o `confirmDelete` de dois cliques (§7).
+
+Backend: **`lifeos-memorias`** — `query` (tudo + categorias), `create`,
+`update`, `delete`, `registro_create`, `registro_update`, `registro_delete`.
+Mesmo gate `check_master_token` de todas as `lifeos-*`.
+
+### No MCP
+
+Seis tools (em `lifeos-mcp`, falando direto com o PostgREST como os outros
+domínios — limites e regra de título único são **cópia** dos de
+`lifeos-memorias`):
+
+| Tool | O quê |
+|---|---|
+| `list_memorias` | índice: título, categoria, descrição, nº de registros |
+| `get_memoria` | abre uma ou mais memórias (por título, trecho único ou id) com todos os registros |
+| `create_memoria` | tema novo; recusa título existente e aponta `add_registro` |
+| `add_registro` | acrescenta um fato (a operação mais comum) |
+| `update_memoria` | patch de título/descrição/categoria |
+| `update_registro` | corrige um fato — **substituição do texto inteiro**, pelo mesmo motivo de `update_nota` |
+
+Sem DELETE, mesma política do resto do servidor.
+
+**O índice vai nas `instructions` do `initialize`.** `buildInstructions()`
+monta, a cada handshake, um texto curto de uso + o índice agrupado por
+categoria (`título — descrição (N registros)`). O cliente põe isso no system
+prompt, então o modelo começa a conversa sabendo quais memórias existem, sem
+gastar uma tool call. Duas salvaguardas:
+
+- teto de 6000 caracteres no índice (`INSTRUCTIONS_MAX_INDICE`) — clientes
+  truncam instruções longas; passando disso, o índice é cortado com um aviso
+  apontando `list_memorias`;
+- se a leitura falhar, o handshake segue com as instruções sem índice.
+
+`list_memorias` continua existindo porque nem todo cliente usa `instructions`,
+e porque o índice injetado é uma foto do momento da conexão.
+
+---
+
+## 18. `index.html` — a apresentação pública (landing)
+
+Set/2026. Com o `resumo_financeiro` e a memória de longo prazo, o autor quis uma
+página que explicasse o LifeOS a quem chega de fora: o que ele se propõe a ser,
+o que faz e como funciona. Mora em `lifeos/index.html`, então a URL
+`…/<repositório>/lifeos/` abre a apresentação e o painel continua em
+`lifeos/lifeos.html`. O acesso é pelo botão "o que é o lifeos" no footer do
+`index.html` da raiz.
+
+**Diferente do `tutorial.html`, não no lugar dele.** O tutorial ensina a *usar*
+o sistema depois de instalado (configurar, por onde começar); a apresentação
+explica o que ele *é*, pra quem está de fora.
+
+- **Sem gate**, pelo mesmo motivo do tutorial: só texto, não lê nem escreve
+  dado nenhum.
+- **Nenhum link pra área credenciada** (decisão do autor, 2ª rodada): nada de
+  "entrar no painel" nem "guia de uso". O único link de saída é a volta pro
+  arquivo; os demais botões são âncoras da própria página. As telas do menu
+  são *descritas* (§06), nunca linkadas.
+- **Layout de duas colunas** por seção: à esquerda o cabeçalho (número,
+  título, um resumo curto) acompanha a rolagem; à direita o conteúdo usa a
+  largura inteira. Substituiu a primeira versão, que limitava a prosa em
+  `66ch` e deixava um vão vazio à direita na maior parte da página.
+- **O MCP é o centro** (§04, sete subseções): a conexão (token no caminho da
+  URL, rotação sem redeploy, fechado por padrão), uma conversa ilustrativa com
+  as chamadas de ferramenta à vista, as 23 ferramentas por domínio com o
+  contrato de cada uma, as decisões que tornam o servidor usável por um modelo,
+  `resumo_financeiro`, a memória e o ciclo completo.
+- **Contraste sobre o banner:** o banner tem moldura de pergaminho claro; o
+  "← arquivo" e a etiqueta do topo são pílulas `.glass` (fundo escuro
+  desfocado), nunca texto solto. A foto do ícone é retrato: `object-position:
+  center top` preserva a auréola no recorte quadrado.
+- **Todo número é ilustrativo.** A página é pública; nenhum valor ou memória
+  real do painel aparece nela, e os blocos de exemplo dizem isso na tela.
+- **Visual:** identidade do LifeOS — tokens do tema ativo (`tema.js`), Font
+  Awesome duotone, Playfair nos títulos, EB Garamond na prosa (é uma página de
+  leitura), mono nos rótulos; a capa reaproveita banner e ícone do hub (§3.1);
+  seções separadas pelo mesmo divisor duplo das hero-sections.
+- **Diagramas Mermaid** (modelo de dados e arquitetura) com `theme: 'base'` e
+  `themeVariables` lidas dos tokens do tema **em runtime**, depois do `load`
+  — o diagrama acompanha a paleta escolhida em vez de fixar uma (VISUAL.md).
+- **Script inline mínimo** (`blog.js` + inicialização do Mermaid), sem
+  `assets/js/` próprio — como o tutorial, é uma página de texto, não um módulo.
+- **Blog desligado:** os dois links pro arquivo (topbar e fecho) somem via
+  `blog.js` (`.topbar .back` e `[data-requer-blog]`).
+- **Sem link pro GitHub:** a página descreve o sistema, não um endereço; o
+  texto diz que o projeto foi *preparado* pra ser instanciado (migrations,
+  seed, config, MIT). Um fork que queira apontar pro próprio repositório
+  acrescenta o link no §07.
+
+**Ao mudar o sistema, confira esta página.** Ela cita fatos que envelhecem: a
+lista das 23 tools do MCP (os `<code>` de `.tl` devem bater com `buildTools()`
+em `lifeos-mcp`, e os rótulos consulta/escrita com o que cada uma faz), as
+quatro regras de Finanças, os módulos e as telas do menu.

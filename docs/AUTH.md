@@ -163,11 +163,14 @@ Streamable HTTP, pensado pra ser cadastrado como "custom connector" em
 claude.ai (Settings → Connectors), não pra ser aberto num browser. Expõe
 tools de CONSULTA sobre todo o sistema (`search_notas`, `search_tarefas`,
 `search_projetos`, `search_eventos`, `search_manifestacoes`,
-`search_citacoes`, `search_movimentacoes`) e duas tools de ESCRITA, as duas restritas a Notas
-(`create_nota`, `update_nota` — este último substituição completa, nunca
-patch parcial: toda chamada reenvia nome/tipo/projetos/conteúdo inteiro,
-mesmo o que não mudou) — decisão explícita do autor: nenhum outro domínio
-ganha create/update/delete por aqui.
+`search_citacoes`, `search_movimentacoes`, `list_memorias`, `get_memoria`)
+e tools de ESCRITA (create/update) em Notas, Tarefas, Eventos,
+Movimentações, Citações (só create) e Memória (`create_memoria`,
+`add_registro`, `update_memoria`, `update_registro` — ver `LIFEOS.md` §17).
+Até 22/set/2026 só Notas escrevia; a abertura pros outros domínios foi
+pedido do próprio autor. **Nenhum domínio ganha DELETE por aqui** — excluir
+continua sendo só pelas telas. O `initialize` também devolve `instructions`
+com o índice das memórias (`LIFEOS.md` §17).
 
 **Auth É DIFERENTE do resto do projeto** (2ª versão do arquivo, 8ª rodada,
 set/2026 — pedido explícito do autor: a 1ª versão pedia a senha mestre como

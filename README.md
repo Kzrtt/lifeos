@@ -66,7 +66,7 @@ publicado pelo próprio painel. Se você não quiser essa metade,
 
 ## O que ele faz
 
-Seis áreas, todas atrás de uma senha:
+Oito áreas, todas atrás de uma senha:
 
 | Módulo | O que guarda |
 |---|---|
@@ -76,11 +76,16 @@ Seis áreas, todas atrás de uma senha:
 | **Notas** | Markdown, vinculado a um ou mais projetos |
 | **Eventos** | Calendário, dentro do próprio hub |
 | **Manifestações** | Objetivos de longo prazo |
+| **Citações** | Frases guardadas; uma é sorteada a cada abertura do hub |
+| **Memória** | O que as IAs aprendem sobre você, fora de qualquer cliente ou modelo |
 
 E três coisas que a maioria dos sistemas parecidos não tem:
 
 - **Conector MCP** — sua IA lê o sistema inteiro por conta própria. Você
   pergunta "o que eu já escrevi sobre isso?" e ela busca nas suas notas.
+  Ela também cria e edita (nunca apaga), recebe o mês financeiro já
+  calculado com as regras de crédito (`resumo_financeiro`) e lê e escreve
+  uma memória de longo prazo sobre você que sobrevive à troca de modelo.
 - **Webhook para o celular** — lançar um gasto sem abrir o navegador. Há um
   atalho de iPhone pronto; qualquer outra plataforma serve mandando o mesmo
   JSON.
@@ -95,7 +100,7 @@ E três coisas que a maioria dos sistemas parecidos não tem:
 Leia **[`SETUP.md`](SETUP.md)**. Dois caminhos: assistido por IA (tem um
 prompt pronto para colar) ou manual.
 
-Resumo do manual: forkar, criar um projeto Supabase, rodar dois arquivos SQL,
+Resumo do manual: forkar, criar um projeto Supabase, rodar as migrations e o seed,
 subir as Edge Functions, e editar **um** arquivo
 (`assets/js/lifeos-config.js`).
 

@@ -15,11 +15,11 @@ capturas do README.
 
 | | |
 |---|---|
-| Painel | 11 páginas — hub, finanças, tarefas, notas, e as 7 telas de configuração |
-| Backend | 11 Edge Functions, 2 migrations, RLS sem policy (só `service_role`) |
+| Painel | 13 páginas — hub, finanças, tarefas, notas, memória, as 7 telas de configuração e a apresentação pública |
+| Backend | 15 Edge Functions, 7 migrations, RLS sem policy (só `service_role`) |
 | Temas | 9 paletas, cada uma em versão clara (blog) e escura (painel) |
 | Arquivo público | capa paginada por volumes, galeria, publicação pelo próprio painel |
-| Integrações | conector MCP para IA, webhook de lançamento por celular |
+| Integrações | conector MCP para IA (23 tools, com memória de longo prazo), webhook de lançamento por celular |
 
 **Configurável de dentro de si mesmo.** Senhas, token do GitHub, temas e os
 vocabulários (tags e status de todas as tabelas) se editam por tela. Nada
@@ -101,7 +101,7 @@ Candidato claro a virar um arquivo de dados carregado por `<script>` — o mesmo
 padrão de `manifest.js` e `lifeos-config.js`. Mexe no render do `index.html`,
 que é a capa pública, então pede cuidado.
 
-### 4.2 `lifeos.js` com 3.230 linhas
+### 4.2 `lifeos.js` com 3.877 linhas
 
 O hub concentra seis domínios num arquivo só. Ainda navegável, mas é onde um
 erro custa mais caro. Não urge.

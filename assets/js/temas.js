@@ -167,6 +167,52 @@
     btn.disabled = !TEMA_API || TEMA_API.usandoPadrao();
   }
 
+  /* ── Capa do hub ──
+     Catálogo da vitrine; a lista branca de verdade está em tema.js (CAPAS). */
+  var CAPAS = [
+    { slug: 'classica', nome: 'Clássica', desc: 'Banner dentro da coluna, ícone ao lado do título.' },
+    { slug: 'imersiva', nome: 'Imersiva', desc: 'Banner de ponta a ponta, botões sobre a imagem, título grande.' },
+  ];
+
+  /* Miniatura esquemática com a imagem real do banner e do ícone — as
+     mesmas que applyIdentidade() usa, então um fork vê a própria capa. */
+  function capaPreviewHtml(slug) {
+    var id = (window.LIFEOS_CONFIG && window.LIFEOS_CONFIG.identidade) || {};
+    var banner = id.banner || '../assets/images/banner.jpg';
+    var avatar = id.avatar || '../assets/images/avatar.jpg';
+    var img = '<img src="' + esc(banner) + '" alt="">';
+    var icon = '<div class="pv-icon"><img src="' + esc(avatar) + '" alt=""></div>';
+    if (slug === 'imersiva') {
+      return '<div class="capa-prev pv-imersiva">' + img + '<div class="pv-fade"></div>'
+        + '<div class="pv-pill pv-p1"></div><div class="pv-pill pv-p3"></div><div class="pv-pill pv-p2"></div>'
+        + icon + '<div class="pv-bar pv-k"></div><div class="pv-bar pv-t1"></div></div>';
+    }
+    return '<div class="capa-prev pv-classica"><div class="pv-top"></div>' + img + icon
+      + '<div class="pv-bar pv-t1"></div><div class="pv-bar pv-t2"></div></div>';
+  }
+
+  function renderCapas() {
+    var host = $('capa-grid');
+    if (!host) return;
+    var atual = TEMA_API && TEMA_API.capa ? TEMA_API.capa() : 'classica';
+    var padrao = TEMA_API && TEMA_API.capaPadrao ? TEMA_API.capaPadrao() : 'classica';
+    host.innerHTML = CAPAS.map(function (c) {
+      var badges = '';
+      if (c.slug === atual) badges += '<span class="tema-badge ativo">em uso</span>';
+      if (c.slug === padrao) badges += '<span class="tema-badge padrao">padrão da instância</span>';
+      return '<button type="button" class="capa-card' + (c.slug === atual ? ' is-active' : '') + '"'
+        + ' data-capa-opcao="' + esc(c.slug) + '" aria-pressed="' + (c.slug === atual) + '">'
+        + capaPreviewHtml(c.slug)
+        + '<div class="tema-info">'
+          + '<div class="tema-nome">' + esc(c.nome) + '</div>'
+          + '<div class="tema-desc">' + esc(c.desc) + '</div>'
+          + '<div class="tema-badges">' + badges + '</div>'
+        + '</div>'
+        + '</button>';
+    }).join('');
+    $('capa-reset-btn').disabled = !TEMA_API || !TEMA_API.usandoCapaPadrao || TEMA_API.usandoCapaPadrao();
+  }
+
   function renderAccents() {
     $('accent-grid').innerHTML = Object.keys(THEME_ACCENTS).map(function (nome) {
       var cor = THEME_ACCENTS[nome];
@@ -182,6 +228,7 @@
     if (window.LIFEOS_BLOG) window.LIFEOS_BLOG.aplicar();
     renderAccents();
     render();
+    renderCapas();
 
     if (!TEMA_API) {
       console.warn('[temas] tema.js não carregou — a tela fica só em leitura');
@@ -198,6 +245,20 @@
       TEMA_API.definir(null);
       render();
     });
+
+    /* Um tema.js antigo em cache (sem a API de capa) deixa a seção só em
+       leitura em vez de quebrar no clique. */
+    if (TEMA_API.definirCapa) {
+      $('capa-grid').addEventListener('click', function (e) {
+        var card = e.target.closest ? e.target.closest('[data-capa-opcao]') : null;
+        if (!card) return;
+        if (TEMA_API.definirCapa(card.getAttribute('data-capa-opcao'))) renderCapas();
+      });
+      $('capa-reset-btn').addEventListener('click', function () {
+        TEMA_API.definirCapa(null);
+        renderCapas();
+      });
+    }
   }
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);

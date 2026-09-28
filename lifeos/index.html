@@ -1,0 +1,1048 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#14120f">
+  <meta name="description" content="LifeOS — um painel pessoal de gestão de vida: tarefas, notas, finanças, calendário e objetivos num lugar só, com um servidor MCP que dá a qualquer IA o seu contexto, as suas contas e uma memória que não depende do modelo.">
+  <title>LifeOS · Apresentação</title>
+  <link rel="icon" href="../assets/images/favicon.svg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,500;0,700;0,900;1,400;1,700;1,900&family=EB+Garamond:ital,wght@0,400;0,500;1,400&family=JetBrains+Mono:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../assets/css/icons.css">
+  <!--
+    Apresentação pública do LifeOS (LIFEOS.md §18). Sem gate: é texto
+    explicativo, não lê nem escreve dado nenhum.
+
+    Duas regras desta página:
+      - NÃO aponta pra nenhuma área credenciada (painel, tutorial, telas de
+        config). É uma página pra quem está de fora; o único link de saída é
+        a volta pro arquivo.
+      - Todo número e todo exemplo são ILUSTRATIVOS. A página é pública e
+        nunca mostra dado real do painel.
+  -->
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    /* Tokens base — mesmo conjunto das outras páginas do LifeOS (LIFEOS.md
+       §2: cópia, não arquivo compartilhado). A paleta final vem do tema
+       (<link id="lifeos-tema"> + tema.js); abaixo só se usam tokens. */
+    :root {
+      --bg:        #14120f;
+      --surface:   #1c1a16;
+      --surface-2: #242018;
+      --border:    #2e2a24;
+      --border-mid: #3a352d;
+      --text:      #ede8df;
+      --dim:       #b0a898;
+      --mute:      #6b6456;
+      --gold:      #c4913a;
+      --gold-wash: rgba(196, 145, 58, 0.10);
+      --green:     #3fb98c;
+      --red:       #e5616a;
+      --blue:      #5b8def;
+      --mono:  'JetBrains Mono', monospace;
+      --serif: 'Playfair Display', Georgia, serif;
+      --prose: 'EB Garamond', Georgia, serif;
+      --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+      --side: 250px;   /* coluna do cabeçalho de cada seção */
+    }
+    [hidden] { display: none !important; }
+
+    html { background: var(--bg); scroll-behavior: smooth; }
+    body {
+      background: var(--bg); color: var(--text); font-family: var(--mono);
+      -webkit-font-smoothing: antialiased; line-height: 1.5; -webkit-text-size-adjust: 100%;
+    }
+    a { color: inherit; }
+    .wrap { max-width: 1120px; margin: 0 auto; padding: 0 24px; }
+
+    /* ── Botões sobre a imagem ──
+       O banner tem moldura de pergaminho CLARO no topo e nas laterais; texto
+       solto ali some. Tudo que fica por cima da imagem ganha fundo próprio,
+       escuro e desfocado — o contraste não depende do que está atrás. */
+    .glass {
+      background: color-mix(in srgb, var(--bg) 80%, transparent);
+      -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
+      border: 1px solid color-mix(in srgb, var(--text) 16%, transparent);
+      color: var(--text);
+    }
+    .topbar {
+      position: absolute; top: 0; left: 0; right: 0; z-index: 5;
+      max-width: 1120px; margin: 0 auto; padding: calc(16px + env(safe-area-inset-top)) 24px 0;
+      display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    }
+    .back {
+      display: inline-flex; align-items: center; gap: 8px; padding: 9px 15px; border-radius: 999px;
+      font-size: 10.5px; letter-spacing: 0.18em; text-transform: uppercase; text-decoration: none;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .back:hover { border-color: var(--gold); color: var(--gold); }
+    .top-tag { padding: 7px 13px; border-radius: 999px; font-size: 9.5px; letter-spacing: 0.2em; text-transform: uppercase; }
+
+    /* ── Hero ── a mesma capa do hub em modo imersivo (LIFEOS.md §3.1) */
+    .hero-banner { position: relative; height: clamp(240px, 36vw, 400px); overflow: hidden; }
+    .hero-banner img { width: 100%; height: 100%; object-fit: cover; object-position: center top; display: block; }
+    .hero-banner::after {
+      content: ''; position: absolute; inset: 0;
+      background: linear-gradient(to bottom, color-mix(in srgb, var(--bg) 50%, transparent) 0%, transparent 30%, transparent 42%, var(--bg) 100%);
+    }
+    .hero { display: grid; grid-template-columns: 1.2fr 0.8fr; gap: 48px; align-items: end; margin-top: -96px; position: relative; z-index: 2; }
+    .hero-icon {
+      width: clamp(96px, 12vw, 136px); aspect-ratio: 1; border-radius: 18px; overflow: hidden;
+      border: 3px solid var(--bg); background: var(--surface); margin-bottom: 24px;
+    }
+    /* A foto é retrato (735×976): ancorada no topo, o recorte quadrado
+       preserva a auréola — centralizada, ela era cortada. */
+    .hero-icon img { width: 100%; height: 100%; object-fit: cover; object-position: center top; display: block; }
+    .kicker { font-size: 10px; letter-spacing: 0.32em; text-transform: uppercase; color: var(--gold); margin-bottom: 14px; }
+    .hero h1 {
+      font-family: var(--serif); font-weight: 900; font-style: italic;
+      font-size: clamp(66px, 12.5vw, 140px); line-height: 0.85; letter-spacing: -0.035em;
+    }
+    .hero-lede {
+      margin-top: 26px;
+      font-family: var(--prose); font-size: clamp(20px, 2.2vw, 24px); line-height: 1.45; color: var(--dim);
+    }
+    .hero-lede em { color: var(--text); }
+    .hero-ctas { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 30px; }
+    .btn {
+      display: inline-flex; align-items: center; gap: 9px; padding: 13px 20px; border-radius: 7px;
+      font-family: var(--mono); font-size: 11.5px; letter-spacing: 0.1em; text-transform: uppercase; text-decoration: none;
+      transition: background 0.15s, border-color 0.15s, color 0.15s, opacity 0.15s;
+    }
+    .btn-primary { background: var(--gold); color: var(--bg); font-weight: 600; border: 1px solid var(--gold); }
+    .btn-primary:hover { opacity: 0.88; }
+    .btn-ghost { border: 1px solid var(--border-mid); color: var(--dim); }
+    .btn-ghost:hover { border-color: var(--gold); color: var(--gold); background: var(--gold-wash); }
+
+    /* "boot" — o nome é LifeOS; a capa sobe os módulos como um sistema sobe. */
+    .boot { background: var(--surface); border-radius: 12px; padding: 18px 20px 16px; font-size: 11.5px; }
+    .boot-head {
+      display: flex; justify-content: space-between; font-size: 9.5px; letter-spacing: 0.24em; text-transform: uppercase;
+      color: var(--mute); padding-bottom: 12px; margin-bottom: 10px; border-bottom: 1px solid var(--border);
+    }
+    .boot-row { display: flex; align-items: baseline; gap: 8px; padding: 4px 0; }
+    .boot-ok { color: var(--green); width: 12px; flex-shrink: 0; }
+    .boot-name { color: var(--text); white-space: nowrap; }
+    .boot-dots { flex: 1; min-width: 12px; border-bottom: 1px dotted var(--border-mid); transform: translateY(-3px); }
+    .boot-what { color: var(--mute); text-align: right; white-space: nowrap; }
+    .boot-foot { margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--border); color: var(--gold); }
+    .boot-foot::after { content: '▍'; margin-left: 4px; animation: caret 1s steps(1) infinite; }
+    @keyframes caret { 50% { opacity: 0; } }
+
+    /* ── Índice ── */
+    .toc {
+      display: grid; grid-template-columns: repeat(7, auto); justify-content: space-between; gap: 8px 18px;
+      margin-top: 64px; padding: 16px 0; border-top: 1px solid var(--border); border-bottom: 1px solid var(--border);
+    }
+    .toc a { font-size: 10.5px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--mute); text-decoration: none; transition: color 0.15s; white-space: nowrap; }
+    .toc a span { color: var(--gold); margin-right: 6px; }
+    .toc a:hover { color: var(--text); }
+
+    /* ── Seções: cabeçalho à esquerda (acompanha a rolagem), conteúdo à
+       direita ocupando a largura inteira — sem vão vazio ao lado do texto. */
+    .sec { display: grid; grid-template-columns: var(--side) minmax(0, 1fr); gap: 56px; padding: 76px 0 12px; }
+    .sec + .sec { border-top: 3px double var(--text); margin-top: 64px; }
+    .sec-side { position: sticky; top: 28px; align-self: start; }
+    .sec-num { font-size: 11px; letter-spacing: 0.3em; color: var(--gold); margin-bottom: 14px; }
+    .sec h2 {
+      font-family: var(--serif); font-weight: 700; font-style: italic;
+      font-size: clamp(30px, 3.3vw, 40px); line-height: 1.06; letter-spacing: -0.02em;
+    }
+    .sec-abstract { margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--border); font-size: 11px; line-height: 1.75; color: var(--mute); }
+    .sec-abstract b { color: var(--dim); font-weight: 500; }
+    .sec-main { min-width: 0; }
+    .sec-main > :first-child { margin-top: 0; }
+    .sec h3 {
+      font-family: var(--serif); font-weight: 700; font-style: italic;
+      font-size: clamp(24px, 2.6vw, 30px); line-height: 1.15; margin: 64px 0 16px; letter-spacing: -0.01em;
+      display: flex; align-items: baseline; gap: 14px;
+    }
+    .sec h3 .h3-n { font-family: var(--mono); font-style: normal; font-weight: 400; font-size: 10.5px; letter-spacing: 0.2em; color: var(--gold); }
+    .prose p { font-family: var(--prose); font-size: clamp(18px, 1.7vw, 20px); line-height: 1.68; color: var(--dim); margin-bottom: 18px; }
+    .prose p:last-child { margin-bottom: 0; }
+    .prose p strong { color: var(--text); font-weight: 500; }
+    .prose p em { color: var(--text); }
+    code, .code-i {
+      font-family: var(--mono); font-size: 0.74em; color: var(--text); background: var(--surface-2);
+      padding: 2px 6px; border-radius: 4px;
+    }
+    .pull {
+      margin: 36px 0 0; padding: 22px 26px; border-radius: 12px; background: var(--surface);
+      font-family: var(--serif); font-style: italic; font-size: clamp(24px, 2.8vw, 32px); line-height: 1.3; color: var(--text);
+      display: flex; gap: 18px;
+    }
+    .pull::before { content: '“'; font-size: 2.2em; line-height: 0.8; color: var(--gold); }
+    .label { font-size: 9.5px; letter-spacing: 0.24em; text-transform: uppercase; color: var(--mute); margin-bottom: 10px; }
+    .ilustrativo { font-size: 9.5px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--mute); margin-top: 12px; }
+    .ilustrativo::before { content: '✦ '; color: var(--gold); }
+
+    /* ── Módulos ── */
+    .mods { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 34px; }
+    .mod { background: var(--surface); border-radius: 12px; padding: 22px 22px 20px; display: flex; flex-direction: column; }
+    .mod-top { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+    .ico {
+      width: 38px; height: 38px; border-radius: 9px; display: flex; align-items: center; justify-content: center;
+      background: var(--gold-wash); color: var(--gold); font-size: 16px; flex-shrink: 0;
+    }
+    .mod h4 { font-family: var(--serif); font-style: italic; font-weight: 700; font-size: 22px; line-height: 1.1; }
+    .mod-tag { margin-left: auto; font-size: 8.5px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--gold); padding: 3px 8px; border-radius: 999px; background: var(--gold-wash); }
+    .mod p { font-family: var(--prose); font-size: 17px; line-height: 1.55; color: var(--dim); }
+    .mod ul { list-style: none; margin-top: auto; padding-top: 14px; }
+    .mod li { font-size: 10.5px; line-height: 1.6; color: var(--mute); padding: 3px 0 3px 16px; position: relative; }
+    .mod li::before { content: '—'; position: absolute; left: 0; color: var(--border-mid); }
+
+    /* ── Diagramas (VISUAL.md: wrapper com scroll horizontal no mobile) ── */
+    .diagram { background: var(--surface); border-radius: 12px; margin-top: 26px; padding: 8px 18px; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+    .diagram .mermaid { min-width: 620px; display: flex; justify-content: center; }
+    .diagram .mermaid:not([data-processed]) { visibility: hidden; min-height: 240px; }
+    .diagram-cap { font-size: 10px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--mute); padding: 6px 0 10px; }
+
+    /* ── Finanças: as regras ── */
+    .regras { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 30px; }
+    .regra { background: var(--surface); border-radius: 12px; padding: 22px; display: flex; flex-direction: column; }
+    .regra-n { font-size: 10px; letter-spacing: 0.2em; color: var(--gold); margin-bottom: 8px; }
+    .regra h4 { font-family: var(--serif); font-style: italic; font-weight: 700; font-size: 21px; margin-bottom: 8px; }
+    .regra p { font-family: var(--prose); font-size: 17px; line-height: 1.55; color: var(--dim); }
+    .viz { margin-top: auto; padding-top: 16px; }
+    .viz-in { background: var(--surface-2); border-radius: 8px; padding: 12px 14px; font-size: 11.5px; }
+    .fech-row { display: grid; grid-template-columns: 56px 1fr auto; align-items: center; gap: 10px; padding: 5px 0; }
+    .fech-row + .fech-row { border-top: 1px solid var(--border); }
+    .fech-data { color: var(--text); }
+    .fech-seta { border-bottom: 1px dashed var(--border-mid); height: 1px; position: relative; }
+    .fech-seta::after { content: '▸'; position: absolute; right: -2px; top: -8px; color: var(--mute); font-size: 10px; }
+    .fech-fat { color: var(--gold); white-space: nowrap; }
+    .eq { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; }
+    .eq b { font-weight: 500; color: var(--text); background: var(--surface); padding: 3px 8px; border-radius: 5px; }
+    .eq i { font-style: normal; color: var(--mute); }
+    .eq .pos { color: var(--green); } .eq .neg { color: var(--red); }
+    .cadeia { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+    .cadeia span { padding: 4px 9px; border-radius: 5px; background: var(--surface); color: var(--dim); }
+    .cadeia span.q { color: var(--green); }
+    .cadeia span.a { color: var(--gold); }
+    .cadeia i { font-style: normal; color: var(--mute); }
+
+    /* ── MCP: conexão ── */
+    .conexao { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-top: 28px; }
+    .cx { background: var(--surface); border-radius: 12px; padding: 20px; }
+    .cx .ico { margin-bottom: 14px; }
+    .cx b { display: block; font-family: var(--serif); font-style: italic; font-weight: 700; font-size: 19px; margin-bottom: 6px; }
+    .cx p { font-family: var(--prose); font-size: 16.5px; line-height: 1.5; color: var(--dim); }
+    .url {
+      margin-top: 14px; padding: 12px 16px; border-radius: 10px; background: var(--surface); font-size: 12px;
+      color: var(--dim); overflow-x: auto; white-space: nowrap;
+    }
+    .url .u-tok { color: var(--gold); }
+
+    /* ── MCP: uma conversa ── */
+    .chat { margin-top: 26px; background: var(--surface); border-radius: 14px; padding: 22px; display: flex; flex-direction: column; gap: 14px; }
+    .ch-sys { align-self: center; font-size: 10px; letter-spacing: 0.12em; color: var(--mute); padding: 6px 12px; border-radius: 999px; background: var(--surface-2); text-align: center; }
+    .ch-sys b { color: var(--gold); font-weight: 500; }
+    .ch-user { align-self: flex-end; max-width: 78%; padding: 12px 16px; border-radius: 14px 14px 4px 14px; background: var(--surface-2); font-family: var(--prose); font-size: 17.5px; line-height: 1.45; color: var(--text); }
+    .ch-ia { align-self: flex-start; max-width: 86%; font-family: var(--prose); font-size: 17.5px; line-height: 1.55; color: var(--dim); padding-left: 16px; border-left: 2px solid var(--gold); }
+    .ch-ia strong { color: var(--text); font-weight: 500; }
+    .ch-tool {
+      align-self: flex-start; max-width: 100%; font-size: 11px; line-height: 1.6; padding: 10px 14px; border-radius: 8px;
+      border: 1px dashed var(--border-mid); color: var(--mute);
+    }
+    .ch-tool .t-n { color: var(--gold); }
+    .ch-tool .t-r { display: block; color: var(--dim); margin-top: 4px; }
+    .ch-tool .fad { margin-right: 6px; color: var(--gold); }
+
+    /* ── MCP: ferramentas por domínio ── */
+    .doms { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 28px; }
+    .dom { background: var(--surface); border-radius: 12px; padding: 20px 20px 16px; }
+    .dom-head { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
+    .dom-head b { font-family: var(--serif); font-style: italic; font-weight: 700; font-size: 20px; }
+    .dom-head span { margin-left: auto; font-size: 9.5px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--mute); }
+    .tl { list-style: none; }
+    .tl li { padding: 9px 0; border-top: 1px solid var(--border); }
+    .tl-top { display: flex; align-items: center; gap: 8px; }
+    .tl-top code { font-size: 11px; background: none; padding: 0; color: var(--text); }
+    .rw { font-size: 8.5px; letter-spacing: 0.14em; text-transform: uppercase; padding: 2px 7px; border-radius: 999px; }
+    .rw.r { color: var(--blue); background: color-mix(in srgb, var(--blue) 13%, transparent); }
+    .rw.w { color: var(--gold); background: var(--gold-wash); }
+    .novo { font-size: 8.5px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--green); margin-left: auto; }
+    .tl p { font-family: var(--prose); font-size: 15.5px; line-height: 1.45; color: var(--dim); margin-top: 4px; }
+    .dom-wide { grid-column: 1 / -1; }
+    .dom-wide .tl { display: grid; grid-template-columns: 1fr 1fr; column-gap: 28px; }
+
+    /* ── MCP: desenhado para um modelo ── */
+    .design { display: grid; grid-template-columns: 1fr 1fr; gap: 0 32px; margin-top: 22px; }
+    .ds { display: flex; gap: 14px; padding: 18px 0; border-top: 1px solid var(--border); }
+    .ds .fad { color: var(--gold); font-size: 16px; margin-top: 4px; width: 20px; text-align: center; flex-shrink: 0; }
+    .ds b { display: block; font-family: var(--serif); font-style: italic; font-weight: 700; font-size: 18.5px; margin-bottom: 5px; }
+    .ds p { font-family: var(--prose); font-size: 16.5px; line-height: 1.52; color: var(--dim); }
+    .ds p code { font-size: 0.72em; }
+
+    /* ── Soma ingênua × resumo_financeiro ── */
+    .cmp { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 24px; }
+    .cmp-col { border-radius: 12px; padding: 20px 20px 18px; background: var(--surface); }
+    .cmp-bad  { background: color-mix(in srgb, var(--red) 7%, var(--surface)); }
+    .cmp-good { background: color-mix(in srgb, var(--green) 7%, var(--surface)); }
+    .cmp-title { display: flex; align-items: center; gap: 8px; font-size: 10px; letter-spacing: 0.2em; text-transform: uppercase; margin-bottom: 14px; }
+    .cmp-bad .cmp-title { color: var(--red); } .cmp-good .cmp-title { color: var(--green); }
+    .cmp-line { display: flex; justify-content: space-between; gap: 12px; font-size: 11.5px; padding: 6px 0; color: var(--dim); }
+    .cmp-line + .cmp-line { border-top: 1px solid var(--border); }
+    .cmp-line span:last-child { color: var(--text); white-space: nowrap; font-variant-numeric: tabular-nums; }
+    .cmp-veredito { margin-top: 14px; font-family: var(--prose); font-size: 17px; line-height: 1.5; color: var(--text); }
+    .cmp-veredito small { display: block; font-family: var(--mono); font-size: 10px; color: var(--mute); margin-top: 4px; letter-spacing: 0.04em; }
+
+    /* ── Memória ── */
+    .mem-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 24px; align-items: start; }
+    .code {
+      background: var(--surface); border-radius: 12px; padding: 18px 20px; font-size: 11.5px; line-height: 1.75; color: var(--dim);
+      white-space: pre-wrap; overflow-wrap: anywhere;
+    }
+    .code .c-h { color: var(--gold); }
+    .code .c-m { color: var(--mute); }
+    .reg-demo { background: var(--surface); border-radius: 12px; padding: 18px 20px; }
+    .reg-demo-t { font-family: var(--serif); font-style: italic; font-weight: 700; font-size: 19px; margin-bottom: 4px; }
+    .reg-demo-d { font-size: 11px; color: var(--mute); margin-bottom: 14px; }
+    .rd { position: relative; padding: 10px 0 10px 20px; }
+    .rd::before { content: ''; position: absolute; left: 3px; top: 17px; width: 7px; height: 7px; border-radius: 50%; background: var(--oc); }
+    .rd + .rd { border-top: 1px solid var(--border); }
+    .rd-top { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; font-size: 9.5px; color: var(--mute); letter-spacing: 0.08em; }
+    .rd-origem { color: var(--oc); background: color-mix(in srgb, var(--oc) 14%, transparent); padding: 2px 7px; border-radius: 999px; text-transform: uppercase; letter-spacing: 0.1em; }
+    .rd-t { font-family: var(--prose); font-size: 16.5px; line-height: 1.45; color: var(--text); }
+
+    /* ── O ciclo ── */
+    .ciclo { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-top: 24px; counter-reset: passo; }
+    .passo { position: relative; padding: 18px 18px 18px; background: var(--surface); border-radius: 12px; }
+    .passo::before {
+      counter-increment: passo; content: counter(passo, decimal-leading-zero);
+      display: block; font-size: 10px; letter-spacing: 0.2em; color: var(--gold); margin-bottom: 10px;
+    }
+    .passo b { display: block; font-family: var(--serif); font-style: italic; font-weight: 700; font-size: 19px; margin-bottom: 6px; }
+    .passo span { font-family: var(--prose); font-size: 16px; line-height: 1.5; color: var(--dim); }
+
+    .exemplos { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 14px; }
+    .exemplo { font-family: var(--prose); font-style: italic; font-size: 17.5px; line-height: 1.45; color: var(--text); padding: 14px 18px; border-radius: 10px; background: var(--surface); }
+    .exemplo small { display: block; font-family: var(--mono); font-style: normal; font-size: 9.5px; letter-spacing: 0.1em; color: var(--gold); margin-top: 8px; }
+
+    /* ── Princípios ── */
+    .princ { display: grid; grid-template-columns: 1fr 1fr; gap: 0 32px; margin-top: 30px; }
+    .pr { display: flex; gap: 16px; padding: 20px 0; border-top: 1px solid var(--border); }
+    .pr .fad { color: var(--gold); font-size: 18px; margin-top: 3px; width: 22px; text-align: center; flex-shrink: 0; }
+    .pr b { display: block; font-family: var(--serif); font-style: italic; font-weight: 700; font-size: 19px; margin-bottom: 5px; }
+    .pr p { font-family: var(--prose); font-size: 16.5px; line-height: 1.55; color: var(--dim); }
+
+    /* ── Configuração ── */
+    .conf { margin-top: 26px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .conf-row { display: flex; gap: 14px; align-items: flex-start; padding: 16px 18px; border-radius: 10px; background: var(--surface); }
+    .conf-row .fad { color: var(--gold); font-size: 15px; margin-top: 3px; width: 18px; text-align: center; flex-shrink: 0; }
+    .conf-row b { display: block; font-size: 12px; font-weight: 500; letter-spacing: 0.06em; margin-bottom: 4px; }
+    .conf-row span { font-family: var(--prose); font-size: 16.5px; line-height: 1.45; color: var(--dim); }
+
+    /* ── Fecho ── */
+    .fecho { margin-top: 84px; padding: 56px 0 12px; border-top: 3px double var(--text); display: grid; grid-template-columns: var(--side) minmax(0, 1fr); gap: 56px; }
+    .fecho-num { font-size: 11px; letter-spacing: 0.3em; color: var(--gold); }
+    .fecho h2 { font-family: var(--serif); font-weight: 900; font-style: italic; font-size: clamp(38px, 6vw, 72px); line-height: 0.98; letter-spacing: -0.03em; }
+    .fecho p { margin-top: 18px; font-family: var(--prose); font-size: clamp(20px, 2.2vw, 24px); color: var(--dim); }
+    .fecho .hero-ctas { margin-top: 30px; }
+    .foot { margin: 72px 0 0; padding: 22px 0 calc(40px + env(safe-area-inset-bottom)); border-top: 1px solid var(--border); text-align: center; }
+    .foot span { font-size: 10px; letter-spacing: 0.25em; text-transform: uppercase; color: var(--mute); }
+
+    /* ── Entrada ── escalonada, nenhuma animação passa de 400ms (VISUAL.md) */
+    @media (prefers-reduced-motion: no-preference) {
+      .rise { opacity: 0; transform: translateY(10px); animation: rise 0.38s var(--ease-out) forwards; }
+      .rise-1 { animation-delay: 60ms; } .rise-2 { animation-delay: 140ms; } .rise-3 { animation-delay: 220ms; } .rise-4 { animation-delay: 300ms; }
+      .boot-row { opacity: 0; animation: bootIn 0.28s var(--ease-out) forwards; }
+      .boot-row:nth-child(2) { animation-delay: 380ms; } .boot-row:nth-child(3) { animation-delay: 440ms; }
+      .boot-row:nth-child(4) { animation-delay: 500ms; } .boot-row:nth-child(5) { animation-delay: 560ms; }
+      .boot-row:nth-child(6) { animation-delay: 620ms; } .boot-row:nth-child(7) { animation-delay: 680ms; }
+      .boot-row:nth-child(8) { animation-delay: 740ms; } .boot-row:nth-child(9) { animation-delay: 800ms; }
+      .boot-row:nth-child(10) { animation-delay: 860ms; }
+      @keyframes rise { to { opacity: 1; transform: none; } }
+      @keyframes bootIn { from { opacity: 0; transform: translateX(-6px); } to { opacity: 1; transform: none; } }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      html { scroll-behavior: auto; }
+      .boot-foot::after { animation: none; }
+    }
+
+    /* ── Responsivo ── */
+    @media (max-width: 980px) {
+      .sec, .fecho { grid-template-columns: 1fr; gap: 26px; }
+      .sec-side { position: static; }
+      .sec-abstract { max-width: 60ch; }
+      .toc { grid-template-columns: repeat(4, auto); justify-content: start; }
+    }
+    @media (max-width: 820px) {
+      .hero { grid-template-columns: 1fr; gap: 34px; margin-top: -70px; }
+      .mods, .regras, .cmp, .doms, .mem-grid, .exemplos, .princ, .design, .conf, .conexao { grid-template-columns: 1fr; }
+      .dom-wide .tl { grid-template-columns: 1fr; }
+      .ciclo { grid-template-columns: 1fr 1fr; }
+      .ch-user, .ch-ia { max-width: 100%; }
+    }
+    @media (max-width: 560px) {
+      .wrap, .topbar { padding-left: 16px; padding-right: 16px; }
+      .top-tag { display: none; }
+      .ciclo { grid-template-columns: 1fr; }
+      .toc { grid-template-columns: 1fr 1fr; }
+      .boot-what { display: none; }
+      .sec { padding-top: 56px; }
+      .chat { padding: 16px; }
+    }
+  </style>
+  <link rel="stylesheet" id="lifeos-tema" href="../assets/css/themes/lifeos/sepia.css">
+  <!-- Config da instância + tema, nesta ordem e sem defer — ver assets/js/tema.js. -->
+  <script src="../assets/js/lifeos-config.js"></script>
+  <script src="../assets/js/tema.js"></script>
+  <script src="../assets/js/blog.js"></script>
+</head>
+<body>
+
+<nav class="topbar" aria-label="Navegação">
+  <a href="../index.html" class="back glass"><i class="fad fa-arrow-left"></i> arquivo</a>
+  <span class="top-tag glass">apresentação</span>
+</nav>
+
+<header id="topo">
+  <div class="hero-banner"><img src="../assets/images/banner.jpg" alt=""></div>
+  <div class="wrap">
+    <div class="hero">
+      <div>
+        <div class="hero-icon rise"><img src="../assets/images/avatar.jpg" alt=""></div>
+        <div class="kicker rise rise-1">o painel por trás do arquivo</div>
+        <h1 class="rise rise-2">LifeOS</h1>
+        <p class="hero-lede rise rise-3">
+          Um painel privado onde a vida prática fica registrada — tarefas, notas, dinheiro,
+          calendário, objetivos — e uma porta para que qualquer IA leia esse registro,
+          <em>faça as contas do jeito certo</em> e <em>lembre de quem você é</em> entre uma
+          conversa e outra.
+        </p>
+        <div class="hero-ctas rise rise-4">
+          <a href="#proposta" class="btn btn-primary">Como funciona <i class="fad fa-arrow-down"></i></a>
+          <a href="#ia" class="btn btn-ghost"><i class="fad fa-plug"></i> O servidor MCP</a>
+        </div>
+      </div>
+
+      <div class="boot" aria-label="Módulos do LifeOS">
+        <div class="boot-row boot-head"><span>lifeos · boot</span><span>v2026</span></div>
+        <div class="boot-row"><span class="boot-ok">✓</span><span class="boot-name">finanças</span><span class="boot-dots"></span><span class="boot-what">caixa, fatura, projeção</span></div>
+        <div class="boot-row"><span class="boot-ok">✓</span><span class="boot-name">tarefas</span><span class="boot-dots"></span><span class="boot-what">kanban por projeto</span></div>
+        <div class="boot-row"><span class="boot-ok">✓</span><span class="boot-name">notas</span><span class="boot-dots"></span><span class="boot-what">markdown, n projetos</span></div>
+        <div class="boot-row"><span class="boot-ok">✓</span><span class="boot-name">calendário</span><span class="boot-dots"></span><span class="boot-what">eventos de vários dias</span></div>
+        <div class="boot-row"><span class="boot-ok">✓</span><span class="boot-name">manifestações</span><span class="boot-dots"></span><span class="boot-what">objetivos de um ano</span></div>
+        <div class="boot-row"><span class="boot-ok">✓</span><span class="boot-name">citações</span><span class="boot-dots"></span><span class="boot-what">uma por abertura</span></div>
+        <div class="boot-row"><span class="boot-ok">✓</span><span class="boot-name">memória</span><span class="boot-dots"></span><span class="boot-what">o que a IA sabe de você</span></div>
+        <div class="boot-row"><span class="boot-ok">✓</span><span class="boot-name">mcp</span><span class="boot-dots"></span><span class="boot-what">23 ferramentas</span></div>
+        <div class="boot-row boot-foot">pronto.</div>
+      </div>
+    </div>
+
+    <nav class="toc" aria-label="Nesta página">
+      <a href="#proposta"><span>01</span>a proposta</a>
+      <a href="#modulos"><span>02</span>o que ele faz</a>
+      <a href="#financas"><span>03</span>finanças</a>
+      <a href="#ia"><span>04</span>o servidor MCP</a>
+      <a href="#por-dentro"><span>05</span>por dentro</a>
+      <a href="#configurar"><span>06</span>configurar</a>
+      <a href="#para-quem"><span>07</span>para quem</a>
+    </nav>
+  </div>
+</header>
+
+<main class="wrap">
+
+  <!-- ─────────── 01 ─────────── -->
+  <section class="sec" id="proposta">
+    <div class="sec-side">
+      <div class="sec-num">§ 01</div>
+      <h2>Um lugar só para o que a cabeça não precisa guardar</h2>
+      <p class="sec-abstract"><b>A proposta.</b> Juntar o que costuma viver em cinco aplicativos e dar à IA acesso a isso — nos seus termos.</p>
+    </div>
+    <div class="sec-main">
+      <div class="prose">
+        <p>
+          A cabeça é boa para pensar e ruim para guardar. Lembrar de pagar uma conta, do livro
+          que alguém indicou, de quanto sobrou no mês — nada disso exige inteligência, só
+          retenção. Enquanto uma pendência mora na memória, ela volta nos piores momentos,
+          porque a cabeça não tem como saber que ela já foi resolvida. Escrever num lugar
+          confiável desliga esse alarme.
+        </p>
+        <p>
+          O problema é que esse lugar confiável costuma ser <strong>cinco aplicativos</strong>:
+          um para tarefas, outro para notas, uma planilha para o dinheiro, o calendário do
+          celular, um quadro esquecido de metas. Memória espalhada em cinco lugares continua
+          sendo memória que você carrega — agora a de lembrar em qual dos cinco a coisa estava.
+        </p>
+        <p>
+          E há um terceiro problema, mais recente. Uma conversa com IA começa do zero: o modelo
+          não conhece os seus projetos, não sabe quanto você gastou, e o que aprende sobre você
+          ou some quando a janela fecha, ou fica guardado num lugar que pertence ao fornecedor
+          da ferramenta. Trocar de ferramenta é recomeçar a se explicar.
+        </p>
+        <p>
+          O LifeOS junta as cinco coisas num painel só e abre esse painel para a IA — com as
+          suas regras, nos seus termos, num banco de dados que é seu. <strong>Ele é a camada
+          de contexto entre você e qualquer modelo.</strong>
+        </p>
+      </div>
+      <blockquote class="pull">O ganho não é lembrar de mais coisas. É parar de precisar lembrar.</blockquote>
+    </div>
+  </section>
+
+  <!-- ─────────── 02 ─────────── -->
+  <section class="sec" id="modulos">
+    <div class="sec-side">
+      <div class="sec-num">§ 02</div>
+      <h2>Oito áreas, um eixo</h2>
+      <p class="sec-abstract"><b>O que ele faz.</b> Um hub com o resumo de tudo; cada área ganha tela própria quando precisa de trabalho de verdade.</p>
+    </div>
+    <div class="sec-main">
+      <div class="prose">
+        <p>
+          A tela principal foi pensada para quase nunca precisar sair dela: o calendário, o
+          kanban, o saldo, a fatura, as notas recentes e os objetivos aparecem juntos, e dá para
+          criar e editar a maior parte das coisas sem trocar de página.
+        </p>
+      </div>
+
+      <div class="mods">
+        <article class="mod">
+          <div class="mod-top"><i class="fad fa-columns ico"></i><h4>Hub</h4></div>
+          <p>A tela de pouso. Calendário, kanban das tarefas, saldo do mês, fatura, notas recentes, projetos e manifestações num só painel.</p>
+          <ul>
+            <li>criar e editar tarefas, eventos e projetos sem sair dele</li>
+            <li>abre do cache local, sem esperar a rede; ↻ sincroniza</li>
+            <li>capa clássica ou imersiva, à escolha</li>
+          </ul>
+        </article>
+        <article class="mod">
+          <div class="mod-top"><i class="fad fa-wallet ico"></i><h4>Finanças</h4></div>
+          <p>Entradas e saídas mês a mês com regras de caixa de verdade — crédito não é tratado como dinheiro que já saiu.</p>
+          <ul>
+            <li>fatura que fecha, quanto já foi pago, adiantamentos</li>
+            <li>projeção das próximas faturas e recorrências</li>
+            <li>lançamento pelo celular com um atalho</li>
+          </ul>
+        </article>
+        <article class="mod">
+          <div class="mod-top"><i class="fad fa-tasks ico"></i><h4>Tarefas e Projetos</h4></div>
+          <p>Kanban de três colunas e lista. Toda tarefa pertence a um projeto — é o que impede a lista de virar uma caixa de entrada infinita.</p>
+          <ul>
+            <li>arrastar entre colunas muda o status</li>
+            <li>descrição em markdown, data de entrega, tipos</li>
+            <li>progresso calculado por projeto</li>
+          </ul>
+        </article>
+        <article class="mod">
+          <div class="mod-top"><i class="fad fa-feather-alt ico"></i><h4>Notas</h4></div>
+          <p>Markdown ligado a um ou mais projetos. É a matéria-prima do arquivo público — onde o pensamento fica antes de virar página.</p>
+          <ul>
+            <li>tipos configuráveis, busca, leitura em tela cheia</li>
+            <li>exporta em PDF</li>
+          </ul>
+        </article>
+        <article class="mod">
+          <div class="mod-top"><i class="fad fa-calendar-alt ico"></i><h4>Calendário</h4></div>
+          <p>Eventos com início e fim, tipos com cor própria e vínculo opcional a um projeto. Mora dentro do hub — não precisou de tela própria.</p>
+          <ul>
+            <li>o mesmo calendário alterna para as entregas de tarefas</li>
+            <li>linha do tempo com o que passou e o que vem</li>
+          </ul>
+        </article>
+        <article class="mod">
+          <div class="mod-top"><i class="fad fa-sparkles ico"></i><h4>Manifestações</h4></div>
+          <p>Objetivos de longo prazo — o que você quer que seja verdade daqui a um ano. Um modo foco esconde o resto do painel e deixa só elas.</p>
+          <ul><li>cada uma com status, tags e banner próprio</li></ul>
+        </article>
+        <article class="mod">
+          <div class="mod-top"><i class="fad fa-quote-right ico"></i><h4>Citações</h4></div>
+          <p>Frases guardadas com quem as disse. Uma é sorteada a cada vez que o painel abre, logo acima do calendário.</p>
+          <ul><li>trechos entre asteriscos ganham destaque</li></ul>
+        </article>
+        <article class="mod">
+          <div class="mod-top"><i class="fad fa-brain ico"></i><h4>Memória</h4><span class="mod-tag">novo</span></div>
+          <p>O que as IAs aprendem sobre você — preferências, contexto, correções — guardado aqui, e não dentro de um cliente ou modelo específico.</p>
+          <ul>
+            <li>cada fato é datado e diz quem o escreveu</li>
+            <li>qualquer IA conectada lê e acrescenta</li>
+          </ul>
+        </article>
+      </div>
+
+      <h3><span class="h3-n">02.1</span>Projeto é o eixo</h3>
+      <div class="prose">
+        <p>
+          Tarefas exigem um projeto; notas podem ter vários; eventos podem ter um. É esse
+          vínculo que permite perguntar <em>“o que existe sobre X?”</em> e receber de volta as
+          tarefas, as notas e os compromissos juntos. As manifestações ficam acima de tudo,
+          como horizonte; o dinheiro, as citações e a memória correm por fora.
+        </p>
+      </div>
+      <div class="diagram">
+        <div class="diagram-cap">modelo de dados</div>
+        <pre class="mermaid">
+flowchart LR
+  MAN["<b>Manifestações</b><br/>o horizonte: um ano à frente"]
+  PROJ(("<b>Projeto</b>"))
+  TAR["<b>Tarefas</b><br/>exatamente 1 projeto"]
+  NOT["<b>Notas</b><br/>1 ou mais projetos"]
+  EVT["<b>Eventos</b><br/>projeto opcional"]
+  MAN -.- PROJ
+  PROJ --> TAR
+  PROJ --> NOT
+  PROJ -.-> EVT
+  subgraph POR_FORA["correm por fora"]
+    MOV["Movimentações"]
+    CIT["Citações"]
+    MEM["Memória"]
+  end
+        </pre>
+      </div>
+    </div>
+  </section>
+
+  <!-- ─────────── 03 ─────────── -->
+  <section class="sec" id="financas">
+    <div class="sec-side">
+      <div class="sec-num">§ 03</div>
+      <h2>As contas que uma planilha não faz sozinha</h2>
+      <p class="sec-abstract"><b>Finanças com regra.</b> Quatro regras de cartão de crédito que quase todo controle financeiro simplifica demais.</p>
+    </div>
+    <div class="sec-main">
+      <div class="prose">
+        <p>
+          Somar entradas e subtrair saídas é fácil. O que torna o número útil são as regras do
+          crédito: quando o dinheiro de fato sai, em que fatura cada compra cai, o que acontece
+          quando se paga a mais. O módulo de Finanças implementa as quatro abaixo — e é por
+          causa delas que o saldo na tela bate com o saldo do banco.
+        </p>
+      </div>
+
+      <div class="regras">
+        <div class="regra">
+          <div class="regra-n">regra 1</div>
+          <h4>Crédito não é caixa</h4>
+          <p>Uma compra no crédito não sai do dinheiro disponível no mês em que é feita — vira fatura. Ela entra no total de saídas, mas fica fora do saldo.</p>
+          <div class="viz"><div class="viz-in eq">
+            <b>saldo</b><i>=</i><b>abertura</b><i>+</i><b class="pos">entradas</b><i>−</i><b class="neg">saídas de caixa</b>
+          </div></div>
+        </div>
+        <div class="regra">
+          <div class="regra-n">regra 2</div>
+          <h4>A fatura fecha no último dia</h4>
+          <p>A compra cai na fatura do mês seguinte — a não ser que seja feita no próprio último dia, quando já entra no ciclo depois.</p>
+          <div class="viz"><div class="viz-in">
+            <div class="fech-row"><span class="fech-data">20/06</span><span class="fech-seta"></span><span class="fech-fat">fatura de julho</span></div>
+            <div class="fech-row"><span class="fech-data">30/06</span><span class="fech-seta"></span><span class="fech-fat">fatura de agosto</span></div>
+            <div class="fech-row"><span class="fech-data">01/07</span><span class="fech-seta"></span><span class="fech-fat">fatura de agosto</span></div>
+          </div></div>
+        </div>
+        <div class="regra">
+          <div class="regra-n">regra 3</div>
+          <h4>Pagar a mais vira adiantamento</h4>
+          <p>O pagamento abate a fatura que fecha no mês e mostra quanto falta. O que passar do total vai para a seguinte — em cadeia, por quantos meses for preciso. Um pagamento chamado “adiantamento” pula direto para a próxima.</p>
+          <div class="viz"><div class="viz-in cadeia">
+            <span class="q">julho quitada</span><i>→</i><span class="a">+ sobra</span><i>→</i><span>agosto menor</span><i>→</i><span>…</span>
+          </div></div>
+        </div>
+        <div class="regra">
+          <div class="regra-n">regra 4</div>
+          <h4>Saldo que vem de antes</h4>
+          <p>Cada mês começa com o que sobrou dos anteriores, calculado no servidor. Um lançamento com data futura já aparece nos totais, mas só conta no saldo quando a data chega.</p>
+          <div class="viz"><div class="viz-in eq">
+            <b>junho</b><i>sobra</i><b class="pos">→</b><b>abertura de julho</b>
+          </div></div>
+        </div>
+      </div>
+
+      <div class="prose" style="margin-top: 30px;">
+        <p>
+          Em volta disso: recorrências agrupadas por descrição, gasto por meio de pagamento,
+          fluxo dia a dia, exportação do mês em CSV. E lançar um gasto não exige abrir o
+          painel — um atalho no celular manda a movimentação direto para o banco.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ─────────── 04 ─────────── -->
+  <section class="sec" id="ia">
+    <div class="sec-side">
+      <div class="sec-num">§ 04</div>
+      <h2>O sistema inteiro, aberto para a IA</h2>
+      <p class="sec-abstract"><b>O servidor MCP.</b> 23 ferramentas: 10 que consultam, 13 que escrevem, nenhuma que apaga. Mais as duas capacidades que mudaram o que o sistema é — contas feitas do jeito certo e uma memória que não depende do modelo.</p>
+    </div>
+    <div class="sec-main">
+      <div class="prose">
+        <p>
+          <strong>MCP</strong> — Model Context Protocol — é o protocolo aberto que clientes como
+          o Claude usam para conversar com ferramentas externas. O LifeOS tem um servidor MCP
+          próprio: você o cadastra uma vez como conector, e a partir daí a IA consulta suas
+          notas, tarefas, projetos, eventos e finanças por conta própria, sem que você copie e
+          cole nada. Pergunta “o que eu já escrevi sobre isso?” e a resposta sai do que você de
+          fato escreveu, não do que o modelo imagina.
+        </p>
+      </div>
+
+      <h3><span class="h3-n">04.1</span>Uma URL, cadastrada uma vez</h3>
+      <div class="url"><span>https://&lt;projeto&gt;.supabase.co/functions/v1/lifeos-mcp/</span><span class="u-tok">&lt;token de 256 bits&gt;</span></div>
+      <div class="conexao">
+        <div class="cx">
+          <i class="fad fa-key ico"></i>
+          <b>O token mora no endereço</b>
+          <p>Conectores pessoais só guardam uma URL — não há onde pôr um cabeçalho de autenticação. Então o token vai no próprio caminho, e é colado uma vez só.</p>
+        </div>
+        <div class="cx">
+          <i class="fad fa-sync ico"></i>
+          <b>Trocável sem redeploy</b>
+          <p>O token não está no código: fica numa tabela de configuração, lida a cada chamada. Rotacionar é trocar um valor — a tela do MCP no painel já mostra a URL nova.</p>
+        </div>
+        <div class="cx">
+          <i class="fad fa-lock ico"></i>
+          <b>Fechado por padrão</b>
+          <p>Sem token configurado, o servidor recusa tudo — inclusive a lista de ferramentas. Um erro de instalação vira um servidor trancado, nunca um aberto.</p>
+        </div>
+      </div>
+
+      <h3><span class="h3-n">04.2</span>Como uma conversa acontece</h3>
+      <div class="prose">
+        <p>
+          A IA decide sozinha quais ferramentas chamar, em que ordem, e com quais filtros. Você
+          só faz a pergunta. Abaixo, uma conversa como as que o sistema permite — o que o modelo
+          recebe ao conectar, as chamadas que faz, e o que responde.
+        </p>
+      </div>
+      <div class="chat" aria-label="Conversa ilustrativa">
+        <div class="ch-sys"><i class="fad fa-plug"></i> conectado · <b>23 ferramentas</b> · índice de memória com <b>4 memórias</b> nas instruções</div>
+        <div class="ch-user">Fechei o mês? Quanto sobrou, e quanto ainda devo de cartão?</div>
+        <div class="ch-tool"><i class="fad fa-terminal"></i><span class="t-n">resumo_financeiro</span>({ mes: "2026-09" })<span class="t-r">← saldo, faturas e projeção do mês, já com as regras de crédito</span></div>
+        <div class="ch-tool"><i class="fad fa-terminal"></i><span class="t-n">get_memoria</span>({ memorias: ["Como colaborar comigo"] })<span class="t-r">← “prefere resumos em tópicos curtos”</span></div>
+        <div class="ch-ia">
+          • Sobraram <strong>R$ 412,30</strong> no caixa.<br>
+          • A fatura que fecha agora, de <strong>R$ 1.180,00</strong>, está quitada.<br>
+          • Você pagou <strong>R$ 150,00</strong> a mais: isso abate a de outubro, que fica em <strong>R$ 640,00</strong>.
+        </div>
+        <div class="ch-user">Cria uma tarefa pra revisar as assinaturas até sexta, no projeto Casa.</div>
+        <div class="ch-tool"><i class="fad fa-terminal"></i><span class="t-n">create_tarefa</span>({ name: "Revisar assinaturas", projeto: "casa", data_entrega: "2026-10-02" })<span class="t-r">← projeto encontrado pelo nome: “🏠 Casa”</span></div>
+        <div class="ch-ia">Criada no projeto <strong>Casa</strong>, para sexta, 02/10. Ela já aparece no kanban e no calendário do painel.</div>
+      </div>
+      <p class="ilustrativo">conversa ilustrativa — valores e nomes fictícios</p>
+
+      <h3><span class="h3-n">04.3</span>As 23 ferramentas, por domínio</h3>
+      <div class="doms">
+        <div class="dom">
+          <div class="dom-head"><i class="fad fa-feather-alt ico"></i><b>Notas</b><span>1 + 2</span></div>
+          <ul class="tl">
+            <li><div class="tl-top"><code>search_notas</code><span class="rw r">consulta</span></div><p>Por nome, projeto, tipo e período. Devolve o conteúdo inteiro em markdown, não só o título.</p></li>
+            <li><div class="tl-top"><code>create_nota</code><span class="rw w">escrita</span></div><p>Exige tipo, ao menos um projeto e o conteúdo; a data é sempre hoje.</p></li>
+            <li><div class="tl-top"><code>update_nota</code><span class="rw w">escrita</span></div><p>Substituição completa: toda chamada reenvia o texto inteiro, nunca um trecho.</p></li>
+          </ul>
+        </div>
+        <div class="dom">
+          <div class="dom-head"><i class="fad fa-tasks ico"></i><b>Tarefas e Projetos</b><span>2 + 2</span></div>
+          <ul class="tl">
+            <li><div class="tl-top"><code>search_tarefas</code><span class="rw r">consulta</span></div><p>Por nome, projeto, status, tipo e prazo de entrega.</p></li>
+            <li><div class="tl-top"><code>search_projetos</code><span class="rw r">consulta</span></div><p>Lista projetos — a IA descobre os nomes antes de filtrar o resto.</p></li>
+            <li><div class="tl-top"><code>create_tarefa</code><span class="rw w">escrita</span></div><p>Sempre dentro de um projeto; sem status, nasce “Não Iniciado”.</p></li>
+            <li><div class="tl-top"><code>update_tarefa</code><span class="rw w">escrita</span></div><p>Muda só o que for enviado — inclusive o projeto.</p></li>
+          </ul>
+        </div>
+        <div class="dom">
+          <div class="dom-head"><i class="fad fa-calendar-alt ico"></i><b>Calendário e objetivos</b><span>2 + 2</span></div>
+          <ul class="tl">
+            <li><div class="tl-top"><code>search_eventos</code><span class="rw r">consulta</span></div><p>Por período, tipo e projeto; um evento de vários dias que cruza o intervalo também entra.</p></li>
+            <li><div class="tl-top"><code>create_evento</code><span class="rw w">escrita</span></div><p>Data final e projeto opcionais.</p></li>
+            <li><div class="tl-top"><code>update_evento</code><span class="rw w">escrita</span></div><p>Mandar a data final vazia volta o evento a um dia só.</p></li>
+            <li><div class="tl-top"><code>search_manifestacoes</code><span class="rw r">consulta</span></div><p>Os objetivos de longo prazo, por status e tag. Só leitura.</p></li>
+          </ul>
+        </div>
+        <div class="dom">
+          <div class="dom-head"><i class="fad fa-wallet ico"></i><b>Finanças</b><span>2 + 2</span></div>
+          <ul class="tl">
+            <li><div class="tl-top"><code>resumo_financeiro</code><span class="rw r">consulta</span><span class="novo">novo</span></div><p>O mês agregado com as regras da tela; compara até doze meses.</p></li>
+            <li><div class="tl-top"><code>search_movimentacoes</code><span class="rw r">consulta</span></div><p>Os lançamentos em si, para descer ao detalhe; um mês inteiro cabe numa chamada.</p></li>
+            <li><div class="tl-top"><code>create_movimentacao</code><span class="rw w">escrita</span></div><p>Direção obrigatória, meio de pagamento opcional.</p></li>
+            <li><div class="tl-top"><code>update_movimentacao</code><span class="rw w">escrita</span></div><p>Direção e meio mudam de forma independente.</p></li>
+          </ul>
+        </div>
+        <div class="dom dom-wide">
+          <div class="dom-head"><i class="fad fa-brain ico"></i><b>Memória e citações</b><span>3 + 5</span></div>
+          <ul class="tl">
+            <li><div class="tl-top"><code>list_memorias</code><span class="rw r">consulta</span><span class="novo">novo</span></div><p>O índice: título, categoria, descrição e quantos fatos cada memória tem.</p></li>
+            <li><div class="tl-top"><code>get_memoria</code><span class="rw r">consulta</span><span class="novo">novo</span></div><p>Abre uma ou mais memórias com todos os registros, datados e com a origem.</p></li>
+            <li><div class="tl-top"><code>create_memoria</code><span class="rw w">escrita</span><span class="novo">novo</span></div><p>Um tema novo; se o título já existe, a IA é orientada a acrescentar a ele.</p></li>
+            <li><div class="tl-top"><code>add_registro</code><span class="rw w">escrita</span><span class="novo">novo</span></div><p>Um fato novo numa memória existente — é como a memória cresce.</p></li>
+            <li><div class="tl-top"><code>update_memoria</code><span class="rw w">escrita</span><span class="novo">novo</span></div><p>Título, descrição ou categoria; os fatos não mudam.</p></li>
+            <li><div class="tl-top"><code>update_registro</code><span class="rw w">escrita</span><span class="novo">novo</span></div><p>Corrige um fato que envelheceu; a data original fica.</p></li>
+            <li><div class="tl-top"><code>search_citacoes</code><span class="rw r">consulta</span></div><p>As frases guardadas, por texto ou autor.</p></li>
+            <li><div class="tl-top"><code>create_citacao</code><span class="rw w">escrita</span></div><p>Guarda uma frase; trecho entre asteriscos vira destaque no painel.</p></li>
+          </ul>
+        </div>
+      </div>
+
+      <h3><span class="h3-n">04.4</span>Desenhado para um modelo usar</h3>
+      <div class="prose">
+        <p>
+          Um servidor MCP pode simplesmente expor as tabelas. Este foi desenhado pensando em
+          quem vai chamá-lo — um modelo, que erra de jeitos previsíveis. Cada decisão abaixo
+          fecha um desses erros.
+        </p>
+      </div>
+      <div class="design">
+        <div class="ds"><i class="fad fa-tags"></i><div><b>O vocabulário vem do banco</b><p>Os valores aceitos — status, tipos, meios de pagamento — aparecem no esquema de cada ferramenta, lidos da mesma tabela que a tela usa. O modelo nunca inventa um status que não existe.</p></div></div>
+        <div class="ds"><i class="fad fa-search"></i><div><b>Nomes, não ids</b><p>Projetos e memórias são encontrados pelo nome ou por um trecho que só bate com um. Se bater com vários, a resposta lista as opções.</p></div></div>
+        <div class="ds"><i class="fad fa-comments"></i><div><b>Erros que se explicam</b><p>Um erro volta como texto legível — “Projeto não encontrado. Projetos existentes: …” — e o modelo se corrige sozinho na chamada seguinte, em vez de a conversa travar.</p></div></div>
+        <div class="ds"><i class="fad fa-cut"></i><div><b>Avisa quando corta</b><p>Toda busca diz quantos resultados existiam e se a lista foi truncada, para o modelo não tomar metade por tudo.</p></div></div>
+        <div class="ds"><i class="fad fa-shield-alt"></i><div><b>Nada apaga</b><p>Excluir continua sendo só pela tela. Uma IA que erra uma edição deixa algo para corrigir; uma que apaga não deixa nada.</p></div></div>
+        <div class="ds"><i class="fad fa-file-alt"></i><div><b>Edição sem perda</b><p>Onde há texto longo (notas, fatos da memória), editar exige o texto inteiro — um envio parcial não tem como apagar o resto. Onde não há, a edição muda só o campo enviado.</p></div></div>
+      </div>
+
+      <h3><span class="h3-n">04.5</span>Números, não palpites</h3>
+      <div class="prose">
+        <p>
+          Entregar para a IA as linhas cruas da tabela de gastos parece suficiente, e não é. Sem
+          as regras da seção anterior, o modelo soma a compra no crédito <em>e</em> o pagamento
+          da fatura — o mesmo dinheiro, contado duas vezes — e responde com confiança um valor
+          inflado.
+        </p>
+        <p>
+          Por isso existe <code>resumo_financeiro</code>: devolve o mês já calculado com
+          <strong>as mesmas regras da tela de Finanças</strong> — saldo com abertura, crédito
+          fora do caixa, a fatura que fecha com o que foi pago e o que falta, a projeção das
+          próximas, recorrências, as maiores saídas — e compara até doze meses de uma vez. A
+          implementação foi verificada contra a da tela sobre dados reais: o resultado bate
+          centavo por centavo, mês a mês.
+        </p>
+      </div>
+      <div class="cmp">
+        <div class="cmp-col cmp-bad">
+          <div class="cmp-title"><i class="fad fa-times"></i> somando linhas cruas</div>
+          <div class="cmp-line"><span>12/06 · Mercado · crédito</span><span>R$ 300,00</span></div>
+          <div class="cmp-line"><span>05/07 · Pagamento da fatura</span><span>R$ 300,00</span></div>
+          <div class="cmp-veredito">“Você gastou R$ 600,00.”<small>a mesma compra entrou duas vezes</small></div>
+        </div>
+        <div class="cmp-col cmp-good">
+          <div class="cmp-title"><i class="fad fa-check"></i> com resumo_financeiro</div>
+          <div class="cmp-line"><span>junho · saída de caixa</span><span>R$ 0,00</span></div>
+          <div class="cmp-line"><span>junho · fatura de julho</span><span>+ R$ 300,00</span></div>
+          <div class="cmp-line"><span>julho · pagamento abate a fatura</span><span>R$ 300,00</span></div>
+          <div class="cmp-veredito">“Saíram R$ 300,00, em julho.”<small>uma vez, no mês em que o dinheiro saiu</small></div>
+        </div>
+      </div>
+      <p class="ilustrativo">valores ilustrativos</p>
+
+      <h3><span class="h3-n">04.6</span>Memória que não depende do modelo</h3>
+      <div class="prose">
+        <p>
+          Os clientes de IA já têm memória — presa a eles. Trocar de ferramenta, ou de modelo,
+          zera o que ela sabia sobre você. No LifeOS a memória é uma tabela: um
+          <strong>índice</strong>, com o título de cada assunto e uma descrição de uma linha, e
+          dentro de cada assunto os <strong>registros</strong> — fatos datados, com a origem de
+          quem os escreveu.
+        </p>
+        <p>
+          Ao conectar, o servidor entrega o índice nas instruções iniciais: o modelo começa a
+          conversa sabendo o que existe e abre só o que o assunto pedir. Quando aprende algo que
+          vale guardar, registra. A tela de Memória mostra de onde veio cada fato, filtra por
+          origem — e só você apaga.
+        </p>
+      </div>
+      <div class="mem-grid">
+        <div>
+          <div class="label">o que a IA recebe ao conectar</div>
+<div class="code"><span class="c-h">Índice de memória:</span>
+<span class="c-m">[Perfil]</span>
+- Quem sou — trabalho, formação, rotina (8 registros)
+<span class="c-m">[Preferências]</span>
+- Como colaborar comigo — idioma, tom, correções já feitas (5 registros)
+<span class="c-m">[Projetos]</span>
+- Casa nova — orçamento, prazos, fornecedores (4 registros)
+<span class="c-m">[Referências]</span>
+- Ferramentas que uso — onde fica cada coisa (2 registros)</div>
+        </div>
+        <div>
+          <div class="label">dentro de uma memória</div>
+          <div class="reg-demo">
+            <div class="reg-demo-t">Como colaborar comigo</div>
+            <div class="reg-demo-d">Preferências · 5 registros</div>
+            <div class="rd" style="--oc:#e08a5f"><div class="rd-top"><span class="rd-origem">Claude Code</span>mar/2026</div><div class="rd-t">Respostas em português, sem rodeio.</div></div>
+            <div class="rd" style="--oc:#a98be0"><div class="rd-top"><span class="rd-origem">Claude web</span>jun/2026</div><div class="rd-t">Prefere discutir o desenho antes de implementar algo grande.</div></div>
+            <div class="rd" style="--oc:#9aabbf"><div class="rd-top"><span class="rd-origem">Você (tela)</span>set/2026</div><div class="rd-t">Resumos em tópicos curtos.</div></div>
+          </div>
+        </div>
+      </div>
+      <p class="ilustrativo">exemplo do formato — conteúdo fictício</p>
+
+      <h3><span class="h3-n">04.7</span>O ciclo completo</h3>
+      <div class="ciclo">
+        <div class="passo"><b>Você registra</b><span>tarefas, notas, gastos e compromissos — ou pede para a IA registrar.</span></div>
+        <div class="passo"><b>A IA lê</b><span>pelo MCP, com as regras do sistema e a memória sobre você.</span></div>
+        <div class="passo"><b>Algo vira página</b><span>o que valeu a pena pensar vira uma entrada do arquivo público.</span></div>
+        <div class="passo"><b>A IA escreve</b><span>a página inteira — é só HTML — e o painel publica.</span></div>
+      </div>
+      <div class="exemplos">
+        <div class="exemplo">“Compara meus três últimos meses e me diz para onde o dinheiro foi.”<small>resumo_financeiro</small></div>
+        <div class="exemplo">“O que eu já escrevi sobre sono e sonhos? Resume o que se repete.”<small>search_notas</small></div>
+        <div class="exemplo">“Quais tarefas do projeto X vencem nos próximos quinze dias?”<small>search_tarefas</small></div>
+        <div class="exemplo">“Lê minhas notas de pesquisa deste ano e escreve uma nova conectando os temas.”<small>search_notas → create_nota</small></div>
+        <div class="exemplo">“Tem alguma manifestação parada que eu não toco há meses?”<small>search_manifestacoes</small></div>
+        <div class="exemplo">“Registra na minha memória o que você aprendeu sobre mim nesta conversa.”<small>add_registro</small></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ─────────── 05 ─────────── -->
+  <section class="sec" id="por-dentro">
+    <div class="sec-side">
+      <div class="sec-num">§ 05</div>
+      <h2>Como ele funciona</h2>
+      <p class="sec-abstract"><b>Por dentro.</b> HTML estático na frente, funções no servidor no meio, um banco sem acesso público no fundo.</p>
+    </div>
+    <div class="sec-main">
+      <div class="prose">
+        <p>
+          Três caminhos chegam ao mesmo banco: o navegador, o cliente de IA e o atalho do
+          celular. Todos passam por funções no servidor que conferem a credencial antes de
+          tocar em qualquer dado — nenhuma tabela é alcançável direto da internet.
+        </p>
+      </div>
+      <div class="diagram">
+        <div class="diagram-cap">arquitetura</div>
+        <pre class="mermaid">
+flowchart LR
+  subgraph FORA["onde você está"]
+    NAV["<b>Navegador</b><br/>HTML + JS estático<br/>GitHub Pages"]
+    IA["<b>Cliente de IA</b><br/>Claude e afins"]
+    CEL["<b>Celular</b><br/>atalho"]
+  end
+  subgraph SUPA["Supabase"]
+    EF["<b>Edge Functions</b><br/>uma por módulo"]
+    MCP["<b>lifeos-mcp</b><br/>23 ferramentas"]
+    ING["<b>lifeos-ingest</b><br/>lançamento rápido"]
+    DB[("<b>Postgres</b><br/>tabelas lifeos_*<br/>sem acesso público")]
+  end
+  NAV -- "senha mestre" --> EF
+  IA -- "URL com token" --> MCP
+  CEL -- "webhook" --> ING
+  EF --> DB
+  MCP --> DB
+  ING --> DB
+        </pre>
+      </div>
+
+      <div class="princ">
+        <div class="pr"><i class="fad fa-file-code"></i><div><b>Sem build, sem framework</b><p>HTML, CSS e JavaScript escritos à mão. Não há etapa entre editar e publicar: um git push põe no ar.</p></div></div>
+        <div class="pr"><i class="fad fa-shield-alt"></i><div><b>A senha é conferida no servidor</b><p>O navegador nunca decide acesso. Cada chamada leva a senha mestre, e a função a confere no banco antes de fazer qualquer coisa.</p></div></div>
+        <div class="pr"><i class="fad fa-cubes"></i><div><b>Uma tela, um arquivo</b><p>Cada página tem o seu próprio JavaScript, sem código compartilhado entre elas. Mexer em Finanças não quebra Tarefas.</p></div></div>
+        <div class="pr"><i class="fad fa-wifi-slash"></i><div><b>Abre sem esperar a rede</b><p>O que foi carregado fica em cache no navegador; o painel abre na hora, e o ↻ busca de novo quando você quiser.</p></div></div>
+        <div class="pr"><i class="fad fa-tags"></i><div><b>Vocabulários editáveis</b><p>Status, tipos e tags vivem numa tabela. Renomear um valor migra junto as linhas que o usam, numa transação só; apagar só é possível se ninguém usa.</p></div></div>
+        <div class="pr"><i class="fad fa-palette"></i><div><b>Nove temas</b><p>Um tema é um arquivo CSS de cores. Esta página segue o tema escolhido no painel — os diagramas inclusive.</p></div></div>
+        <div class="pr"><i class="fad fa-vial"></i><div><b>Testável sem servidor</b><p>Aberto direto do disco, o painel entra num modo local com dados fictícios — dá para mexer na interface sem tocar nos dados reais.</p></div></div>
+        <div class="pr"><i class="fad fa-hand-holding-usd"></i><div><b>Custo de manter: zero</b><p>GitHub Pages é gratuito e o plano free do Supabase cobre com folga o uso de uma pessoa. Não há assinatura, nem servidor alugado.</p></div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ─────────── 06 ─────────── -->
+  <section class="sec" id="configurar">
+    <div class="sec-side">
+      <div class="sec-num">§ 06</div>
+      <h2>Configurado de dentro dele mesmo</h2>
+      <p class="sec-abstract"><b>Configurar.</b> Nada do que muda no dia a dia exige abrir o banco de dados.</p>
+    </div>
+    <div class="sec-main">
+      <div class="conf">
+        <div class="conf-row"><i class="fad fa-brain"></i><div><b>Memória</b><span>O que as IAs sabem sobre você: ver, corrigir, podar, filtrar por origem.</span></div></div>
+        <div class="conf-row"><i class="fad fa-key"></i><div><b>Senhas</b><span>A senha mestre abre tudo; senhas extras abrem só as páginas do arquivo que você escolher.</span></div></div>
+        <div class="conf-row"><i class="fad fa-upload"></i><div><b>Publicar</b><span>Manda uma entrada nova do arquivo direto para o repositório, sem abrir o GitHub.</span></div></div>
+        <div class="conf-row"><i class="fad fa-palette"></i><div><b>Temas</b><span>A paleta do painel e da capa do arquivo, e o formato da capa do hub.</span></div></div>
+        <div class="conf-row"><i class="fad fa-tags"></i><div><b>Tags</b><span>Os vocabulários de todas as tabelas, com renomeação que migra os dados.</span></div></div>
+        <div class="conf-row"><i class="fad fa-mobile"></i><div><b>Automação</b><span>A URL para lançar gastos pelo celular.</span></div></div>
+        <div class="conf-row"><i class="fad fa-plug"></i><div><b>MCP</b><span>A URL do conector e o guia do que a IA passa a conseguir fazer.</span></div></div>
+        <div class="conf-row"><i class="fad fa-compass"></i><div><b>Como funciona</b><span>Um guia de uso: por onde começar, e em que ordem, para o hábito pegar.</span></div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ─────────── 07 ─────────── -->
+  <section class="sec" id="para-quem">
+    <div class="sec-side">
+      <div class="sec-num">§ 07</div>
+      <h2>Feito para uma pessoa</h2>
+      <p class="sec-abstract"><b>Para quem.</b> Uma instância, uma vida. E preparado para que outra pessoa monte a sua.</p>
+    </div>
+    <div class="sec-main">
+      <div class="prose">
+        <p>
+          O LifeOS não tem contas, equipes nem compartilhamento — e isso é escolha, não falta. A
+          senha mestre é a única identidade; o banco guarda a vida de uma pessoa só, e cada
+          decisão de desenho parte daí. É o que permite que ele seja simples de manter e barato
+          de hospedar.
+        </p>
+        <p>
+          Ao mesmo tempo, ele foi preparado para que outra pessoa monte a sua própria instância:
+          o banco inteiro está descrito em migrations versionadas, um seed cria o mínimo para o
+          primeiro acesso, um único arquivo de configuração aponta para o backend novo, e a
+          licença é MIT. Uma instância nova se personaliza numa conversa com a IA — identidade,
+          tema, limpeza do conteúdo do autor original e checagem do que falta configurar.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <section class="fecho">
+    <div class="fecho-num">✦</div>
+    <div>
+      <h2>O sistema deixa de ser onde as coisas ficam guardadas.</h2>
+      <p>Passa a ser de onde o trabalho sai.</p>
+      <div class="hero-ctas">
+        <a href="../index.html" class="btn btn-ghost" data-requer-blog><i class="fad fa-arrow-left"></i> Voltar ao arquivo</a>
+        <a href="#topo" class="btn btn-ghost"><i class="fad fa-arrow-up"></i> Topo</a>
+      </div>
+    </div>
+  </section>
+
+  <footer class="foot"><span>✦ LifeOS</span></footer>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10.9.0/dist/mermaid.min.js"></script>
+<script>
+/* Única lógica da página: o blog.js (esconde os links do arquivo quando o
+   blog está desligado) e os diagramas. As cores do Mermaid saem dos tokens
+   do TEMA ATIVO, lidos depois do load — o tema é trocado por tema.js e só
+   está aplicado de fato quando o CSS dele terminou de carregar. Assim o
+   diagrama acompanha a paleta escolhida (VISUAL.md: theme 'base' +
+   themeVariables da página). */
+(function () {
+  'use strict';
+  if (window.LIFEOS_BLOG) window.LIFEOS_BLOG.aplicar();
+
+  window.addEventListener('load', function () {
+    if (!window.mermaid) return;
+    var cs = getComputedStyle(document.documentElement);
+    function tok(nome, fb) { var v = cs.getPropertyValue(nome).trim(); return v || fb; }
+    var surface = tok('--surface', '#1c1a16'), surface2 = tok('--surface-2', '#242018');
+    mermaid.initialize({
+      startOnLoad: false,
+      theme: 'base',
+      themeVariables: {
+        darkMode: true,
+        background: surface,
+        primaryColor: surface2,
+        primaryTextColor: tok('--text', '#ede8df'),
+        primaryBorderColor: tok('--gold', '#c4913a'),
+        lineColor: tok('--mute', '#6b6456'),
+        secondaryColor: surface2,
+        tertiaryColor: surface,
+        clusterBkg: tok('--bg', '#14120f'),
+        clusterBorder: tok('--border-mid', '#3a352d'),
+        edgeLabelBackground: surface,
+        titleColor: tok('--dim', '#b0a898'),
+        fontFamily: 'EB Garamond, Georgia, serif',
+        fontSize: '16px'
+      },
+      flowchart: { curve: 'basis', padding: 20, nodeSpacing: 40, rankSpacing: 60, htmlLabels: true }
+    });
+    mermaid.run({ querySelector: '.mermaid' });
+  });
+})();
+</script>
+</body>
+</html>

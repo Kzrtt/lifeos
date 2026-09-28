@@ -124,8 +124,43 @@
       filtros: 'texto · autor — só criar, sem editar',
     },
     {
+      nome: 'list_memorias', tipo: 'leitura',
+      desc: 'Índice da memória de longo prazo: título, categoria e descrição de cada memória, sem o conteúdo. O mesmo índice já chega à IA ao conectar.',
+      filtros: 'categoria',
+    },
+    {
+      nome: 'get_memoria', tipo: 'leitura',
+      desc: 'Abre uma ou mais memórias e devolve todos os registros, datados e com a origem de cada um.',
+      filtros: 'títulos ou ids',
+    },
+    {
+      nome: 'create_memoria', tipo: 'escrita',
+      desc: 'Cria uma memória nova — um tema. Título único; se o tema já existe, a IA é orientada a usar add_registro.',
+      filtros: 'título · descrição · categoria (obrigatórios) · registros iniciais · origem',
+    },
+    {
+      nome: 'add_registro', tipo: 'escrita',
+      desc: 'Acrescenta um fato datado a uma memória existente. É como a memória cresce.',
+      filtros: 'memória · texto (obrigatórios) · origem',
+    },
+    {
+      nome: 'update_memoria', tipo: 'escrita',
+      desc: 'Edita título, descrição ou categoria de uma memória — patch parcial; os registros não mudam.',
+      filtros: 'memória + qualquer campo',
+    },
+    {
+      nome: 'update_registro', tipo: 'escrita',
+      desc: 'Corrige um registro que ficou errado. Substitui o texto inteiro; a data original se mantém.',
+      filtros: 'id · texto — sempre o texto completo',
+    },
+    {
+      nome: 'resumo_financeiro', tipo: 'leitura',
+      desc: 'O mês já agregado com as mesmas regras da tela de Finanças: saldo com abertura, crédito fora do caixa, fatura que fecha (pago, restante, adiantamento), projeção, recorrências. Com um intervalo, compara até 12 meses.',
+      filtros: 'mês · ou de/até',
+    },
+    {
       nome: 'search_movimentacoes', tipo: 'leitura',
-      desc: 'Busca movimentações financeiras, para a IA somar e comparar períodos.',
+      desc: 'Busca as movimentações em si, para descer ao detalhe. Com início e fim de data, um mês inteiro cabe numa chamada.',
       filtros: 'nome · direção · meio · data · faixa de valor',
     },
     {
