@@ -118,6 +118,11 @@ duas páginas nasceram sem `[hidden] { display: none !important; }` e travaram
 em loading infinito — a linha existia nas outras e se perdeu ao copiar a
 casca. Um teste que compare as cópias vale mais que centralizá-las.
 
+O que existe hoje é a skill `/lifeos-revisar` (Claude Code), que confere
+uma mudança contra o contrato do `CLAUDE.md` — `[hidden]`, ordem do
+`<head>`, cores fora de token, mocks, cache-busting, MCP sincronizado com a
+tela, registro de temas. Ela aponta; não substitui um teste automatizado.
+
 ### 4.4 A documentação cita páginas que não existem
 
 Vários docs (`VISUAL.md`, `EXPANDING_PAGES.md`, `MANIFEST.md`) usam entradas

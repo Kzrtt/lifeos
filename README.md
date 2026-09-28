@@ -104,6 +104,11 @@ Resumo do manual: forkar, criar um projeto Supabase, rodar as migrations e o see
 subir as Edge Functions, e editar **um** arquivo
 (`assets/js/lifeos-config.js`).
 
+**Para estender** (campo novo, gráfico, seção no painel, módulo inteiro),
+o repositório traz skills do Claude Code em `.claude/skills/` que aplicam o
+padrão do código passo a passo — a tabela de qual usar está em
+[`.claude/CLAUDE.md`](.claude/CLAUDE.md) §3.
+
 Depois de instalado, o comando `/personalizar` (Claude Code) entrevista você e
 aplica nome, tema, e remove o que sobrou do repositório de origem.
 

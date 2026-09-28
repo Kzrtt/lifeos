@@ -6,7 +6,7 @@
 lifeos/
 │
 ├── .claude/CLAUDE.md          # Entry point para agentes — lê primeiro
-├── .claude/skills/            # /personalizar — entrevista de configuração
+├── .claude/skills/            # /personalizar + as skills /lifeos-* de extensão (ver CLAUDE.md §3)
 ├── README.md                  # O que o projeto é
 ├── SETUP.md                   # Instalação, assistida por IA ou manual
 ├── LICENSE                    # MIT
