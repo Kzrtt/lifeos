@@ -77,6 +77,7 @@
 .fa-book-open::before { content: "\f518"; }
 .fa-brain::before { content: "\f5dc"; }
 .fa-calendar-alt::before { content: "\f073"; }
+.fa-calendar-check::before { content: "\f274"; }
 .fa-calendar-day::before { content: "\f783"; }
 .fa-chart-bar::before { content: "\f080"; }
 .fa-chart-line::before { content: "\f201"; }

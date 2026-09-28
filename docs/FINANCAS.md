@@ -566,10 +566,65 @@ Crédito e o pagamento da fatura como duas saídas. `resumo_financeiro`
 devolve o mês já agregado como a tela mostra: KPIs, saldo com abertura,
 saídas/entradas por meio, fatura que fecha (pago, restante, adiantamento),
 fatura projetada, recorrências, maiores saídas e saldo mínimo; com `de`/`ate`,
-até 12 meses e um comparativo. Busca tudo até o fim do último mês pedido de
-uma vez (a cadeia `carryInto` olha pra trás sem limite fixo) e usa a mesma
-RPC `lifeos_saldo_abertura` da tela. `search_movimentacoes` continua pro
-detalhe, com teto de 300 quando há `data_inicio` e `data_fim`.
+até 12 meses e um comparativo. Busca tudo de uma vez, do começo da tabela
+até 2 meses depois do último mês pedido ou do corrente (a cadeia `carryInto`
+olha pra trás sem limite fixo; a projeção precisa dos lançamentos futuros), e
+usa a mesma RPC `lifeos_saldo_abertura` da tela. `search_movimentacoes`
+continua pro detalhe, com teto de 300 quando há `data_inicio` e `data_fim`.
+
+**A análise (set/2026, `criarAnalise`).** Campos *acrescentados* por cima
+dos da tela, sem mexer em `calcularResumoMes`. Não existe na tela e não é
+cópia de nada; só o MCP calcula:
+
+- **Nome = categoria.** `finChave` agrupa por nome sem acento, caixa ou
+  espaço sobrando, e aplica `ALIASES` (vazio por padrão; ex.: `conta luz` → `luz`). Mostra a
+  grafia mais frequente
+- **Rateios** (`RATEIOS`, vazio por padrão): nomes de compras feitas em
+  nome de outras pessoas; a Entrada é a parte delas, não renda. `rateios` dá
+  entrou/saiu/`custo_proprio`;
+  `entradas_proprias` e `entradas_por_nome` já vêm sem eles
+- **`consumo_mes`**: saídas pela data da compra (Crédito conta no mês da
+  compra), sem pagamento de fatura, menos as entradas de rateio. É o "quanto
+  gastei" sem dupla contagem; `saidas_com_credito` inclui a fatura e não
+  serve pra isso. `variavel_mes` = consumo menos os compromissos
+- **Início dos dados** (`inicio_dados`): o primeiro mês com
+  `MIN_MOVIMENTACOES_INICIO` (20) lançamentos, ou `INICIO_DADOS` se
+  definido. Meses anteriores ficam fora de janelas, do lookback de pontuais e
+  das médias, em vez de entrarem como zero. Mês corrente sai `parcial`, mês
+  ainda não começado sai `futuro`; os dois também ficam fora das médias
+- **`compromissos` / `renda_recorrente`**: nome presente em todos os
+  `JANELA_COMPROMISSO` (3) meses completos até o mês, no máximo
+  `MAX_OCORRENCIAS_COMPROMISSO` (2) vezes por mês. Isso separa conta fixa de
+  hábito (delivery, café, mercado). Mês cuja janela própria é incompleta (começo dos
+  dados) sai com `janela_incompleta: true` e usa a janela do primeiro mês com
+  janela cheia (`janela_emprestada_de`): com 2 meses a heurística pega
+  coincidência (uma multa em dois meses seguidos), com 1 não pega nada. Só sem nenhuma
+  janela cheia ela usa os meses que houver (mínimo 2; com 1, lista vazia).
+  `ja_lancado`/`valor_lancado` são sempre do próprio mês.
+  Compromisso típico = mediana; renda típica = o mês completo mais recente
+  (reajuste é degrau, não ruído). `COMPROMISSOS_FORCAR`/`IGNORAR` corrigem à
+  mão; forçado sem ocorrência na janela não aparece
+- **`sinais`**: picos de gasto variável (e se vieram logo depois de uma
+  entrada grande), tickets repetidos, pontuais (≥ `LIMIAR_PONTUAL`, nunca
+  compromisso, com nome que não apareceu nos 3 meses anteriores; no começo
+  dos dados, a referência é completada com os meses completos seguintes),
+  `consumo_base`
+- **`ritmo`** (mês corrente): variável até hoje contra a média dos meses da
+  janela no mesmo dia (`desvio_pct`). Toda média e comparação (e o variável
+  estimado da projeção) sai **sem os pontuais** de cada mês. Só
+  `fechamento_projetado` (até hoje com pontuais + `media_diaria` nos dias
+  restantes) inclui os já lançados, porque é dinheiro que já saiu;
+  `fechamento_sem_pontuais` é o comparável com `media_mes_janela_sem_pontuais`
+- **`projecao`** (sempre, na raiz): os 2 meses seguintes ao corrente. Renda
+  e compromissos pelo típico ou pelo já lançado (nunca os dois), fatura pelo
+  `restante` da lógica existente, `livre_para_variavel` e `livre_por_dia`,
+  com `premissas` explícitas
+- `por_nome` no mês único, `comparativo_por_nome` no intervalo;
+  `incluir_movimentacoes` anexa as linhas em formato colunar (até 3 meses)
+
+As constantes ficam no início da seção pura. A verificação de set/2026 rodou
+a seção nova e a de antes sobre os dados reais: campos antigos idênticos em
+todos os meses e datas testados.
 
 **A seção do MCP é pura** (sem fetch/Deno, entre os marcadores
 `RESUMO FINANCEIRO · início/fim`) justamente pra ser testável fora do Deno.
@@ -587,9 +642,52 @@ apagar o token.
 
 ---
 
+## 9.2 Recorrências previstas (set/2026)
+
+O que se espera que entre ou saia todo mês (salário, aluguel, assinaturas),
+cadastrado à mão pelo botão de calendário da topbar de `financas.html`
+(`#rec-modal`: lista + formulário no mesmo modal, padrão banner `.pdet-*`).
+**Não gera movimentação** — é tabela de referência pro `resumo_financeiro`
+prever o mês seguinte.
+
+- **Tabela `lifeos_recorrencias`** (migration `0008`): `nome`, `direcao`,
+  `valor_min`/`valor_max` (valor fixo = os dois iguais; faixa = mínimo e
+  máximo), `meio` e `dia` opcionais (nulo = não informado, o resumo infere
+  pelo histórico), `ativa` (pausada fica guardada, fora da previsão). RLS sem
+  policy. `direcao`/`meio` validados contra os vocabulários na function.
+- **Edge Function `lifeos-recorrencias`**: `query`/`create`/`update`/`delete`,
+  contrato `{ok, error}`. Recusa (`409 nome_duplicado`) duas recorrências com
+  o mesmo nome normalizado na mesma direção. Limites: `MAX_NOME` 120,
+  `MAX_VALOR` 1.000.000 (copiados no `financas.js`).
+- **O nome casa com as movimentações** pela chave do resumo (sem acento,
+  caixa, espaço sobrando, e com os `ALIASES` do MCP). É assim que a previsão
+  sabe se a recorrência já caiu no mês. O formulário sugere os nomes que já
+  aparecem nas movimentações em cache.
+- **No `resumo_financeiro`** (lê a tabela direto, ativas só; sem a migration a
+  leitura falha em silêncio e tudo segue pela heurística):
+  - **cadastro manda, por direção**: com pelo menos uma saída ativa, os
+    compromissos são só as saídas cadastradas; idem entradas pra renda. O
+    que a heurística acha e não está cadastrado vem em `sugestoes`, fora das
+    contas. Por direção pra que cadastrar só as contas não zere a renda.
+  - `fonte` (`cadastro`/`heuristica`) em `compromissos`, `renda_recorrente` e
+    `projecao`; cada item tem `origem`.
+  - valor típico = meio da faixa; `variacao_alta` = algum mês da janela fora
+    da faixa (com `TOLERANCIA_COMPROMISSO`).
+  - a projeção principal usa o provável; com alguma faixa, `cenarios`
+    traz o pessimista (saídas no máximo, entradas no mínimo) e o otimista.
+    O que já foi lançado vale igual nos três.
+  - o conjunto de compromissos também decide `variavel_mes`, picos e
+    pontuais de todos os meses.
+- No modo local, a lista é um mock em memória com as mesmas validações e
+  erros da function.
+
+---
+
 ## 10. O que NÃO foi implementado (opcional, decisão à parte)
 
-- **Categorias de despesa** semânticas (não existem como tags na base).
+- **Categorias de despesa** semânticas (não existem como tags na base). É
+  deliberado: o nome da movimentação é a categoria. O agrupamento que a IA
+  precisa vem do `resumo_financeiro` (§9.1), via `finChave` + `ALIASES`.
 
 > A **Fatura projetada / competência de crédito** (antes opcional) já foi
 > implementada — ver §1 e o brief `CREDITO-FATURA-PROJECAO.md`. Regra: fatura

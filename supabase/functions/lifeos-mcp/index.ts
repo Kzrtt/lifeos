@@ -555,19 +555,49 @@ function buildTools() {
       "esta tool para qualquer pergunta sobre quanto entrou, saiu, sobrou ou " +
       "está devendo, em vez de somar linhas de search_movimentacoes (somar " +
       "linhas cruas conta a compra no crédito e o pagamento da fatura duas " +
-      "vezes). Significado dos campos: saidas_caixa = o que saiu do caixa no " +
-      "mês (sem compras no crédito); saidas_com_credito = todas as saídas, " +
-      "inclusive crédito; saldo = saldo_abertura (sobra dos meses anteriores) " +
-      "+ variacao_mes; lançamentos com data futura contam nos totais mas não " +
-      "no saldo. fatura_deste_mes = compras no crédito do mês anterior que " +
-      "fecham agora, com quanto já foi pago; fatura_projetada = compras no " +
-      "crédito deste mês, por fatura futura. Sem parâmetros, resume o mês atual.",
+      "vezes). O nome da movimentação É a categoria (não há outro campo); " +
+      "nomes são agrupados sem acento, caixa ou apelido. " +
+      (RATEIOS.length ? `${RATEIOS.join(", ")} são rateios: a Entrada é a parte de outras pessoas, não renda. ` : "") +
+      "Campos: saidas_caixa = o que saiu do caixa (sem crédito); " +
+      "saidas_com_credito = todas as saídas, INCLUSIVE pagamento de fatura, " +
+      "NÃO mede consumo; consumo_mes = o gasto do mês pela data da compra, " +
+      "sem pagamento de fatura e menos a parte dos amigos nos rateios (use " +
+      "este pra 'quanto gastei'); variavel_mes = consumo_mes menos " +
+      "compromissos; saldo = saldo_abertura + variacao_mes (data futura conta " +
+      "nos totais, não no saldo); fatura_deste_mes = compras no crédito do mês " +
+      "anterior que fecham agora; fatura_projetada = compras no crédito deste " +
+      "mês. parcial = mês corrente, futuro = mês ainda não começado; os dois e " +
+      "os meses antes de inicio_dados ficam fora das médias. entradas_proprias e " +
+      "entradas_por_nome = sem rateios; rateios = entrou, saiu e custo_proprio por " +
+      "nome. compromissos / renda_recorrente: com fonte=cadastro, vêm das " +
+      "recorrências que o usuário cadastrou em Finanças (valor fixo ou faixa " +
+      "valor_min/valor_max; valor_tipico = meio da faixa) e o que a heurística " +
+      "acha fora do cadastro vem em sugestoes, fora das contas (vale por " +
+      "direção); com fonte=heuristica, são os nomes presentes em todos os " +
+      `${JANELA_COMPROMISSO} últimos meses completos, até ${MAX_OCORRENCIAS_COMPROMISSO}x por mês ` +
+      "(janela_incompleta no começo dos dados, que usa a janela do primeiro mês " +
+      "com janela cheia: janela_emprestada_de; valor típico = mediana, na renda o " +
+      "mês mais recente). pct_renda em %. sinais = " +
+      "picos de gasto variável (apos_entrada), tickets_repetidos, pontuais " +
+      `(>= ${LIMIAR_PONTUAL} com nome novo, nunca compromisso) e consumo_base (consumo sem pontuais). ` +
+      "ritmo (mês corrente) = variável até hoje contra a média da janela no " +
+      "mesmo dia (desvio_pct); toda média e comparação é sem pontuais, só " +
+      "fechamento_projetado inclui os pontuais já lançados. " +
+      "por_nome (mês único) ou comparativo_por_nome na raiz (intervalo). " +
+      "projecao = os 2 meses seguintes ao atual: livre_para_variavel e " +
+      "livre_por_dia, com detalhe e premissas; com faixa no cadastro, " +
+      "cenarios.pessimista/otimista ao lado do provável. Sem parâmetros, resume o mês atual.",
     inputSchema: {
       type: "object",
       properties: {
         mes: { type: "string", description: "Um mês, YYYY-MM." },
         de: { type: "string", description: "Primeiro mês de um intervalo, YYYY-MM (use com ate)." },
         ate: { type: "string", description: "Último mês do intervalo, YYYY-MM (máx. 12 meses)." },
+        incluir_movimentacoes: {
+          type: "boolean",
+          description: "Anexa a cada mês lista_movimentacoes (colunas id, data, nome, valor, direcao, meio, marca; " +
+            "o id serve pro update_movimentacao). Máx. 3 meses. Padrão false.",
+        },
       },
     },
   },
@@ -694,7 +724,7 @@ Deno.serve(async (req) => {
       return respond(rpcResult(id, {
         protocolVersion: params?.protocolVersion || "2025-06-18",
         capabilities: { tools: {} },
-        serverInfo: { name: "lifeos-mcp", version: "2.3.0" },
+        serverInfo: { name: "lifeos-mcp", version: "2.5.0" },
         instructions: await buildInstructions(REST, restHeaders),
       }));
     }
@@ -1711,8 +1741,40 @@ async function handleUpdateRegistro(REST: string, headers: Record<string, string
 //    explícito, que pula direto pra próxima fatura.
 //  - A fatura fecha no último dia do mês: compra antes dele cai em M+1; no
 //    último dia, em M+2.
+//
+// Análise (set/2026, criarAnalise no fim da seção): campos ACRESCENTADOS ao
+// resumo -- consumo, rateios, compromissos, sinais, ritmo e projeção. Não
+// mexe em nada de calcularResumoMes. O nome da movimentação É a categoria;
+// finChave junta grafias diferentes da mesma coisa. As constantes abaixo
+// são o ajuste fino da heurística.
 
-type Mov = { id?: string; name: string; valor: number; date: string; tipo: string[]; created_at?: string };
+// Chave normalizada (sem acento, minúscula, espaços colapsados) -> chave
+// canônica: junta grafias diferentes da mesma coisa. Vazio por padrão;
+// exemplo de uso:
+//   "conta luz": "luz",
+//   "financiamento carro": "carro",
+const ALIASES: Record<string, string> = {};
+// Chaves de compras feitas em nome de outras pessoas (um racha, uma compra
+// coletiva): a Entrada com esse nome é a parte delas (não é renda); o custo
+// próprio é Saída menos Entrada. Vazio por padrão; ex.: ["racha", "vaquinha"].
+const RATEIOS: string[] = [];
+// Primeiro mês com dados de verdade; os anteriores ficam fora de janelas,
+// do lookback de pontuais e das médias (senão entram como zero). null =
+// automático: o primeiro mês com MIN_MOVIMENTACOES_INICIO lançamentos.
+const INICIO_DADOS: string | null = null;
+const MIN_MOVIMENTACOES_INICIO = 20;
+const JANELA_COMPROMISSO = 3;            // meses completos; com menos (mín. 2), janela_incompleta
+const MAX_OCORRENCIAS_COMPROMISSO = 2;   // por mês; acima disso é hábito
+const TOLERANCIA_COMPROMISSO = 0.15;     // variacao_alta fora disso da mediana
+// Chaves (ver finChave) que a heurística erra: forçar vira compromisso
+// mesmo sem aparecer todo mês; ignorar tira da lista.
+const COMPROMISSOS_FORCAR: string[] = [];
+const COMPROMISSOS_IGNORAR: string[] = [];
+const LIMIAR_PONTUAL = 200;
+const MIN_REPETICOES_TICKET = 4;
+const LIMIAR_ENTRADA_GRANDE = 300;
+
+type Mov ={ id?: string; name: string; valor: number; date: string; tipo: string[]; created_at?: string };
 
 function finNum(v: unknown): number { const n = Number(v); return Number.isFinite(n) ? n : 0; }
 function finRound2(v: number): number { return Math.round(v * 100) / 100; }
@@ -1912,17 +1974,566 @@ function calcularResumoMes(
     maiores_saidas: maioresSaidas,
   };
 }
+
+// ── Análise ──────────────────────────────────────────────────────────────
+
+function finChave(nome: string): string {
+  const k = (nome || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase().trim().replace(/\s+/g, " ");
+  return ALIASES[k] ?? k;
+}
+function finMeioStr(m: Mov, meios: string[]): string | null {
+  const ms = meios.filter((me) => finHas(m, me));
+  return ms.length ? ms.join("+") : null;
+}
+function finMediana(xs: number[]): number {
+  if (!xs.length) return 0;
+  const s = xs.slice().sort((a, b) => a - b), h = Math.floor(s.length / 2);
+  return s.length % 2 ? s[h] : (s[h - 1] + s[h]) / 2;
+}
+function finDia(m: Mov) { return m.date ? parseInt(m.date.slice(8, 10), 10) : 0; }
+function finSomaDias(iso: string, n: number) {
+  const d = new Date(iso + "T00:00:00Z");
+  d.setUTCDate(d.getUTCDate() + n);
+  return d.toISOString().slice(0, 10);
+}
+function finSoma(xs: number[]) { return xs.reduce((s, x) => s + x, 0); }
+
+type Recorrente = {
+  chave: string; nome: string; valor_tipico: number; valor_min?: number; valor_max?: number;
+  dia_tipico: number | null; meio_tipico: string | null;
+  variacao_alta: boolean; ja_lancado: boolean; valor_lancado: number; origem: string;
+};
+// Linha ativa de lifeos_recorrencias (cadastro em Finanças → Recorrências
+// previstas; ver FINANCAS.md §9.2).
+type Cadastrada = { nome: string; direcao: string; valor_min: number; valor_max: number; meio: string | null; dia: number | null };
+
+// `todas` = todas as linhas lidas (o início dos dados, a grafia de exibição e
+// as entradas grandes olham além dos meses pedidos). Um mês é "completo"
+// quando já terminou e não é anterior ao início dos dados; o corrente
+// (parcial) e os futuros ficam fora de médias e janelas.
+function criarAnalise(
+  rowsDoMes: (ym: string) => Mov[], todas: Mov[], hojeISO: string, meios: string[], cadastradas: Cadastrada[] = [],
+) {
+  const mesHoje = hojeISO.slice(0, 7);
+  const diaHoje = parseInt(hojeISO.slice(8, 10), 10);
+  const c = finCtx(meios, hojeISO);
+  // Pela chave, e não por isPagamentoFatura: existe "Fatura " com espaço, e
+  // um pagamento lançado com meio por engano também não é consumo.
+  const ehFatura = (m: Mov) => finIsSaida(m) && finChave(m.name).includes("fatura");
+  const ehRateio = (m: Mov) => RATEIOS.includes(finChave(m.name));
+  const r2 = finRound2;
+
+  // Cadastro por direção, uma linha por chave (dois nomes que viram a mesma
+  // chave pelos ALIASES contariam em dobro: vale o primeiro).
+  const cadastroPorDirecao: Record<string, Cadastrada[]> = { Entrada: [], Saida: [] };
+  for (const c of cadastradas) {
+    const lista = cadastroPorDirecao[c.direcao];
+    if (!lista || lista.some((x) => finChave(x.nome) === finChave(c.nome))) continue;
+    lista.push(c);
+  }
+
+  const porMesQtd: Record<string, number> = {};
+  for (const m of todas) { const ym = (m.date || "").slice(0, 7); porMesQtd[ym] = (porMesQtd[ym] || 0) + 1; }
+  const inicio = INICIO_DADOS
+    ?? Object.keys(porMesQtd).sort().find((ym) => porMesQtd[ym] >= MIN_MOVIMENTACOES_INICIO)
+    ?? mesHoje;
+  const completo = (ym: string) => ym >= inicio && ym < mesHoje;
+
+  const grafias: Record<string, Record<string, number>> = {};
+  for (const m of todas) {
+    const g = (m.name || "").trim(), k = finChave(m.name);
+    const gs = (grafias[k] ??= {});
+    gs[g] = (gs[g] || 0) + 1;
+  }
+  const nomes: Record<string, string> = {};
+  const nomeDe = (k: string) =>
+    nomes[k] ??= (Object.entries(grafias[k] ?? {}).sort((a, b) => b[1] - a[1])[0]?.[0] ?? k);
+
+  const entradasGrandes = todas.filter((m) => finIsEntrada(m) && !ehRateio(m) && finNum(m.valor) >= LIMIAR_ENTRADA_GRANDE);
+
+  // Os JANELA_COMPROMISSO meses completos mais recentes até ym; perto do
+  // início dos dados, os que houver.
+  const janela = (ym: string) => {
+    const out: string[] = [];
+    let m = ym < mesHoje ? ym : finPrevMonth(mesHoje);
+    for (let i = 0; i < JANELA_COMPROMISSO && m >= inicio; i++) { out.unshift(m); m = finPrevMonth(m); }
+    return out;
+  };
+
+  const consumoMes = (ym: string) => {
+    let s = 0;
+    for (const m of rowsDoMes(ym)) {
+      if (finIsSaida(m) && !ehFatura(m)) s += finNum(m.valor);
+      else if (finIsEntrada(m) && ehRateio(m)) s -= finNum(m.valor);
+    }
+    return s;
+  };
+
+  // Gasto variável acumulado até o dia `dia`: consumo sem os compromissos.
+  // `semPontuais` é pras médias: um conserto de 1600 não é ritmo.
+  const variavelAte = (ym: string, dia: number, comp: Set<string>, semPontuais = false) => {
+    const fora = semPontuais ? new Set(pontuaisDe(ym)) : null;
+    let s = 0;
+    for (const m of rowsDoMes(ym)) {
+      if (finDia(m) > dia || fora?.has(m)) continue;
+      if (finIsSaida(m) && !ehFatura(m) && !comp.has(finChave(m.name))) s += finNum(m.valor);
+      else if (finIsEntrada(m) && ehRateio(m)) s -= finNum(m.valor);
+    }
+    return s;
+  };
+
+  // Primeiro mês com janela cheia. Mês cuja janela própria é incompleta
+  // (começo dos dados) usa a janela dele: com 2 meses a heurística pega
+  // coincidência (uma multa em dois meses seguidos), com 1 não pega nada.
+  let primeiroCheio: string | null = null;
+  for (let m = inicio; m < mesHoje; m = finNextMonth(m)) {
+    if (janela(m).length === JANELA_COMPROMISSO) { primeiroCheio = m; break; }
+  }
+
+  // Compromissos (saídas) ou renda recorrente (entradas) vistos de ym: chave
+  // presente em TODOS os meses da janela, no máximo N vezes por mês. Sem
+  // janela cheia pra emprestar, usa a que houver; com menos de 2 meses, a
+  // heurística não se sustenta e a lista sai vazia. ja_lancado/valor_lancado
+  // são sempre do próprio ym.
+  const recMemo: Record<string, {
+    itens: Recorrente[]; total: number; total_min?: number; total_max?: number;
+    fonte: string; sugestoes?: Omit<Recorrente, "chave">[];
+    janela: string[]; janela_incompleta: boolean; janela_emprestada_de: string | null;
+  }> = {};
+  const recorrentes = (ym: string, entrada: boolean) => {
+    const memoKey = ym + (entrada ? "E" : "S");
+    if (recMemo[memoKey]) return recMemo[memoKey];
+    const propria = janela(ym);
+    const incompleta = propria.length < JANELA_COMPROMISSO;
+    const emprestada = incompleta ? primeiroCheio : null;
+    const jan = emprestada ? janela(emprestada) : propria;
+    const elegivel = (m: Mov) => (entrada ? finIsEntrada(m) : finIsSaida(m)) && !ehFatura(m) && !ehRateio(m);
+    const st: Record<string, { meses: Record<string, { qtd: number; soma: number }>; dias: number[]; meios: Record<string, number> }> = {};
+    for (const j of jan) for (const m of rowsDoMes(j)) {
+      if (!elegivel(m)) continue;
+      const s = (st[finChave(m.name)] ??= { meses: {}, dias: [], meios: {} });
+      const sm = (s.meses[j] ??= { qtd: 0, soma: 0 });
+      sm.qtd++; sm.soma += finNum(m.valor);
+      s.dias.push(finDia(m));
+      const me = finMeioStr(m, meios) ?? "";
+      s.meios[me] = (s.meios[me] || 0) + 1;
+    }
+    const lancado: Record<string, number> = {};
+    for (const m of rowsDoMes(ym)) if (elegivel(m)) {
+      const k = finChave(m.name);
+      lancado[k] = (lancado[k] || 0) + finNum(m.valor);
+    }
+    let chaves = jan.length < 2 ? [] : Object.keys(st).filter((k) =>
+      jan.every((j) => st[k].meses[j] && st[k].meses[j].qtd <= MAX_OCORRENCIAS_COMPROMISSO));
+    if (!entrada && jan.length >= 2) {
+      // Forçado sem nenhuma ocorrência na janela não tem valor típico: fica de fora.
+      for (const k of COMPROMISSOS_FORCAR) if (st[k] && !chaves.includes(k)) chaves.push(k);
+      chaves = chaves.filter((k) => !COMPROMISSOS_IGNORAR.includes(k));
+    }
+    const somasDe = (k: string) => st[k] ? jan.filter((j) => st[k].meses[j]).map((j) => st[k].meses[j].soma) : [];
+    const meioHist = (k: string) => st[k] ? (Object.entries(st[k].meios).sort((a, b) => b[1] - a[1])[0][0] || null) : null;
+    const diaHist = (k: string) => st[k] ? Math.round(finMediana(st[k].dias)) : null;
+    const heuristica: Recorrente[] = chaves.map((k) => {
+      const somas = somasDe(k);
+      // Renda muda em degrau (reajuste), não oscila: vale o mês mais recente.
+      // Compromisso oscila (luz, aluguel com condomínio): vale a mediana.
+      const tipico = entrada ? somas[somas.length - 1] : finMediana(somas);
+      return {
+        chave: k,
+        nome: nomeDe(k),
+        valor_tipico: r2(tipico),
+        dia_tipico: diaHist(k),
+        meio_tipico: meioHist(k),
+        variacao_alta: somas.some((x) => Math.abs(x - tipico) > TOLERANCIA_COMPROMISSO * tipico),
+        ja_lancado: k in lancado,
+        valor_lancado: r2(lancado[k] ?? 0),
+        origem: "heuristica",
+      };
+    }).sort((a, b) => b.valor_tipico - a.valor_tipico);
+
+    // Cadastro manda, por direção: com pelo menos uma recorrência ativa
+    // nessa direção, os itens são só os cadastrados e a heurística vira
+    // sugestão (o que ela acha e não está cadastrado). Valor típico = meio da
+    // faixa; meio e dia não informados vêm do histórico.
+    const cad = cadastroPorDirecao[entrada ? "Entrada" : "Saida"];
+    let itens = heuristica, sugestoes: Omit<Recorrente, "chave">[] | undefined;
+    if (cad.length) {
+      itens = cad.map((c) => {
+        const k = finChave(c.nome), somas = somasDe(k);
+        const min = c.valor_min, max = c.valor_max;
+        return {
+          chave: k,
+          nome: c.nome,
+          valor_tipico: r2((min + max) / 2),
+          valor_min: r2(min),
+          valor_max: r2(max),
+          dia_tipico: c.dia ?? diaHist(k),
+          meio_tipico: c.meio ?? meioHist(k),
+          // Algum mês da janela fora da faixa cadastrada (com a tolerância).
+          variacao_alta: somas.some((x) => x < min * (1 - TOLERANCIA_COMPROMISSO) || x > max * (1 + TOLERANCIA_COMPROMISSO)),
+          ja_lancado: k in lancado,
+          valor_lancado: r2(lancado[k] ?? 0),
+          origem: "cadastro",
+        };
+      }).sort((a, b) => b.valor_tipico - a.valor_tipico);
+      const cadChaves = new Set(itens.map((i) => i.chave));
+      sugestoes = heuristica.filter((i) => !cadChaves.has(i.chave)).map(semChave);
+    }
+    return (recMemo[memoKey] = {
+      itens, total: r2(finSoma(itens.map((i) => i.valor_tipico))),
+      ...(cad.length ? {
+        total_min: r2(finSoma(itens.map((i) => i.valor_min ?? i.valor_tipico))),
+        total_max: r2(finSoma(itens.map((i) => i.valor_max ?? i.valor_tipico))),
+      } : {}),
+      fonte: cad.length ? "cadastro" : "heuristica",
+      sugestoes,
+      janela: jan, janela_incompleta: incompleta, janela_emprestada_de: emprestada,
+    });
+  };
+  const semChave = (i: Recorrente) => { const { chave: _, ...rest } = i; return rest; };
+  const ehCredito = (i: Recorrente) => (i.meio_tipico ?? "").split("+").includes("Crédito");
+
+  // Pontuais: saída grande cujo nome não aparece nos 3 meses anteriores
+  // (dentro dos dados). Perto do início dos dados a referência é completada
+  // com os meses completos seguintes; senão todo gasto do primeiro mês seria
+  // "novo". Compromisso (inclusive forçado) nunca é pontual.
+  const pontMemo: Record<string, Mov[]> = {};
+  const pontuaisDe = (ym: string): Mov[] => {
+    if (pontMemo[ym]) return pontMemo[ym];
+    const comp = new Set(recorrentes(ym, false).itens.map((i) => i.chave));
+    const ref: string[] = [];
+    for (let p = finPrevMonth(ym); ref.length < 3 && p >= inicio; p = finPrevMonth(p)) ref.push(p);
+    for (let p = finNextMonth(ym); ref.length < 3 && completo(p); p = finNextMonth(p)) ref.push(p);
+    const vistas = new Set<string>();
+    for (const p of ref) for (const m of rowsDoMes(p)) vistas.add(finChave(m.name));
+    return (pontMemo[ym] = rowsDoMes(ym).filter((m) => {
+      const k = finChave(m.name);
+      return finIsSaida(m) && !ehFatura(m) && !ehRateio(m) && !comp.has(k)
+        && finNum(m.valor) >= LIMIAR_PONTUAL && !vistas.has(k);
+    }));
+  };
+  // Variável médio por dia nos meses da janela, sem os pontuais de cada mês.
+  const mediaDiariaJanela = (jan: string[], comp: Set<string>) =>
+    jan.length ? finSoma(jan.map((j) => variavelAte(j, 31, comp, true))) / finSoma(jan.map(finLastDay)) : 0;
+
+  const analisarMes = (ym: string, opts: { porNome: boolean; lista: boolean }) => {
+    const rows = rowsDoMes(ym);
+    const comp = recorrentes(ym, false), renda = recorrentes(ym, true);
+    const setComp = new Set(comp.itens.map((i) => i.chave));
+    const consumo = consumoMes(ym);
+
+    // Rateios e entradas próprias.
+    const rateiosK: Record<string, { entrou: number; saiu: number }> = {};
+    const entradasK: Record<string, number> = {};
+    let entradas = 0, entradasRateio = 0;
+    for (const m of rows) {
+      const v = finNum(m.valor), k = finChave(m.name);
+      if (finIsEntrada(m)) entradas += v;
+      if (ehRateio(m)) {
+        const r = (rateiosK[k] ??= { entrou: 0, saiu: 0 });
+        if (finIsEntrada(m)) { r.entrou += v; entradasRateio += v; }
+        if (finIsSaida(m)) r.saiu += v;
+      } else if (finIsEntrada(m)) entradasK[k] = (entradasK[k] || 0) + v;
+    }
+    const rateios: Record<string, { entrou: number; saiu: number; custo_proprio: number }> = {};
+    for (const [k, r] of Object.entries(rateiosK)) rateios[nomeDe(k)] = { entrou: r2(r.entrou), saiu: r2(r.saiu), custo_proprio: r2(r.saiu - r.entrou) };
+    const entradasPorNome: Record<string, number> = {};
+    for (const [k, v] of Object.entries(entradasK).sort((a, b) => b[1] - a[1])) entradasPorNome[nomeDe(k)] = r2(v);
+
+    // Por nome (só no modo mês único).
+    let porNome;
+    if (opts.porNome) {
+      const g: Record<string, { e: number; s: number; qe: number; qs: number; meios: Set<string> }> = {};
+      for (const m of rows) {
+        if (ehFatura(m)) continue;
+        const x = (g[finChave(m.name)] ??= { e: 0, s: 0, qe: 0, qs: 0, meios: new Set() });
+        const v = finNum(m.valor);
+        if (finIsEntrada(m)) { x.e += v; x.qe++; }
+        if (finIsSaida(m)) { x.s += v; x.qs++; }
+        for (const me of meios) if (finHas(m, me)) x.meios.add(me);
+      }
+      porNome = Object.entries(g).map(([k, x]) => ({
+        nome: nomeDe(k), entradas: r2(x.e), saidas: r2(x.s), liquido: r2(x.e - x.s),
+        qtd_entradas: x.qe, qtd_saidas: x.qs,
+        ticket_medio: x.qs ? r2(x.s / x.qs) : null, meios: [...x.meios],
+      })).sort((a, b) => (b.saidas - a.saidas) || (b.entradas - a.entradas));
+    }
+
+    // Sinais.
+    const ehVariavel = (m: Mov) => finIsSaida(m) && !ehFatura(m) && !ehRateio(m) && !setComp.has(finChave(m.name));
+    const dias: Record<string, { total: number; itens: { nome: string; valor: number }[] }> = {};
+    for (const m of rows) if (ehVariavel(m)) {
+      const d = (dias[m.date] ??= { total: 0, itens: [] });
+      d.total += finNum(m.valor);
+      d.itens.push({ nome: (m.name || "").trim(), valor: r2(finNum(m.valor)) });
+    }
+    const picos = Object.entries(dias).sort((a, b) => b[1].total - a[1].total).slice(0, 5).map(([data, d]) => ({
+      data, total: r2(d.total), itens: d.itens.sort((a, b) => b.valor - a.valor),
+      apos_entrada: entradasGrandes.some((e) => e.date >= finSomaDias(data, -2) && e.date <= data),
+    }));
+    const tickets: Record<string, { k: string; valor: number; vezes: number }> = {};
+    for (const m of rows) if (finIsSaida(m) && !ehFatura(m)) {
+      const k = finChave(m.name), id = k + "|" + Math.round(finNum(m.valor) * 100);
+      (tickets[id] ??= { k, valor: finNum(m.valor), vezes: 0 }).vezes++;
+    }
+    const ticketsRepetidos = Object.values(tickets).filter((t) => t.vezes >= MIN_REPETICOES_TICKET)
+      .map((t) => ({ nome: nomeDe(t.k), valor: r2(t.valor), vezes: t.vezes, total: r2(t.valor * t.vezes) }))
+      .sort((a, b) => (b.vezes - a.vezes) || (b.total - a.total));
+    const pontuais = pontuaisDe(ym).map((m) => ({ data: m.date, nome: (m.name || "").trim(), valor: r2(finNum(m.valor)) }));
+
+    // Ritmo (só no mês corrente). Toda média e comparação é sem pontuais;
+    // só fechamento_projetado inclui os pontuais já lançados (é dinheiro que
+    // já saiu).
+    let ritmo;
+    if (ym === mesHoje) {
+      const jan = janela(ym), diasNoMes = finLastDay(ym);
+      const ate = variavelAte(ym, diaHoje, setComp);
+      const ateSem = variavelAte(ym, diaHoje, setComp, true);
+      const mediaDiaria = ateSem / diaHoje;
+      const mesmoDia = jan.length
+        ? finSoma(jan.map((j) => variavelAte(j, Math.min(diaHoje, finLastDay(j)), setComp, true))) / jan.length
+        : null;
+      ritmo = {
+        dias_decorridos: diaHoje,
+        dias_no_mes: diasNoMes,
+        variavel_ate_hoje: r2(ate),
+        variavel_ate_hoje_sem_pontuais: r2(ateSem),
+        media_mesmo_dia: mesmoDia !== null ? r2(mesmoDia) : null,
+        desvio_pct: mesmoDia ? Math.round((ateSem - mesmoDia) / mesmoDia * 1000) / 10 : null,
+        media_diaria: r2(mediaDiaria),
+        media_diaria_janela: jan.length ? r2(mediaDiariaJanela(jan, setComp)) : null,
+        media_mes_janela_sem_pontuais: jan.length
+          ? r2(finSoma(jan.map((j) => variavelAte(j, 31, setComp, true))) / jan.length)
+          : null,
+        fechamento_projetado: r2(ate + mediaDiaria * (diasNoMes - diaHoje)),
+        fechamento_sem_pontuais: r2(mediaDiaria * diasNoMes),
+      };
+    }
+
+    let lista;
+    if (opts.lista) {
+      lista = {
+        colunas: ["id", "data", "nome", "valor", "direcao", "meio", "marca"],
+        linhas: rows.slice().sort(finCmpByDateAsc).map((m) => [
+          m.id ?? null, m.date, m.name, r2(finNum(m.valor)),
+          finIsEntrada(m) ? "Entrada" : finIsSaida(m) ? "Saida" : null,
+          finMeioStr(m, meios),
+          ehFatura(m) ? "fatura"
+            : ehRateio(m) ? "rateio"
+            : finIsSaida(m) && setComp.has(finChave(m.name)) ? "compromisso"
+            : !c.isRealizado(m) ? "futuro"
+            : null,
+        ]),
+      };
+    }
+
+    return {
+      parcial: ym === mesHoje,
+      futuro: ym > mesHoje,
+      consumo_mes: r2(consumo),
+      variavel_mes: r2(variavelAte(ym, 31, setComp)),
+      entradas_proprias: r2(entradas - entradasRateio),
+      entradas_por_nome: entradasPorNome,
+      rateios,
+      ...(porNome ? { por_nome: porNome } : {}),
+      compromissos: {
+        fonte: comp.fonte,
+        total: comp.total,
+        ...(comp.total_min !== undefined ? { total_min: comp.total_min, total_max: comp.total_max } : {}),
+        pct_renda: renda.total > 0 ? r2(comp.total / renda.total * 100) : null,
+        janela: comp.janela,
+        janela_incompleta: comp.janela_incompleta,
+        janela_emprestada_de: comp.janela_emprestada_de,
+        itens: comp.itens.map(semChave),
+        ...(comp.sugestoes ? { sugestoes: comp.sugestoes } : {}),
+      },
+      renda_recorrente: {
+        fonte: renda.fonte,
+        total: renda.total,
+        ...(renda.total_min !== undefined ? { total_min: renda.total_min, total_max: renda.total_max } : {}),
+        itens: renda.itens.map(semChave),
+        ...(renda.sugestoes ? { sugestoes: renda.sugestoes } : {}),
+      },
+      sinais: {
+        picos,
+        tickets_repetidos: ticketsRepetidos,
+        pontuais,
+        consumo_base: r2(consumo - finSoma(pontuais.map((p) => p.valor))),
+      },
+      ...(ritmo ? { ritmo } : {}),
+      ...(lista ? { lista_movimentacoes: lista } : {}),
+    };
+  };
+
+  // Uma linha por (nome, direção); média só dos meses completos.
+  const comparativoPorNome = (meses: string[]) => {
+    const acc: Record<string, { k: string; dir: string; v: Record<string, number> }> = {};
+    for (const ym of meses) for (const m of rowsDoMes(ym)) {
+      if (ehFatura(m)) continue;
+      const dir = finIsEntrada(m) ? "Entrada" : finIsSaida(m) ? "Saida" : null;
+      if (!dir) continue;
+      const k = finChave(m.name);
+      const a = (acc[k + "|" + dir] ??= { k, dir, v: {} });
+      a.v[ym] = (a.v[ym] || 0) + finNum(m.valor);
+    }
+    const comps = meses.filter(completo);
+    return Object.values(acc).map((a) => {
+      const valores: Record<string, number> = {};
+      for (const ym of meses) valores[ym] = r2(a.v[ym] ?? 0);
+      return {
+        nome: nomeDe(a.k), direcao: a.dir, valores,
+        media: comps.length ? r2(finSoma(comps.map((ym) => a.v[ym] ?? 0)) / comps.length) : null,
+      };
+    }).sort((a, b) => ((b.media ?? -1) - (a.media ?? -1)));
+  };
+
+  // Os 2 meses seguintes ao corrente. Lançado (inclusive com data futura)
+  // substitui o típico, nunca soma.
+  const projecao = (aberturaHoje: number) => {
+    const comp = recorrentes(mesHoje, false), renda = recorrentes(mesHoje, true);
+    const setComp = new Set(comp.itens.map((i) => i.chave));
+    const lancadoEm = (ym: string, i: Recorrente, entrada: boolean) => {
+      let soma = 0, achou = false;
+      for (const m of rowsDoMes(ym)) {
+        if (!(entrada ? finIsEntrada(m) : finIsSaida(m)) || ehFatura(m) || finChave(m.name) !== i.chave) continue;
+        soma += finNum(m.valor); achou = true;
+      }
+      return achou ? soma : null;
+    };
+
+    // Saldo estimado no fim do mês corrente.
+    const rHoje = calcularResumoMes(rowsDoMes, mesHoje, aberturaHoje, hojeISO, meios);
+    let futuros = 0;
+    for (const m of rowsDoMes(mesHoje)) {
+      if (c.isRealizado(m)) continue;
+      if (finIsEntrada(m)) futuros += finNum(m.valor);
+      if (c.isSaidaCaixa(m)) futuros -= finNum(m.valor);
+    }
+    // Cenários: com faixa cadastrada, o pessimista usa a saída no máximo e a
+    // entrada no mínimo; o otimista, o contrário; o provável, o meio da faixa
+    // (valor_tipico). Sem faixa os três coincidem. Lançado vale nos três.
+    type Cenario = "provavel" | "pessimista" | "otimista";
+    const val = (i: Recorrente, entrada: boolean, cen: Cenario) =>
+      cen === "provavel" || i.valor_min === undefined
+        ? i.valor_tipico
+        : ((cen === "pessimista") === entrada ? i.valor_min! : i.valor_max!);
+    const temFaixa = [...comp.itens, ...renda.itens].some((i) => i.valor_min !== undefined && i.valor_min !== i.valor_max);
+
+    const faturaRestante = rHoje.fatura_deste_mes.restante;
+    const jan = janela(mesHoje);
+    const mediaDiaria = mediaDiariaJanela(jan, setComp);
+    const diasRestantes = finLastDay(mesHoje) - diaHoje;
+    const variavelEstimado = mediaDiaria * diasRestantes;
+    const saldoFimDe = (cen: Cenario) => {
+      const rendaPendente = finSoma(renda.itens.filter((i) => !i.ja_lancado).map((i) => val(i, true, cen)));
+      const compPendentes = finSoma(comp.itens.filter((i) => !ehCredito(i) && !i.ja_lancado).map((i) => val(i, false, cen)));
+      return {
+        rendaPendente, compPendentes,
+        saldoFim: rHoje.saldo + futuros + rendaPendente - compPendentes - faturaRestante - variavelEstimado,
+      };
+    };
+
+    // A fatura restante de cada mês projetado não depende do cenário.
+    const faturaRestanteEm: Record<string, number> = {};
+    const restanteEm = (ym: string) =>
+      faturaRestanteEm[ym] ??= calcularResumoMes(rowsDoMes, ym, 0, hojeISO, meios).fatura_deste_mes.restante;
+
+    const mesProj = (ym: string, saldoInicial: number, cen: Cenario) => {
+      type Linha = { grupo: string; nome: string; valor: number; origem: string; valor_min?: number; valor_max?: number };
+      const detalhe: Linha[] = [];
+      const add = (grupo: string, nome: string, lancado: number | null, tipico: number, i?: Recorrente) => {
+        const valor = r2(lancado ?? tipico);
+        const linha: Linha = { grupo, nome, valor, origem: lancado !== null ? "lancado" : "tipico" };
+        if (lancado === null && i && i.valor_min !== undefined && i.valor_min !== i.valor_max) {
+          linha.valor_min = i.valor_min; linha.valor_max = i.valor_max;
+        }
+        detalhe.push(linha);
+        return valor;
+      };
+      let rendaPrev = 0, compCaixa = 0;
+      for (const i of renda.itens) rendaPrev += add("renda", i.nome, lancadoEm(ym, i, true), val(i, true, cen), i);
+      for (const i of comp.itens) if (!ehCredito(i)) compCaixa += add("compromisso_caixa", i.nome, lancadoEm(ym, i, false), val(i, false, cen), i);
+      // Fatura: o restante da lógica existente (compras do mês anterior já
+      // lançadas, menos pagamentos e adiantamentos) + compromissos no
+      // Crédito do mês anterior que ainda não foram lançados.
+      const pm = finPrevMonth(ym);
+      let fatura = add("fatura", `Fatura (compras de ${pm})`, restanteEm(ym), 0);
+      for (const i of comp.itens) if (ehCredito(i) && lancadoEm(pm, i, false) === null) fatura += add("fatura", i.nome, null, val(i, false, cen), i);
+      const livre = saldoInicial + rendaPrev - compCaixa - fatura;
+      const diasNoMes = finLastDay(ym);
+      return {
+        mes: ym,
+        dias_no_mes: diasNoMes,
+        saldo_inicial: r2(saldoInicial),
+        renda_prevista: r2(rendaPrev),
+        compromissos_caixa: r2(compCaixa),
+        fatura_a_pagar: r2(fatura),
+        livre_para_variavel: r2(livre),
+        livre_por_dia: r2(livre / diasNoMes),
+        detalhe,
+      };
+    };
+
+    const p1 = finNextMonth(mesHoje), p2 = finNextMonth(p1);
+    const prov = saldoFimDe("provavel");
+    // Nos cenários, só o resumo de cada mês (o detalhe é o do provável).
+    const cenario = (cen: Cenario) => {
+      const s = saldoFimDe(cen);
+      return {
+        saldo_fim_do_mes: r2(s.saldoFim),
+        meses: [mesProj(p1, s.saldoFim, cen), mesProj(p2, 0, cen)].map(({ detalhe: _, ...resto }) => resto),
+      };
+    };
+    const fonte = comp.fonte === renda.fonte ? comp.fonte : `compromissos: ${comp.fonte}, renda: ${renda.fonte}`;
+    return {
+      base: mesHoje,
+      fonte,
+      janela: jan,
+      janela_incompleta: comp.janela_incompleta,
+      composicao_saldo_inicial: {
+        saldo_hoje: r2(rHoje.saldo),
+        lancamentos_futuros_do_mes: r2(futuros),
+        renda_pendente: r2(prov.rendaPendente),
+        compromissos_pendentes: r2(prov.compPendentes),
+        fatura_restante: r2(faturaRestante),
+        variavel_estimado: r2(variavelEstimado),
+        saldo_fim_do_mes: r2(prov.saldoFim),
+      },
+      meses: [mesProj(p1, prov.saldoFim, "provavel"), mesProj(p2, 0, "provavel")],
+      ...(temFaixa ? { cenarios: { pessimista: cenario("pessimista"), otimista: cenario("otimista") } } : {}),
+      premissas: [
+        comp.fonte === "cadastro" || renda.fonte === "cadastro"
+          ? "Recorrências do cadastro (Finanças, Recorrências previstas) onde houver, por direção; o que a heurística acha e não está cadastrado vem em sugestoes, fora das contas."
+          : `Sem recorrências cadastradas: compromissos e renda vêm da janela ${jan.join(", ")}, nomes presentes em todos esses meses, no máximo ${MAX_OCORRENCIAS_COMPROMISSO} vezes por mês.`,
+        "Valor típico: no cadastro, o meio da faixa; na heurística, a renda do mês completo mais recente (reajuste é degrau) e a mediana da janela pros compromissos.",
+        "O que já está lançado no mês (inclusive com data futura) substitui o valor típico, nunca soma os dois.",
+        `saldo_inicial de ${p1} = saldo de hoje + lançamentos futuros de ${mesHoje} + renda recorrente ainda não lançada - compromissos de caixa ainda não lançados - restante da fatura de ${mesHoje} - gasto variável médio da janela sem pontuais (${r2(mediaDiaria)}/dia) nos ${diasRestantes} dias que faltam.`,
+        `saldo_inicial de ${p2} = 0: supõe que o livre de ${p1} é gasto.`,
+        "Compromissos no Crédito não saem do caixa no mês: entram na fatura do mês seguinte.",
+        ...(temFaixa ? ["cenarios: pessimista = saídas no máximo e entradas no mínimo da faixa; otimista = o contrário. Os campos principais são o provável."] : []),
+        "Lançamentos avulsos já agendados nos meses projetados não entram, exceto compras no Crédito, que já estão na fatura.",
+      ],
+    };
+  };
+
+  return { inicio, analisarMes, comparativoPorNome, projecao };
+}
 // ═══ RESUMO FINANCEIRO · fim ═════════════════════════════════════════════
 
 // ── Tool: resumo_financeiro ───────────────────────────────────────────────
-// Busca de uma vez tudo até o fim do último mês pedido: a cadeia de faturas
-// (carryInto) pode olhar meses pra trás sem limite fixo, e a tabela é de uso
-// pessoal (~100 linhas/mês) -- mais simples e exato que buscar sob demanda.
+// Uma leitura só, do começo da tabela até 2 meses depois do último mês pedido
+// ou do mês corrente (o que vier depois). Sem limite inferior porque a cadeia
+// de faturas (carryInto) olha pra trás sem limite fixo; o teto cobre os
+// lançamentos futuros que a projeção usa. A tabela é de uso pessoal (~100
+// linhas/mês): mais simples e exato que buscar sob demanda.
 async function handleResumoFinanceiro(REST: string, headers: Record<string, string>, args: Record<string, any>) {
   const reYM = /^\d{4}-(0[1-9]|1[0-2])$/;
   const hoje = todayInSaoPaulo();
-  const de = String(args?.de ?? args?.mes ?? hoje.slice(0, 7));
+  const mesHoje = hoje.slice(0, 7);
+  const de = String(args?.de ?? args?.mes ?? mesHoje);
   const ate = String(args?.ate ?? args?.mes ?? de);
+  const incluirMov = args?.incluir_movimentacoes === true || args?.incluir_movimentacoes === "true";
   if (!reYM.test(de) || !reYM.test(ate)) return toolText("Meses no formato YYYY-MM (ex.: 2026-09).", true);
   if (ate < de) return toolText("O parâmetro ate não pode ser anterior a de.", true);
 
@@ -1931,8 +2542,11 @@ async function handleResumoFinanceiro(REST: string, headers: Record<string, stri
     meses.push(ym);
     if (meses.length > 12) return toolText("No máximo 12 meses por chamada.", true);
   }
+  if (incluirMov && meses.length > 3) {
+    return toolText(`Com incluir_movimentacoes, no máximo 3 meses por chamada (o intervalo pedido tem ${meses.length}). Divida em chamadas menores ou chame sem incluir_movimentacoes.`, true);
+  }
 
-  const limite = finNextMonth(ate) + "-01";
+  const limite = finNextMonth(finNextMonth(finNextMonth(ate > mesHoje ? ate : mesHoje))) + "-01";
   const r = await fetch(
     `${REST}/lifeos_movimentacoes?select=id,name,valor,date,tipo,created_at&date=lt.${limite}&order=date.asc,created_at.asc`,
     { headers },
@@ -1943,7 +2557,10 @@ async function handleResumoFinanceiro(REST: string, headers: Record<string, stri
   for (const m of todas) (porMes[(m.date || "").slice(0, 7)] ??= []).push(m);
   const rowsDoMes = (ym: string) => porMes[ym] ?? [];
 
-  const aberturas = await Promise.all(meses.map(async (ym) => {
+  // O mês corrente entra na lista mesmo fora do intervalo: a projeção parte
+  // do saldo de hoje.
+  const mesesAbertura = meses.includes(mesHoje) ? meses : [...meses, mesHoje];
+  const aberturas = await Promise.all(mesesAbertura.map(async (ym) => {
     const a = await fetch(`${REST}/rpc/lifeos_saldo_abertura`, {
       method: "POST", headers, body: JSON.stringify({ p_before: `${ym}-01` }),
     });
@@ -1951,16 +2568,37 @@ async function handleResumoFinanceiro(REST: string, headers: Record<string, stri
     return finNum(await a.json());
   }));
 
-  const resumos = meses.map((ym, i) => calcularResumoMes(rowsDoMes, ym, aberturas[i], hoje, VOCAB.mov_meio));
+  // Recorrências cadastradas (ativas). Opcional: sem a migration 0008 a
+  // tabela não existe e o resumo segue só com a heurística.
+  let cadastradas: Cadastrada[] = [];
+  const rc = await fetch(`${REST}/lifeos_recorrencias?select=nome,direcao,valor_min,valor_max,meio,dia&ativa=eq.true&order=nome.asc`, { headers });
+  if (rc.ok) {
+    cadastradas = (await rc.json()).map((x: any) => ({
+      nome: x.nome, direcao: x.direcao, valor_min: finNum(x.valor_min), valor_max: finNum(x.valor_max),
+      meio: x.meio ?? null, dia: x.dia ?? null,
+    }));
+  }
 
-  const comparativo = resumos.length > 1
+  const intervalo = meses.length > 1;
+  const A = criarAnalise(rowsDoMes, todas, hoje, VOCAB.mov_meio, cadastradas);
+  const resumos = meses.map((ym, i) => ({
+    ...calcularResumoMes(rowsDoMes, ym, aberturas[i], hoje, VOCAB.mov_meio),
+    ...A.analisarMes(ym, { porNome: !intervalo, lista: incluirMov }),
+  }));
+
+  const comparativo = intervalo
     ? resumos.map((x) => ({
       mes: x.mes, entradas: x.entradas, saidas_caixa: x.saidas_caixa, saidas_com_credito: x.saidas_com_credito,
       variacao_mes: x.variacao_mes, saldo: x.saldo, fatura_deste_mes: x.fatura_deste_mes.total,
+      parcial: x.parcial, futuro: x.futuro, consumo_mes: x.consumo_mes, entradas_proprias: x.entradas_proprias,
     }))
     : undefined;
+  const comparativoPorNome = intervalo ? A.comparativoPorNome(meses) : undefined;
+  const projecao = A.projecao(aberturas[mesesAbertura.indexOf(mesHoje)]);
 
-  return toolText(JSON.stringify({ hoje, comparativo, meses: resumos }, null, 2));
+  return toolText(JSON.stringify({
+    hoje, inicio_dados: A.inicio, comparativo, comparativo_por_nome: comparativoPorNome, projecao, meses: resumos,
+  }, null, 2));
 }
 
 // ── Tool: search_movimentacoes (Finanças) ─────────────────────────────────

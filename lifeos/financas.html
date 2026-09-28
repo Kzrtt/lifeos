@@ -42,6 +42,16 @@
       -webkit-text-size-adjust: 100%;
     }
     [hidden] { display: none !important; }
+    /* Scroll minimalista em TUDO que rola — a janela e qualquer container
+       (modal, lista, tabela). Mesmo padrão que já existia só no kanban, nas
+       listas do hub e nos modais; global pra nenhum scroll novo cair no
+       padrão do navegador (grosso, chapado). Cópia por página (LIFEOS.md §2). */
+    * { scrollbar-width: thin; scrollbar-color: rgba(255,255,255,0.14) transparent; }
+    *::-webkit-scrollbar { width: 5px; height: 5px; }
+    *::-webkit-scrollbar-track { background: transparent; }
+    *::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.14); border-radius: 999px; }
+    *::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.24); }
+    *::-webkit-scrollbar-corner { background: transparent; }
 
     /* ───────────────────────── GATE ───────────────────────── */
     .gate {
@@ -352,6 +362,80 @@
     .edit-btn-primary { background: var(--gold); border: 1px solid var(--gold); color: #14120f; font-weight: 500; }
     .edit-btn-primary:hover { opacity: 0.9; }
     .edit-btn-primary:disabled { opacity: 0.5; cursor: default; }
+    .edit-btn-sm { display: inline-flex; align-items: center; gap: 7px; padding: 8px 14px; font-size: 11px; }
+    .edit-hint { margin-top: 7px; font-size: 10.5px; line-height: 1.7; color: var(--mute); }
+    .edit-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
+    /* ── Banner .pdet-* (cópia de memoria.html — padrão de modal do LifeOS).
+       Os modais antigos desta página (edição, criação, ajuda) seguem com o
+       cabeçalho .modal-head; o de Recorrências previstas é o primeiro no
+       padrão novo. ── */
+    .pdet-panel .modal-body { padding: 0; }
+    .pdet-banner {
+      position: relative; height: 120px; flex-shrink: 0; overflow: hidden;
+      display: flex; align-items: center; justify-content: center;
+      background: radial-gradient(circle at 50% 120%, var(--gold) -40%, var(--surface-2) 68%);
+    }
+    .pdet-banner::before {
+      content: ''; position: absolute; inset: 0;
+      background: repeating-linear-gradient(135deg, rgba(255,255,255,0.028) 0 2px, transparent 2px 9px);
+    }
+    .pdet-banner::after {
+      content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 58%;
+      background: linear-gradient(to bottom, transparent, var(--surface));
+    }
+    .pdet-banner-icon {
+      position: relative; z-index: 1; width: 68px; height: 68px; border-radius: 18px;
+      display: flex; align-items: center; justify-content: center; font-size: 28px; line-height: 1;
+      background: var(--surface); border: 1px solid var(--border); color: var(--gold);
+      box-shadow: 0 10px 26px rgba(0,0,0,0.42);
+    }
+    .pdet-close {
+      position: absolute; top: 12px; right: 12px; z-index: 2;
+      width: 34px; height: 34px; display: flex; align-items: center; justify-content: center;
+      background: rgba(6,8,11,0.5); border: 1px solid var(--border); border-radius: 8px;
+      color: var(--dim); cursor: pointer; font-size: 13px; transition: color 0.15s, background 0.15s;
+    }
+    .pdet-close:hover { color: var(--gold); background: rgba(6,8,11,0.75); }
+    .pdet-head { padding: 2px 22px 0; text-align: center; flex-shrink: 0; }
+    .pdet-name { font-family: var(--serif); font-style: italic; font-weight: 700; font-size: 23px; line-height: 1.25; color: var(--text); }
+    .pdet-body-pad { padding: 18px 22px 22px; }
+
+    /* ── Chip picker (cópia de lifeos.html) ── */
+    .chip-picker { display: flex; flex-wrap: wrap; gap: 8px; }
+    .chip-opt {
+      font-family: var(--mono); font-size: 11px; letter-spacing: 0.03em;
+      background: var(--surface-2); border: 1px solid var(--border); color: var(--dim);
+      padding: 7px 12px; border-radius: 999px; cursor: pointer; transition: border-color 0.15s, color 0.15s, background 0.15s;
+    }
+    .chip-opt:hover { color: var(--text); }
+    .chip-opt.is-selected { background: var(--gold); border-color: var(--gold); color: #14120f; font-weight: 500; }
+
+    /* ── Recorrências previstas (#rec-modal) ── */
+    .rp-intro { font-size: 11.5px; line-height: 1.7; color: var(--dim); margin-bottom: 16px; text-align: center; }
+    .rp-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 6px; }
+    .rp-count { font-size: 10px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--mute); }
+    .rp-item { display: flex; align-items: flex-start; gap: 12px; padding: 13px 0; border-bottom: 1px solid var(--border); }
+    .rp-item:last-child { border-bottom: none; }
+    .rp-item.is-paused .rp-item-main { opacity: 0.5; }
+    .rp-item-main { flex: 1; min-width: 0; }
+    .rp-item-top { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin-bottom: 6px; }
+    .rp-item-nome { font-size: 13px; font-weight: 500; color: var(--text); word-break: break-word; }
+    .rp-item-valor { font-size: 12.5px; font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
+    .rp-item-valor.pos { color: var(--green); }
+    .rp-item-valor.neg { color: var(--red); }
+    .rp-item-tags { display: flex; flex-wrap: wrap; }
+    .rp-item .row-actions { display: inline-flex; max-width: none; opacity: 1; margin-left: 0; padding-top: 1px; }
+    .rp-empty, .rp-loading { text-align: center; color: var(--mute); font-size: 11px; letter-spacing: 0.08em; padding: 28px 10px; line-height: 1.7; }
+    .rp-resumo {
+      display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 16px; padding: 14px;
+      border: 1px solid var(--border); border-radius: 8px; background: var(--surface-2);
+    }
+    .rp-resumo-cap { font-size: 9px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--mute); margin-bottom: 5px; }
+    .rp-resumo-val { font-size: 12px; font-weight: 600; font-variant-numeric: tabular-nums; color: var(--dim); }
+    .rp-resumo-val.pos { color: var(--green); }
+    .rp-resumo-val.neg { color: var(--red); }
+    .rp-resumo-nota { grid-column: 1 / -1; font-size: 10px; line-height: 1.6; color: var(--mute); }
 
     /* ── Modal ── */
     .modal { position: fixed; inset: 0; z-index: 1000; display: flex; align-items: center; justify-content: center; padding: 20px; background: rgba(6,8,11,0.78); opacity: 0; pointer-events: none; transition: opacity 0.2s ease; }
@@ -389,6 +473,8 @@
       .modal { padding: 16px; align-items: center; }
       .modal-panel { max-width: 100%; max-height: 86vh; border-radius: 12px; }
       .fetched { display: none; }
+      .pdet-head, .pdet-body-pad { padding-left: 16px; padding-right: 16px; }
+      .rp-resumo { grid-template-columns: 1fr; }
     }
 
     /* ═══════════════════════════════════════════════════════════════════
@@ -549,6 +635,9 @@
       <span id="fetched-at" class="fetched"></span>
       <button id="create-btn" class="icon-btn" title="Nova movimentação" aria-label="Nova movimentação">
         <i class="fad fa-plus"></i>
+      </button>
+      <button id="rec-btn" class="icon-btn" title="Recorrências previstas" aria-label="Recorrências previstas">
+        <i class="fad fa-calendar-check"></i>
       </button>
       <button id="export-btn" class="icon-btn" title="Exportar / compartilhar o mês (.csv)" aria-label="Exportar CSV do mês" hidden>
         <i class="fad fa-download"></i>
@@ -722,6 +811,12 @@
       </div>
 
       <div class="help-section">
+        <div class="help-section-title">Recorrências previstas</div>
+        <p>O botão de calendário na topbar abre o cadastro do que você espera que entre ou saia <strong>todo mês</strong> (salário, aluguel, assinaturas), com valor fixo ou uma faixa. Nada ali vira lançamento: é a base que o resumo financeiro da IA usa pra prever o mês seguinte.</p>
+        <p>Use o <strong>mesmo nome das movimentações</strong>: é assim que a previsão sabe se a recorrência já caiu no mês. Uma faixa gera três cenários (pessimista, provável e otimista); uma pausada fica guardada, mas fora da previsão.</p>
+      </div>
+
+      <div class="help-section">
         <div class="help-section-title">Exportar</div>
         <p>O botão de export gera um <strong>.csv</strong> do mês corrente. No iPhone, abre o compartilhamento nativo pra mandar direto pra outro app; no desktop, baixa o arquivo.</p>
       </div>
@@ -829,11 +924,88 @@
   </div>
 </div>
 
+<!-- ───────────── MODAL · RECORRÊNCIAS PREVISTAS (lista + criar/editar) ─────────────
+     O que se espera que entre ou saia todo mês. Não lança movimentação: é a
+     tabela que o resumo_financeiro do MCP usa pra prever o mês seguinte.
+     Lista e formulário no mesmo modal, como #citacoes-modal no hub. -->
+<div id="rec-modal" class="modal" role="dialog" aria-modal="true">
+  <div class="modal-panel pdet-panel">
+    <div class="pdet-banner">
+      <button type="button" class="pdet-close" id="rec-modal-close" aria-label="Fechar"><i class="fad fa-times"></i></button>
+      <div class="pdet-banner-icon"><i class="fad fa-calendar-check"></i></div>
+    </div>
+    <div class="modal-body">
+      <div class="pdet-head"><div class="pdet-name" id="rec-modal-title">Recorrências previstas</div></div>
+      <div class="pdet-body-pad" id="rp-list-view">
+        <p class="rp-intro">O que você espera que entre ou saia todo mês. Nada aqui vira lançamento: é a base que o resumo financeiro usa pra prever o mês seguinte.</p>
+        <div class="rp-toolbar">
+          <span class="rp-count" id="rp-count"></span>
+          <button type="button" class="edit-btn edit-btn-ghost edit-btn-sm" id="rp-add-btn"><i class="fad fa-plus"></i> Adicionar</button>
+        </div>
+        <div id="rp-list"></div>
+        <div id="rp-resumo" class="rp-resumo" hidden></div>
+      </div>
+      <form id="rp-form" class="pdet-body-pad" autocomplete="off" hidden>
+        <div class="edit-field">
+          <label class="edit-label" for="rp-nome">Nome</label>
+          <input type="text" id="rp-nome" class="edit-input" maxlength="120" list="rp-nomes" autocomplete="off" spellcheck="false">
+          <datalist id="rp-nomes"></datalist>
+          <div class="edit-hint">Use o mesmo nome das movimentações (ex.: Aluguel, Salário): é assim que a previsão sabe se ela já caiu no mês.</div>
+        </div>
+        <div class="edit-field">
+          <span class="edit-label">Direção</span>
+          <div class="chip-picker" id="rp-direcao"></div>
+        </div>
+        <div class="edit-field">
+          <span class="edit-label">Valor</span>
+          <div class="chip-picker" id="rp-valor-tipo"></div>
+        </div>
+        <div class="edit-field" id="rp-valor-fixo-row">
+          <label class="edit-label" for="rp-valor">Valor mensal</label>
+          <input type="number" id="rp-valor" class="edit-input" step="0.01" min="0" inputmode="decimal">
+        </div>
+        <div class="edit-field" id="rp-valor-faixa-row" hidden>
+          <div class="edit-row">
+            <div>
+              <label class="edit-label" for="rp-valor-min">Mínimo</label>
+              <input type="number" id="rp-valor-min" class="edit-input" step="0.01" min="0" inputmode="decimal">
+            </div>
+            <div>
+              <label class="edit-label" for="rp-valor-max">Máximo</label>
+              <input type="number" id="rp-valor-max" class="edit-input" step="0.01" min="0" inputmode="decimal">
+            </div>
+          </div>
+          <div class="edit-hint">Pra contas que variam (luz, mercado do mês). A previsão mostra o cenário pessimista, o provável e o otimista.</div>
+        </div>
+        <div class="edit-field">
+          <span class="edit-label">Meio de pagamento</span>
+          <div class="chip-picker" id="rp-meio"></div>
+          <div class="edit-hint">No Crédito, a saída não sai do caixa no mês: entra na fatura do mês seguinte.</div>
+        </div>
+        <div class="edit-field">
+          <label class="edit-label" for="rp-dia">Dia do mês · opcional</label>
+          <input type="number" id="rp-dia" class="edit-input" step="1" min="1" max="31" inputmode="numeric">
+        </div>
+        <div class="edit-field">
+          <span class="edit-label">Status</span>
+          <div class="chip-picker" id="rp-status"></div>
+          <div class="edit-hint">Pausada fica guardada, mas fora da previsão.</div>
+        </div>
+        <div id="rp-error" class="edit-error"></div>
+        <div class="edit-actions">
+          <button type="button" id="rp-cancel" class="edit-btn edit-btn-ghost">Cancelar</button>
+          <button type="submit" id="rp-save" class="edit-btn edit-btn-primary">Salvar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
 <!-- ───────────────────────── LOADING ───────────────────────── -->
 <div id="loading" class="loading-ov" hidden><div class="spinner"></div></div>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.6/dist/chart.umd.min.js"></script>
-<script src="../assets/js/financas.js?v=20260928"></script>
+<script src="../assets/js/financas.js?v=20260928b"></script>
 <script src="../assets/js/back-to-top.js?v=20260617"></script>
 
 <!-- SYSTEM SKIN · campo ambiente — mesmo efeito de index / galeria / sobre -->

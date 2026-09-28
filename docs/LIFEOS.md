@@ -1127,7 +1127,7 @@ sofrem disso porque rodam o `closest` ANTES de trocar o conteúdo.
 
 | Módulo | Status | Onde vive | Tabela(s) | Edge Function(s) |
 |---|---|---|---|---|
-| Finanças | ✅ Funcional, página própria | `financas.html` | `lifeos_movimentacoes` | `lifeos-movimentacoes` + `lifeos-ingest` |
+| Finanças | ✅ Funcional, página própria (+ Recorrências previstas no modal da topbar, ver `FINANCAS.md` §9.2) | `financas.html` | `lifeos_movimentacoes` + `lifeos_recorrencias` | `lifeos-movimentacoes` + `lifeos-ingest` + `lifeos-recorrencias` (o `resumo_financeiro` do MCP lê a tabela) |
 | Eventos / Calendário | ✅ Funcional, nativo do hub (CRUD completo) | `lifeos.html` (`eventos.html` dormente, ver §5) | `lifeos_eventos` | `lifeos-eventos` |
 | Tarefas | ✅ Funcional, página própria + CRUD completo também no hub (ver §3.2) | `tarefas.html` E `lifeos.html` | `lifeos_tarefas` | `lifeos-tarefas` |
 | Projetos | ✅ Funcional, CRUD só no hub (leitura em `tarefas.html`, ver §1/§3.2) | `lifeos.html` (`tarefas.html` só lê) | `lifeos_projetos` | `lifeos-projetos` |

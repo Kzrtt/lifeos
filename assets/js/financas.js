@@ -32,6 +32,9 @@
   var SUPABASE_FN = (window.LIFEOS_CONFIG ? window.LIFEOS_CONFIG.supabaseUrl : '')
     + '/functions/v1/lifeos-movimentacoes';
   var ANON_KEY = window.LIFEOS_CONFIG ? window.LIFEOS_CONFIG.anonKey : '';
+  /* Recorrências previstas (#rec-modal) — function própria, ver FINANCAS.md §9.2. */
+  var REC_FN = (window.LIFEOS_CONFIG ? window.LIFEOS_CONFIG.supabaseUrl : '')
+    + '/functions/v1/lifeos-recorrencias';
 
   var LS_KEY = (window.LIFEOS_CONFIG && window.LIFEOS_CONFIG.sessionKey) || 'financas_master';     /* senha mestre (só com "lembrar") — mesma chave em lifeos.js/eventos.js */
   var CACHE_KEY = 'financas_cache';   /* cache persistente dos meses (JSON) */
@@ -1454,6 +1457,397 @@
     });
   }
 
+  /* ── Recorrências previstas (#rec-modal, set/2026) ─────────────────
+     O que se espera que entre ou saia todo mês: nome, direção, valor fixo ou
+     faixa (valor_min/valor_max), meio, dia e ativa. Não gera movimentação —
+     é a tabela que o resumo_financeiro do MCP usa pra projetar o mês
+     seguinte (FINANCAS.md §9.2). Carrega sob demanda na primeira abertura
+     do modal, não no boot: a página não depende da function pra abrir.
+     Lista e formulário no mesmo modal, como #citacoes-modal no hub. */
+  var RECORRENCIAS = null;   /* null = ainda não carregou */
+  var EDIT_REC_ID = null;
+  var REC_FORM = { direcao: 'Saida', tipo: 'fixo', meio: '', ativa: true };
+  var MAX_REC_NOME = 120;    /* cópia de MAX_NOME em lifeos-recorrencias */
+  var MAX_REC_VALOR = 1000000; /* cópia de MAX_VALOR em lifeos-recorrencias */
+  var REC_ERRO = {
+    invalid_nome: 'dê um nome (até ' + MAX_REC_NOME + ' caracteres)',
+    invalid_direcao: 'escolha entrada ou saída',
+    invalid_valor: 'valor inválido: o máximo não pode ser menor que o mínimo',
+    invalid_meio: 'meio de pagamento inválido',
+    invalid_dia: 'o dia vai de 1 a 31',
+    invalid_ativa: 'status inválido',
+    nome_duplicado: 'já existe uma recorrência com esse nome nessa direção',
+    not_found: 'essa recorrência não existe mais',
+    empty_patch: 'nada mudou',
+  };
+  function recMsgErro(err) {
+    var c = err && err.code;
+    return REC_ERRO[c] || ('erro — ' + (c || 'tente de novo'));
+  }
+  /* Mesma normalização de finChave no MCP (sem os apelidos). */
+  function recChave(nome) {
+    return (nome || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim().replace(/\s+/g, ' ');
+  }
+
+  /* Mock local: toda ação da function, inclusive os erros que ela devolve. */
+  var MOCK_RECS = [
+    { id: 'mock-rec-1', nome: 'Salário', direcao: 'Entrada', valor_min: 5000, valor_max: 5000, meio: 'Pix', dia: 5, ativa: true },
+    { id: 'mock-rec-2', nome: 'Aluguel', direcao: 'Saida', valor_min: 1500, valor_max: 1600, meio: 'Pix', dia: 6, ativa: true },
+    { id: 'mock-rec-3', nome: 'Luz', direcao: 'Saida', valor_min: 80, valor_max: 120, meio: 'Pix', dia: 10, ativa: true },
+    { id: 'mock-rec-4', nome: 'Streaming', direcao: 'Saida', valor_min: 39.9, valor_max: 39.9, meio: 'Crédito', dia: 15, ativa: true },
+    { id: 'mock-rec-5', nome: 'Academia', direcao: 'Saida', valor_min: 99.9, valor_max: 99.9, meio: null, dia: null, ativa: false },
+  ];
+  function mockRecValidar(src, completo) {
+    var out = {};
+    if (completo || 'nome' in src) {
+      var nome = String(src.nome == null ? '' : src.nome).trim();
+      if (!nome || nome.length > MAX_REC_NOME) return { erro: 'invalid_nome' };
+      out.nome = nome;
+    }
+    if (completo || 'direcao' in src) {
+      if (src.direcao !== 'Entrada' && src.direcao !== 'Saida') return { erro: 'invalid_direcao' };
+      out.direcao = src.direcao;
+    }
+    if (completo || 'valor_min' in src || 'valor_max' in src) {
+      var mn = Number(src.valor_min), mx = Number(src.valor_max);
+      if (!isFinite(mn) || !isFinite(mx) || mn < 0 || mx < mn || mx > MAX_REC_VALOR) return { erro: 'invalid_valor' };
+      out.valor_min = round2(mn); out.valor_max = round2(mx);
+    }
+    if ('meio' in src) {
+      if (src.meio && MEIOS.indexOf(src.meio) === -1) return { erro: 'invalid_meio' };
+      out.meio = src.meio || null;
+    }
+    if ('dia' in src) {
+      if (src.dia !== null && (!(src.dia >= 1 && src.dia <= 31) || Math.round(src.dia) !== src.dia)) return { erro: 'invalid_dia' };
+      out.dia = src.dia;
+    }
+    if ('ativa' in src) out.ativa = !!src.ativa;
+    return { campos: out };
+  }
+  function mockRecorrencias(body) {
+    var i, alvo = null;
+    if (body.action === 'create' || body.action === 'update') {
+      var editando = body.action === 'update';
+      if (editando) { for (i = 0; i < MOCK_RECS.length; i++) if (MOCK_RECS[i].id === body.id) alvo = MOCK_RECS[i]; }
+      if (editando && !alvo) return { ok: false, error: 'not_found' };
+      var v = mockRecValidar(editando ? body.patch : body.recorrencia, !editando);
+      if (v.erro) return { ok: false, error: v.erro };
+      var fin = Object.assign({}, alvo || { meio: null, dia: null, ativa: true }, v.campos);
+      var dup = MOCK_RECS.some(function (r) { return r !== alvo && r.direcao === fin.direcao && recChave(r.nome) === recChave(fin.nome); });
+      if (dup) return { ok: false, error: 'nome_duplicado' };
+      if (editando) { Object.assign(alvo, v.campos); return { ok: true, recorrencia: Object.assign({}, alvo) }; }
+      fin.id = 'mock-rec-' + Date.now();
+      MOCK_RECS.push(fin);
+      return { ok: true, recorrencia: Object.assign({}, fin) };
+    }
+    if (body.action === 'delete') {
+      for (i = 0; i < MOCK_RECS.length; i++) if (MOCK_RECS[i].id === body.id) { MOCK_RECS.splice(i, 1); return { ok: true, id: body.id }; }
+      return { ok: false, error: 'not_found' };
+    }
+    return { ok: true, recorrencias: MOCK_RECS.map(function (r) { return Object.assign({}, r); }) };
+  }
+
+  /* Uma chamada pra todas as ações. Diferente dos api* de movimentação, o
+     erro chega com o CÓDIGO da function (err.code), pro REC_ERRO traduzir. */
+  function apiRecorrencias(pw, body) {
+    if (IS_LOCAL_DEV) {
+      return mockDelay(mockRecorrencias(body)).then(function (j) { return j.ok ? j : Promise.reject({ code: j.error }); });
+    }
+    return fetch(REC_FN, {
+      method: 'POST',
+      headers: { 'apikey': ANON_KEY, 'Authorization': 'Bearer ' + ANON_KEY, 'Content-Type': 'application/json' },
+      body: JSON.stringify(Object.assign({ token: pw }, body)),
+    }).then(function (res) {
+      if (res.status === 401) return Promise.reject({ code: 'unauthorized' });
+      return res.json().catch(function () { return null; }).then(function (j) {
+        if (!j || !j.ok) return Promise.reject({ code: (j && j.error) || ('http_' + res.status) });
+        return j;
+      });
+    });
+  }
+
+  function recFaixa(r) {
+    return r.valor_min === r.valor_max ? brl.format(r.valor_min) : brl.format(r.valor_min) + ' a ' + brl.format(r.valor_max);
+  }
+  function findRec(id) {
+    for (var i = 0; i < (RECORRENCIAS || []).length; i++) if (RECORRENCIAS[i].id === id) return RECORRENCIAS[i];
+    return null;
+  }
+  /* Ativas primeiro; dentro, entradas antes de saídas; depois por nome. */
+  function recOrdenadas() {
+    return (RECORRENCIAS || []).slice().sort(function (a, b) {
+      return (b.ativa - a.ativa) || a.direcao.localeCompare(b.direcao) || a.nome.localeCompare(b.nome, 'pt-BR');
+    });
+  }
+
+  function renderRecPrevList() {
+    var host = $('rp-list');
+    host.innerHTML = '';
+    $('rp-resumo').hidden = true;
+    if (RECORRENCIAS === null) {
+      $('rp-count').textContent = '';
+      var ld = document.createElement('div'); ld.className = 'rp-loading'; ld.textContent = 'carregando…';
+      host.appendChild(ld);
+      return;
+    }
+    var n = RECORRENCIAS.length;
+    var ativas = RECORRENCIAS.filter(function (r) { return r.ativa; }).length;
+    $('rp-count').textContent = (n === 1 ? '1 recorrência' : n + ' recorrências') + (n && ativas !== n ? ' · ' + ativas + ' ativas' : '');
+    if (!n) {
+      var empty = document.createElement('div'); empty.className = 'rp-empty';
+      empty.textContent = 'nenhuma recorrência ainda. Enquanto a lista estiver vazia, a previsão adivinha pelo histórico.';
+      host.appendChild(empty);
+      return;
+    }
+    recOrdenadas().forEach(function (r) {
+      var row = document.createElement('div'); row.className = 'rp-item' + (r.ativa ? '' : ' is-paused');
+      var main = document.createElement('div'); main.className = 'rp-item-main';
+      var top = document.createElement('div'); top.className = 'rp-item-top';
+      var nome = document.createElement('span'); nome.className = 'rp-item-nome'; nome.textContent = r.nome;
+      var valor = document.createElement('span');
+      valor.className = 'rp-item-valor ' + (r.direcao === 'Entrada' ? 'pos' : 'neg');
+      valor.textContent = (r.direcao === 'Entrada' ? '+ ' : '− ') + recFaixa(r);
+      top.appendChild(nome); top.appendChild(valor);
+      var tags = document.createElement('div'); tags.className = 'rp-item-tags';
+      function tag(txt, cls) { var t = document.createElement('span'); t.className = 'tag' + (cls ? ' ' + cls : ''); t.textContent = txt; tags.appendChild(t); }
+      tag(r.direcao === 'Entrada' ? 'Entrada' : 'Saída', r.direcao === 'Entrada' ? 'tag-entrada' : 'tag-saida');
+      if (r.meio) tag(r.meio, 'tag-' + tagClass(r.meio));
+      if (r.dia) tag('dia ' + r.dia);
+      if (r.valor_min !== r.valor_max) tag('faixa');
+      if (!r.ativa) tag('pausada');
+      main.appendChild(top); main.appendChild(tags);
+
+      var actions = document.createElement('div'); actions.className = 'row-actions';
+      var edit = document.createElement('button');
+      edit.type = 'button'; edit.className = 'row-action-btn';
+      edit.setAttribute('data-action', 'edit-rec'); edit.setAttribute('data-id', r.id);
+      edit.setAttribute('aria-label', 'Editar recorrência');
+      edit.innerHTML = '<i class="fad fa-pen"></i>';
+      var del = document.createElement('button');
+      del.type = 'button'; del.className = 'row-action-btn row-action-danger';
+      del.setAttribute('data-action', 'delete-rec'); del.setAttribute('data-id', r.id);
+      del.setAttribute('aria-label', 'Excluir recorrência');
+      del.innerHTML = '<i class="fad fa-trash"></i>';
+      actions.appendChild(edit); actions.appendChild(del);
+
+      row.appendChild(main); row.appendChild(actions);
+      host.appendChild(row);
+    });
+    renderRecPrevResumo();
+  }
+
+  /* Soma das ativas: quanto entra, quanto sai e o que sobra num mês típico
+     (em faixa quando há alguma faixa). */
+  function renderRecPrevResumo() {
+    var ativas = (RECORRENCIAS || []).filter(function (r) { return r.ativa; });
+    if (!ativas.length) return;
+    var e = [0, 0], s = [0, 0];
+    ativas.forEach(function (r) {
+      var alvo = r.direcao === 'Entrada' ? e : s;
+      alvo[0] += r.valor_min; alvo[1] += r.valor_max;
+    });
+    var sobra = [e[0] - s[1], e[1] - s[0]];
+    function faixa(a) { return round2(a[0]) === round2(a[1]) ? brl.format(a[0]) : brl.format(a[0]) + ' a ' + brl.format(a[1]); }
+    var box = $('rp-resumo');
+    box.innerHTML = '';
+    [['Entradas', e, 'pos'], ['Saídas', s, 'neg'], ['Sobra prevista', sobra, sobra[0] >= 0 ? 'pos' : 'neg']].forEach(function (x) {
+      var cell = document.createElement('div');
+      var cap = document.createElement('div'); cap.className = 'rp-resumo-cap'; cap.textContent = x[0];
+      var val = document.createElement('div'); val.className = 'rp-resumo-val ' + x[2]; val.textContent = faixa(x[1]);
+      cell.appendChild(cap); cell.appendChild(val); box.appendChild(cell);
+    });
+    var nota = document.createElement('div'); nota.className = 'rp-resumo-nota';
+    nota.textContent = 'Num mês típico, só com as ativas. A sobra é o que fica pro gasto variável; saídas no Crédito pesam no caixa do mês seguinte.';
+    box.appendChild(nota);
+    box.hidden = false;
+  }
+
+  function loadRecorrencias() {
+    RECORRENCIAS = null;
+    renderRecPrevList();
+    return apiRecorrencias(SESSION_PW, { action: 'query' }).then(function (j) {
+      RECORRENCIAS = j.recorrencias || [];
+      renderRecPrevList();
+    }).catch(function (err) {
+      if (err && err.code === 'unauthorized') { onLogout(); return; }
+      RECORRENCIAS = null;
+      var host = $('rp-list');
+      host.innerHTML = '';
+      var box = document.createElement('div'); box.className = 'rp-empty';
+      box.textContent = 'não deu pra carregar as recorrências — ' + recMsgErro(err);
+      host.appendChild(box);
+      console.error('[financas] recorrências', err);
+    });
+  }
+
+  /* Seletor de chips: um valor por grupo. */
+  function buildChipOptions(hostId, opcoes, selecionado, onPick) {
+    var host = $(hostId);
+    host.innerHTML = '';
+    opcoes.forEach(function (o) {
+      var b = document.createElement('button');
+      b.type = 'button'; b.className = 'chip-opt' + (o.value === selecionado ? ' is-selected' : '');
+      b.textContent = o.label;
+      b.addEventListener('click', function () {
+        var irmaos = host.querySelectorAll('.chip-opt');
+        for (var i = 0; i < irmaos.length; i++) irmaos[i].classList.toggle('is-selected', irmaos[i] === b);
+        onPick(o.value);
+      });
+      host.appendChild(b);
+    });
+  }
+  function setRecValorTipo(tipo) {
+    REC_FORM.tipo = tipo;
+    $('rp-valor-fixo-row').hidden = tipo !== 'fixo';
+    $('rp-valor-faixa-row').hidden = tipo !== 'faixa';
+  }
+  /* Os pickers leem MEIOS na hora de montar — o vocabulário já chegou no
+     boot (carregarVocab), então não precisam ser reconstruídos depois. */
+  function buildRecPickers() {
+    buildChipOptions('rp-direcao', [{ value: 'Saida', label: 'Saída' }, { value: 'Entrada', label: 'Entrada' }],
+      REC_FORM.direcao, function (v) { REC_FORM.direcao = v; });
+    buildChipOptions('rp-valor-tipo', [{ value: 'fixo', label: 'Valor fixo' }, { value: 'faixa', label: 'Faixa' }],
+      REC_FORM.tipo, setRecValorTipo);
+    /* Valor fora da lista atual (o vocabulário mudou) fica como opção, pra
+       salvar não trocar o meio sem ninguém pedir. */
+    var meios = MEIOS.slice();
+    if (REC_FORM.meio && meios.indexOf(REC_FORM.meio) === -1) meios.push(REC_FORM.meio);
+    buildChipOptions('rp-meio', [{ value: '', label: 'Não informado' }].concat(meios.map(function (m) { return { value: m, label: m }; })),
+      REC_FORM.meio, function (v) { REC_FORM.meio = v; });
+    buildChipOptions('rp-status', [{ value: true, label: 'Ativa' }, { value: false, label: 'Pausada' }],
+      REC_FORM.ativa, function (v) { REC_FORM.ativa = v; });
+  }
+
+  /* Sugestões de nome: o que já aparece nas movimentações em cache, das
+     mais frequentes pras mais raras. */
+  function fillRecNomes() {
+    var cont = {}, grafia = {};
+    Object.keys(monthCache).forEach(function (ym) {
+      (monthCache[ym] || []).forEach(function (m) {
+        var nome = (m.name || '').trim(); if (!nome || /fatura/i.test(nome)) return;
+        var k = recChave(nome);
+        cont[k] = (cont[k] || 0) + 1;
+        if (!grafia[k]) grafia[k] = nome;
+      });
+    });
+    var dl = $('rp-nomes');
+    dl.innerHTML = '';
+    Object.keys(cont).sort(function (a, b) { return cont[b] - cont[a]; }).slice(0, 80).forEach(function (k) {
+      var o = document.createElement('option'); o.value = grafia[k]; dl.appendChild(o);
+    });
+  }
+
+  /* Estado lista ⇄ formulário dentro do mesmo modal. */
+  function showRecPrevList() {
+    EDIT_REC_ID = null;
+    $('rp-form').hidden = true;
+    $('rp-list-view').hidden = false;
+    $('rec-modal-title').textContent = 'Recorrências previstas';
+    renderRecPrevList();
+  }
+  function showRecPrevForm(id) {
+    resetDeletePending();
+    var r = id ? findRec(id) : null;
+    EDIT_REC_ID = r ? r.id : null;
+    $('rec-modal-title').textContent = r ? 'Editar recorrência' : 'Nova recorrência';
+    REC_FORM = {
+      direcao: r ? r.direcao : 'Saida',
+      tipo: r && r.valor_min !== r.valor_max ? 'faixa' : 'fixo',
+      meio: r && r.meio ? r.meio : '',
+      ativa: r ? r.ativa : true,
+    };
+    $('rp-nome').value = r ? r.nome : '';
+    $('rp-valor').value = r && r.valor_min === r.valor_max ? r.valor_min.toFixed(2) : '';
+    $('rp-valor-min').value = r && r.valor_min !== r.valor_max ? r.valor_min.toFixed(2) : '';
+    $('rp-valor-max').value = r && r.valor_min !== r.valor_max ? r.valor_max.toFixed(2) : '';
+    $('rp-dia').value = r && r.dia ? r.dia : '';
+    $('rp-error').textContent = '';
+    buildRecPickers();
+    setRecValorTipo(REC_FORM.tipo);
+    fillRecNomes();
+    setRecSaving(false);
+    $('rp-list-view').hidden = true;
+    $('rp-form').hidden = false;
+    $('rp-nome').focus();
+  }
+  function setRecSaving(on) { $('rp-save').disabled = on; $('rp-save').textContent = on ? 'Salvando…' : 'Salvar'; }
+
+  function openRecModal() {
+    if ($('modal').classList.contains('open')) closeModal();
+    if ($('edit-modal').classList.contains('open')) closeEditModal();
+    if ($('create-modal').classList.contains('open')) closeCreateModal();
+    if ($('help-modal').classList.contains('open')) closeHelpModal();
+    showRecPrevList();
+    $('rec-modal').classList.add('open');
+    if (RECORRENCIAS === null) loadRecorrencias();
+  }
+  function closeRecModal() {
+    $('rec-modal').classList.remove('open');
+    EDIT_REC_ID = null;
+  }
+  /* Cancelar o formulário volta pra lista; sem nada na lista, fecha. */
+  function onRecCancel() {
+    if (RECORRENCIAS && RECORRENCIAS.length) showRecPrevList(); else closeRecModal();
+  }
+
+  function onRecSubmit(e) {
+    e.preventDefault();
+    var err = $('rp-error'); err.textContent = '';
+    var nome = $('rp-nome').value.trim();
+    if (!nome) { err.textContent = 'dê um nome'; $('rp-nome').focus(); return; }
+    var mn, mx;
+    if (REC_FORM.tipo === 'fixo') {
+      mn = mx = parseFloat($('rp-valor').value);
+      if (!isFinite(mn) || mn < 0) { err.textContent = 'valor inválido'; $('rp-valor').focus(); return; }
+    } else {
+      mn = parseFloat($('rp-valor-min').value); mx = parseFloat($('rp-valor-max').value);
+      if (!isFinite(mn) || !isFinite(mx) || mn < 0) { err.textContent = 'preencha o mínimo e o máximo'; return; }
+      if (mx < mn) { err.textContent = 'o máximo não pode ser menor que o mínimo'; $('rp-valor-max').focus(); return; }
+      if (mx === mn) { err.textContent = 'mínimo e máximo iguais: use valor fixo'; return; }
+    }
+    var diaTxt = $('rp-dia').value.trim(), dia = null;
+    if (diaTxt) {
+      dia = Number(diaTxt);
+      if (!(dia >= 1 && dia <= 31) || Math.round(dia) !== dia) { err.textContent = 'o dia vai de 1 a 31'; $('rp-dia').focus(); return; }
+    }
+    var payload = {
+      nome: nome, direcao: REC_FORM.direcao, valor_min: round2(mn), valor_max: round2(mx),
+      meio: REC_FORM.meio || null, dia: dia, ativa: REC_FORM.ativa,
+    };
+
+    /* Guardado ANTES de voltar pra lista — showRecPrevList() zera
+       EDIT_REC_ID (mesma armadilha do CLAUDE.md §5). */
+    var editandoId = EDIT_REC_ID;
+    var req = editandoId
+      ? apiRecorrencias(SESSION_PW, { action: 'update', id: editandoId, patch: payload })
+      : apiRecorrencias(SESSION_PW, { action: 'create', recorrencia: payload });
+    setRecSaving(true);
+    req.then(function (j) {
+      var salva = j.recorrencia;
+      if (editandoId) {
+        for (var i = 0; i < RECORRENCIAS.length; i++) if (RECORRENCIAS[i].id === salva.id) { RECORRENCIAS[i] = salva; break; }
+      } else {
+        RECORRENCIAS.push(salva);
+      }
+      showRecPrevList();
+    }).catch(function (e2) {
+      setRecSaving(false);
+      if (e2 && e2.code === 'unauthorized') { onLogout(); return; }
+      err.textContent = recMsgErro(e2);
+    });
+  }
+
+  function onRecDeleteClick(btn, id) {
+    confirmDelete(btn, 'rec:' + id, function () {
+      return apiRecorrencias(SESSION_PW, { action: 'delete', id: id }).catch(function (e2) {
+        return Promise.reject({ code: e2 && e2.code, detail: recMsgErro(e2) });
+      });
+    }, function () {
+      RECORRENCIAS = RECORRENCIAS.filter(function (r) { return r.id !== id; });
+      renderRecPrevList();
+    });
+  }
+
   /* ── Export CSV (mês corrente) ───────────────────────────────── */
   function csvCell(v) {
     var s = (v === null || v === undefined) ? '' : String(v);
@@ -1558,7 +1952,8 @@
   function onLogout() {
     localStorage.removeItem(LS_KEY);
     resetCaches();
-    SESSION_PW = ''; SALDO_ABERTURA = 0; MROWS = []; destroyCharts(); clearAllFilters(); resetDonutToggle(); resetViewTabs(); closeModal(); closeHelpModal(); closeEditModal(); closeCreateModal(); resetDeletePending();
+    SESSION_PW = ''; SALDO_ABERTURA = 0; MROWS = []; destroyCharts(); clearAllFilters(); resetDonutToggle(); resetViewTabs(); closeModal(); closeHelpModal(); closeEditModal(); closeCreateModal(); closeRecModal(); resetDeletePending();
+    RECORRENCIAS = null;
     setLoading(false); setGateLoading(false);
     $('export-btn').hidden = true;
     $('fetched-at').textContent = '';
@@ -1639,6 +2034,12 @@
     $('create-cancel').addEventListener('click', closeCreateModal);
     $('create-modal-close').addEventListener('click', closeCreateModal);
     $('create-modal').addEventListener('click', function (e) { if (e.target === $('create-modal')) closeCreateModal(); });
+    $('rec-btn').addEventListener('click', openRecModal);
+    $('rec-modal-close').addEventListener('click', closeRecModal);
+    $('rec-modal').addEventListener('click', function (e) { if (e.target === $('rec-modal')) closeRecModal(); });
+    $('rp-add-btn').addEventListener('click', function () { showRecPrevForm(null); });
+    $('rp-form').addEventListener('submit', onRecSubmit);
+    $('rp-cancel').addEventListener('click', onRecCancel);
     /* Delegação: os botões de ação vivem em toda linha da tabela (regenerada
        a cada render), então o listener fica num ancestral estável em vez de
        por-linha. Clicar em qualquer coisa que NÃO seja o botão de excluir
@@ -1650,6 +2051,8 @@
       var id = btn.getAttribute('data-id');
       if (action === 'edit') { resetDeletePending(); openEditModal(id); return; }
       if (action === 'delete') { onDeleteClick(btn, id); return; }
+      if (action === 'edit-rec') { showRecPrevForm(id); return; }
+      if (action === 'delete-rec') { onRecDeleteClick(btn, id); return; }
     });
     var donutBtns = document.querySelectorAll('.donut-toggle-btn');
     for (var di = 0; di < donutBtns.length; di++) {
@@ -1685,11 +2088,12 @@
       $('search-input').focus();
     });
     document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape' && $('rec-modal').classList.contains('open')) { resetDeletePending(); closeRecModal(); return; }
       if (e.key === 'Escape' && $('create-modal').classList.contains('open')) { closeCreateModal(); return; }
       if (e.key === 'Escape' && $('edit-modal').classList.contains('open')) { closeEditModal(); return; }
       if (e.key === 'Escape' && $('modal').classList.contains('open')) { closeModal(); return; }
       if (e.key === 'Escape' && $('help-modal').classList.contains('open')) { closeHelpModal(); return; }
-      if ($('app').hidden || $('modal').classList.contains('open') || $('help-modal').classList.contains('open') || $('edit-modal').classList.contains('open') || $('create-modal').classList.contains('open')) return;
+      if ($('app').hidden || $('modal').classList.contains('open') || $('help-modal').classList.contains('open') || $('edit-modal').classList.contains('open') || $('create-modal').classList.contains('open') || $('rec-modal').classList.contains('open')) return;
       if (e.key === 'ArrowLeft') goMonth(-1);
       if (e.key === 'ArrowRight') goMonth(1);
     });

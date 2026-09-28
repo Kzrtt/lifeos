@@ -39,6 +39,16 @@
        autor (`.gate { display: flex }`) vence. Mesma linha que lifeos.html,
        financas.html, tarefas.html e notas.html já têm. */
     [hidden] { display: none !important; }
+    /* Scroll minimalista em TUDO que rola — a janela e qualquer container
+       (modal, lista, tabela). Mesmo padrão que já existia só no kanban, nas
+       listas do hub e nos modais; global pra nenhum scroll novo cair no
+       padrão do navegador (grosso, chapado). Cópia por página (LIFEOS.md §2). */
+    * { scrollbar-width: thin; scrollbar-color: rgba(255,255,255,0.14) transparent; }
+    *::-webkit-scrollbar { width: 5px; height: 5px; }
+    *::-webkit-scrollbar-track { background: transparent; }
+    *::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.14); border-radius: 999px; }
+    *::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.24); }
+    *::-webkit-scrollbar-corner { background: transparent; }
 
     html, body { height: 100%; }
     body {

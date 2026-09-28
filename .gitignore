@@ -3,3 +3,9 @@
 node_modules/
 .env
 .env.local
+
+# Claude Code — permissões locais de cada máquina
+.claude/settings.local.json
+
+# Supabase CLI — cache local (projeto linkado, versão do CLI)
+supabase/.temp/
