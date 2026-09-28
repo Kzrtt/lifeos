@@ -157,7 +157,7 @@
      pra não gerar uma entrada fantasma de R$0,00 quando o pagamento bate
      exatamente o total restante. */
   function splitPagamentosFatura(pagamentos, totalFatura) {
-    var sorted = pagamentos.slice().sort(function (a, b) { return (a.date || '').localeCompare(b.date || ''); });
+    var sorted = pagamentos.slice().sort(cmpByDateAsc);
     var atual = [], adiantamento = [], cumC = 0;
     var totalC = Math.round(totalFatura * 100);
     sorted.forEach(function (m) {
@@ -175,6 +175,11 @@
     });
     return { atual: atual, adiantamento: adiantamento };
   }
+  /* Desempate por created_at quando duas movimentações caem no mesmo dia —
+     sem isso a ordem entre elas vinha de qualquer jeito (a ordem em que a
+     API devolveu), não da ordem real em que foram registradas. */
+  function cmpByDateAsc(a, b) { return (a.date || '').localeCompare(b.date || '') || (a.created_at || '').localeCompare(b.created_at || ''); }
+  function cmpByDateDesc(a, b) { return (b.date || '').localeCompare(a.date || '') || (b.created_at || '').localeCompare(a.created_at || ''); }
   function currentYM() { return MONTHS[cursor]; }
   function monthLabel(ym) { var p = ym.split('-'); return MESES[(+p[1]) - 1] + ' ' + p[0]; }
   function normName(s) { return (s || '').trim().toLowerCase().replace(/\s+/g, ' '); }
@@ -248,8 +253,13 @@
     var days = lastDayOfMonth(ym);
     var i = 0, rows = [];
     function d(day) { return ym + '-' + String(Math.min(Math.max(day, 1), days)).padStart(2, '0'); }
+    /* created_at incremental (não realista, só ordenado) — exercita o
+       desempate por created_at (cmpByDateAsc/cmpByDateDesc) em dev local
+       também, já que aqui não existe banco de verdade gravando timestamps
+       reais na ordem de inserção. */
     function push(name, valor, day, tipo) {
-      rows.push({ id: 'mock-' + ym + '-' + (i++), name: name, valor: Math.round(valor * 100) / 100, date: d(day), tipo: tipo });
+      var n = i++;
+      rows.push({ id: 'mock-' + ym + '-' + n, name: name, valor: Math.round(valor * 100) / 100, date: d(day), tipo: tipo, created_at: new Date(2000, 0, 1, 0, n).toISOString() });
     }
     push('Salário', 4400, 5, ['Entrada', 'Pix']);
     push('Aluguel', 1650 + rnd() * 60, 6, ['Saida', 'Pix']);
@@ -290,7 +300,7 @@
     return { ok: true, movimentacao: Object.assign({}, existing || { id: id }, patch) };
   }
   function mockCreate(movimentacao) {
-    return { ok: true, movimentacao: Object.assign({ id: 'mock-new-' + Date.now() }, movimentacao) };
+    return { ok: true, movimentacao: Object.assign({ id: 'mock-new-' + Date.now(), created_at: new Date().toISOString() }, movimentacao) };
   }
   function mockDelete(id) { return { ok: true, id: id }; }
 
@@ -808,7 +818,7 @@
     head.appendChild(left); head.appendChild(right); wrap.appendChild(head);
 
     var body = document.createElement('div'); body.className = 'rec-items';
-    g.rows.slice().sort(function (a, b) { return (b.date || '').localeCompare(a.date || ''); }).forEach(function (m) {
+    g.rows.slice().sort(cmpByDateDesc).forEach(function (m) {
       var it = document.createElement('div'); it.className = 'rec-item';
       var d = document.createElement('span'); d.className = 'rec-item-date'; d.textContent = fmtDate(m.date);
       var nmi = document.createElement('span'); nmi.className = 'fatura-item-name'; nmi.textContent = m.name || '—';
@@ -1117,7 +1127,7 @@
   }
   function fillTbody(tbody, rows, groupByDate) {
     tbody.innerHTML = '';
-    var sorted = rows.slice().sort(function (a, b) { return (b.date || '').localeCompare(a.date || ''); });
+    var sorted = rows.slice().sort(cmpByDateDesc);
     if (!sorted.length) {
       var tr = document.createElement('tr');
       var td = document.createElement('td'); td.colSpan = 4; td.className = 'tx-empty'; td.textContent = 'nenhuma transação com esse filtro';
@@ -1195,7 +1205,7 @@
 
     if (multi) {
       var body = document.createElement('div'); body.className = 'rec-items';
-      g.items.slice().sort(function (a, b) { return (b.date || '').localeCompare(a.date || ''); }).forEach(function (m) {
+      g.items.slice().sort(cmpByDateDesc).forEach(function (m) {
         var it = document.createElement('div'); it.className = 'rec-item';
         var d = document.createElement('span'); d.className = 'rec-item-date'; d.textContent = fmtDate(m.date);
         var tg = document.createElement('span'); tg.className = 'rec-item-tags';
@@ -1453,7 +1463,7 @@
   function buildCsv() {
     var headers = ['data', 'descricao', 'valor', 'direcao', 'meio', 'tipo_raw', 'valor_liquido', 'id'];
     var lines = [headers.join(',')];
-    var sorted = MROWS.slice().sort(function (a, b) { return (a.date || '').localeCompare(b.date || ''); });
+    var sorted = MROWS.slice().sort(cmpByDateAsc);
     sorted.forEach(function (m) {
       var v = num(m.valor);
       var dir = isSaida(m) ? 'Saida' : (isEntrada(m) ? 'Entrada' : '');

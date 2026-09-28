@@ -322,7 +322,7 @@
      que cruza a linha é partido em duas entradas sintéticas. Cópia exata
      de financas.js (ver comentário lá pro porquê de cada detalhe). */
   function splitPagamentosFatura(pagamentos, totalFatura) {
-    var sorted = pagamentos.slice().sort(function (a, b) { return (a.date || '').localeCompare(b.date || ''); });
+    var sorted = pagamentos.slice().sort(function (a, b) { return (a.date || '').localeCompare(b.date || '') || (a.created_at || '').localeCompare(b.created_at || ''); });
     var atual = [], adiantamento = [], cumC = 0;
     var totalC = Math.round(totalFatura * 100);
     sorted.forEach(function (m) {

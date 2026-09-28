@@ -164,7 +164,7 @@ function monthRange(ym: string): { first: string; nextFirst: string } {
 }
 
 function normalizeRow(r: any) {
-  return { id: r.id, name: r.name, valor: r.valor === null ? null : Number(r.valor), date: r.date, tipo: r.tipo ?? [] };
+  return { id: r.id, name: r.name, valor: r.valor === null ? null : Number(r.valor), date: r.date, tipo: r.tipo ?? [], created_at: r.created_at };
 }
 
 // Busca por mes (mesmo contrato de notion-movimentacoes): movimentacoes do
@@ -185,7 +185,7 @@ async function handleQuery(REST: string, headers: Record<string, string>, ym: st
   const { first, nextFirst } = monthRange(ym);
 
   const [rowsRes, rangeRes, aberturaRes] = await Promise.all([
-    fetch(`${REST}/lifeos_movimentacoes?date=gte.${first}&date=lt.${nextFirst}&order=date.asc`, { headers }),
+    fetch(`${REST}/lifeos_movimentacoes?date=gte.${first}&date=lt.${nextFirst}&order=date.asc,created_at.asc`, { headers }),
     fetch(`${REST}/rpc/lifeos_range`, { method: "POST", headers, body: JSON.stringify({}) }),
     fetch(`${REST}/rpc/lifeos_saldo_abertura`, { method: "POST", headers, body: JSON.stringify({ p_before: first }) }),
   ]);
@@ -207,7 +207,7 @@ async function handleQuery(REST: string, headers: Record<string, string>, ym: st
   if (ymPrev) {
     const pr = monthRange(ymPrev);
     const prevRes = await fetch(
-      `${REST}/lifeos_movimentacoes?date=gte.${pr.first}&date=lt.${pr.nextFirst}&order=date.asc`,
+      `${REST}/lifeos_movimentacoes?date=gte.${pr.first}&date=lt.${pr.nextFirst}&order=date.asc,created_at.asc`,
       { headers },
     );
     // Best-effort: se o mes anterior falhar, devolve o mes atual mesmo
