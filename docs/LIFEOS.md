@@ -783,6 +783,20 @@ e §6.1) — essa assimetria é proposital, não um descuido.
   título** (`#busca-input`, `BUSCA_FILTRO`, mesmo padrão de `.busca-field`
   em `notas.html`) também filtra kanban + lista — nunca estatísticas nem
   gráficos; sobrevive à troca de projeto e reseta ao deslogar.
+- **Views salvas** (`#view-filters`, tabela `lifeos_views`, function
+  `lifeos-views` — o mesmo recurso existe em `notas.html`, com cópia
+  isolada do código): badges "Todas" + uma por view + "+ Nova view". Uma
+  view é nome + modo (`todas` = E, `qualquer` = OU entre regras) + regras
+  `{campo, operador: incluir|excluir, valores[]}`; o filtro roda no
+  cliente. **Editar** (set/2026): com uma view ativa, o chip tracejado
+  "editar" ao lado dela abre o `#view-modal` com as regras (clicar de novo
+  na badge ativa faz o mesmo). Abrir o editor **re-busca os projetos** —
+  a lista cacheada só renova no ↻, e um projeto criado no hub depois disso
+  não seria opção. Valor salvo que saiu da lista (projeto excluído, tag
+  renomeada) vira chip tracejado "não encontrado"/"fora da lista",
+  desmarcável. Regra "Projeto **incluir**" precisa de edição para cada
+  projeto novo; "Projeto **excluir**" pega os novos sozinha. O hub só
+  aplica as views (badges em Notas e no mini-kanban), sem editar.
 - **Kanban** (`.kanban-board`): **3 colunas fixas** — `Não Iniciado`,
   `Em Andamento`, `Feito` — nessa ordem, com fundo colorido por status
   (cinza/dourado/verde translúcido, mesmo mapeamento do mini-kanban do hub

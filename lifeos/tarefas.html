@@ -207,6 +207,10 @@
     .chip.active { background: var(--gold); border-color: var(--gold); color: #14120f; font-weight: 500; }
     .chip-clear { color: var(--red); border-style: dashed; }
     .chip-clear:hover { border-color: var(--red); color: var(--red); }
+    /* "editar" ao lado da view ativa — tracejado como o "+ Nova view", mas no
+       acento: não é ação destrutiva. */
+    .chip-edit { border-style: dashed; color: var(--gold); }
+    .chip-edit i { font-size: 10px; margin-right: 3px; }
 
     /* ── Toggle de view (Kanban / Lista) — agora na mesma linha do select de
        projeto (.projeto-bar); flex-shrink:0 pra não disputar espaço com o
@@ -323,6 +327,10 @@
     }
     .chip-opt:hover { color: var(--text); }
     .chip-opt.is-selected { background: var(--gold); border-color: var(--gold); color: #14120f; font-weight: 500; }
+    /* Valor de regra de view que saiu da lista (projeto excluído, tag
+       renomeada) — continua visível para poder ser desmarcado. */
+    .chip-opt.is-orfao { border-style: dashed; font-style: italic; }
+    .chip-opt.is-orfao.is-selected { background: color-mix(in srgb, var(--red) 18%, transparent); border-color: var(--red); color: var(--text); font-weight: 400; }
 
     .icon-btn-danger:hover { color: var(--red); border-color: var(--red); background: color-mix(in srgb, var(--red) 10%, transparent); }
 
@@ -705,7 +713,7 @@
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.6/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/marked@12.0.2/marked.min.js"></script>
-<script src="../assets/js/tarefas.js?v=20260925"></script>
+<script src="../assets/js/tarefas.js?v=20260929"></script>
 <script src="../assets/js/back-to-top.js?v=20260617"></script>
 
 <script>

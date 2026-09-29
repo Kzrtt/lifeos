@@ -58,6 +58,10 @@ outros módulos — cópia própria de gate/boot/cache/`confirmDelete`/
   explícito do autor, set/2026 — antes só existia tabela); sem persistência
   em localStorage, reseta por sessão (mesmo padrão de `TAR_VIEW` em
   `tarefas.js`).
+- **Views salvas** (`#view-filters`): mesmo recurso de `tarefas.html`,
+  cópia isolada — criar, **editar** (chip "editar" ao lado da view ativa,
+  que re-busca os projetos ao abrir) e excluir. Campos: Projeto (inclui o
+  sentinela "— sem projeto —") e Tipo. Ver `LIFEOS.md` §4.
 - **Duas famílias de tag visualmente distintas** (`buildTipoTag()`/
   `buildProjetoTag()`, 3ª rodada set/2026 — pedido explícito do autor: a
   antiga `.tag-proj` genérica dava a entender que "projeto é só mais uma

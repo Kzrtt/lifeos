@@ -413,8 +413,9 @@
   function clearTipoFilter() { TIPO_FILTRO.clear(); renderAll(); }
 
   /* ── Views (badges) — "Todas" (fixa, sem regra) + uma por VIEWS + "+ Nova
-     view". Clicar na badge JÁ ativa (não-Todas) abre o editor em modo
-     editar — evita precisar de um ícone de lápis à parte. ── */
+     view". Com uma view custom ativa, um chip "editar" aparece logo depois
+     dela (clicar de novo na badge ativa também abre o editor — era o único
+     caminho, e ninguém o achava). ── */
   function renderViewBadges() {
     var host = $('view-filters'); if (!host) return;
     host.innerHTML = '';
@@ -431,6 +432,13 @@
       b.type = 'button'; b.className = 'chip' + (v.id === ACTIVE_VIEW_ID ? ' active' : ''); b.setAttribute('data-view-id', v.id);
       b.textContent = v.nome;
       host.appendChild(b);
+      if (v.id === ACTIVE_VIEW_ID) {
+        var ed = document.createElement('button');
+        ed.type = 'button'; ed.className = 'chip chip-edit'; ed.id = 'view-edit-btn';
+        ed.setAttribute('aria-label', 'Editar a view ' + v.nome);
+        ed.innerHTML = '<i class="fad fa-pen"></i> editar';
+        host.appendChild(ed);
+      }
     });
 
     var nova = document.createElement('button');
@@ -441,6 +449,7 @@
   function onViewBadgeClick(e) {
     var nova = e.target.closest ? e.target.closest('#view-add-btn') : null;
     if (nova) { openViewModal(null); return; }
+    if (e.target.closest && e.target.closest('#view-edit-btn')) { openViewModal(ACTIVE_VIEW_ID); return; }
     var btn = e.target.closest ? e.target.closest('.chip') : null;
     if (!btn) return;
     var id = btn.getAttribute('data-view-id');
@@ -458,6 +467,17 @@
        sem projeto nenhum" (ver matchesRegra). */
     var opts = PROJETOS.map(function (p) { return { value: p.id, label: projetoLabel(p) }; });
     opts.push({ value: '__sem_projeto__', label: '— sem projeto —' });
+    return opts;
+  }
+  /* Valor salvo na regra que saiu da lista (projeto excluído, tipo
+     renomeado ou apagado em Tags) continua como chip marcado — sem isso ele
+     ficaria invisível e impossível de desmarcar, preso na regra pra sempre. */
+  function opcoesComOrfaos(regra) {
+    var opts = opcoesValoresPorCampo(regra.campo);
+    regra.valores.forEach(function (v) {
+      if (opts.some(function (o) { return o.value === v; })) return;
+      opts.push({ value: v, label: regra.campo === 'projeto' ? 'projeto não encontrado' : v + ' (fora da lista)', orfao: true });
+    });
     return opts;
   }
   function renderRegrasEditor() {
@@ -482,10 +502,11 @@
       row.appendChild(opSel);
 
       var valores = document.createElement('div'); valores.className = 'chip-picker view-regra-valores';
-      opcoesValoresPorCampo(regra.campo).forEach(function (o) {
+      opcoesComOrfaos(regra).forEach(function (o) {
         var b = document.createElement('button');
-        b.type = 'button'; b.className = 'chip-opt' + (regra.valores.indexOf(o.value) !== -1 ? ' is-selected' : '');
+        b.type = 'button'; b.className = 'chip-opt' + (regra.valores.indexOf(o.value) !== -1 ? ' is-selected' : '') + (o.orfao ? ' is-orfao' : '');
         b.setAttribute('data-value', o.value); b.textContent = o.label;
+        if (o.orfao) b.title = 'este valor não existe mais — desmarque para tirá-lo da regra';
         valores.appendChild(b);
       });
       row.appendChild(valores);
@@ -536,6 +557,22 @@
     $('view-error').textContent = '';
     setViewSaving(false);
     $('view-modal').classList.add('open');
+    refreshProjetosDoEditor();
+  }
+  /* PROJETOS vem do cache, que só renova no ↻ — um projeto criado no hub
+     depois disso não apareceria como opção. Abrir o editor busca a lista
+     fresca e remonta os chips; as seleções sobrevivem porque moram em
+     VIEW_REGRAS, não no DOM. Falhou a busca, fica a lista do cache. */
+  function refreshProjetosDoEditor() {
+    apiProjetosQuery(SESSION_PW).then(function (j) {
+      PROJETOS = j.projetos || [];
+      writeCache();
+      renderProjetoSelect();
+      renderAll();
+      if ($('view-modal').classList.contains('open')) renderRegrasEditor();
+    }).catch(function (err) {
+      if (err && err.code === 'unauthorized') onLogout();
+    });
   }
   function closeViewModal() { $('view-modal').classList.remove('open'); EDIT_VIEW_ID = null; }
   function setViewSaving(on) { $('view-save').disabled = on; $('view-save').textContent = on ? 'Salvando…' : 'Salvar'; }
