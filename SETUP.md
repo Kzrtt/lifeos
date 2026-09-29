@@ -96,7 +96,7 @@ for fn in lifeos-config lifeos-senhas lifeos-projetos lifeos-tarefas \
           lifeos-eventos lifeos-notas lifeos-manifestacoes \
           lifeos-movimentacoes lifeos-ingest lifeos-views \
           lifeos-vocabularios lifeos-citacoes lifeos-memorias \
-          lifeos-recorrencias lifeos-mcp; do
+          lifeos-recorrencias lifeos-backup lifeos-mcp; do
   supabase functions deploy "$fn" --no-verify-jwt
 done
 ```

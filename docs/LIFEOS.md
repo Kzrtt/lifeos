@@ -703,6 +703,47 @@ completa fica atrás de um clique.
   sorteio precisa do conjunto atual. Falha nessa busca não derruba o boot.
 - **Modo foco** de Manifestações esconde o banner junto com as seções.
 
+### 3.7 Backup completo — `#backup-modal` (set/2026)
+
+Um botão no cabeçalho do hub que, com a senha mestre, baixa
+um `.zip` com os `.sql` que repopulam outro banco com os mesmos dados.
+
+- **Botão**: `#backup-btn` (`fa-database`) na `.topbar`, antes do ↻. É ação,
+  não navegação — por isso nem drawer nem quicknav (ver `/lifeos-menu`).
+- **Senha de novo**: o modal pede a senha mestre em vez de usar
+  `SESSION_PW`. O arquivo leva o banco inteiro; um navegador com "lembrar"
+  ligado não deveria bastar. Consequência: `unauthorized` ali é "senha
+  incorreta" e **não** chama `onLogout()`. A senha sai do input ao fechar o
+  modal e depois de cada backup gerado.
+- **Senhas e tokens** (chips Incluir / Deixar de fora, padrão Incluir):
+  `access_tokens` (senhas em texto puro), `token_pages` e `admin_config`.
+  De fora, essas tabelas nem são esvaziadas nem repostas — o destino fica
+  com as credenciais que já tem.
+- **Backend**: a RPC `lifeos_backup_dump()` (migration 0009, só
+  `service_role`) varre **toda tabela do schema `public` pelo catálogo** —
+  módulo novo entra no backup sem registro nenhum — e devolve colunas,
+  FKs, sequências e linhas (ordenadas pela PK). A Edge Function
+  `lifeos-backup` ordena as tabelas por dependência e gera os arquivos:
+  `LEIAME.md`, `00_limpar.sql` (`truncate … restart identity`, sem
+  `cascade`), um `NN_<tabela>.sql` por tabela com linhas e
+  `NN_sequencias.sql` (`setval` das colunas identity/serial).
+- **Formato do insert**: `insert into t (cols) select cols from
+  jsonb_populate_recordset(null::t, $lifeos$[…]$lifeos$)` — o Postgres
+  converte cada valor pelo tipo da coluna (arrays, jsonb, numeric, datas) e
+  o dollar quoting dispensa escapar aspas e barras. Validado com restore
+  num banco limpo e checksum idêntico por tabela.
+- **O .zip é montado no front**, sem biblioteca: `zipArquivos` escreve o
+  formato ZIP à mão (CRC-32 + cabeçalhos) com deflate pelo
+  `CompressionStream('deflate-raw')` nativo; onde ele não existe, o arquivo
+  vai sem compressão. Nome com data/hora **local**:
+  `lifeos-backup-AAAA-MM-DD-HHMM.zip`.
+- **Fora do backup**: arquivos do Storage (banners das Manifestações,
+  galeria — as linhas guardam a URL pública do projeto de origem) e os
+  secrets das Edge Functions. O schema também não: o destino recebe as
+  migrations do repositório antes (o `LEIAME.md` diz até qual).
+- **Modo local**: `mockBackup` aceita só a senha `local-dev` (a da sessão
+  mock) e gera um `.zip` pequeno com as citações do mock.
+
 ---
 
 ## 4. `tarefas.html` — módulo Tarefas (CRUD completo, página própria)
@@ -1135,6 +1176,7 @@ sofrem disso porque rodam o `closest` ANTES de trocar o conteúdo.
 | Notas | ✅ Funcional, página própria (CRUD completo) | `notas.html` | `lifeos_notas` + `lifeos_notas_projetos` | `lifeos-notas` |
 | Citações | ✅ Funcional, nativo do hub (banner sorteado + CRUD no modal — ver §3.6) | `lifeos.html` | `lifeos_citacoes` | `lifeos-citacoes` (+ `search_citacoes`/`create_citacao` no MCP) |
 | Memória | ✅ Funcional, página própria no drawer (CRUD completo — ver §17) | `memoria.html` | `lifeos_memorias` + `lifeos_memoria_registros` | `lifeos-memorias` (+ 6 tools e o índice nas `instructions` do MCP) |
+| Backup | ✅ Funcional, modal no hub (`#backup-btn` da topbar — ver §3.7) | `lifeos.html` | lê todas (RPC `lifeos_backup_dump`) | `lifeos-backup` |
 
 Ver [`FINANCAS.md`](FINANCAS.md) pra tudo sobre o módulo Finanças (contrato
 da API, regras de negócio, segurança) e [`NOTAS.md`](NOTAS.md) pra tudo

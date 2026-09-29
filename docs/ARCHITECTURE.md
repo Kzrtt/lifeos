@@ -50,9 +50,9 @@ lifeos/
 │
 ├── docs/                      # Referência de arquitetura
 └── supabase/
-    ├── migrations/            # 0001_init.sql … 0008_lifeos_recorrencias.sql, em ordem
+    ├── migrations/            # 0001_init.sql … 0009_lifeos_backup.sql, em ordem
     ├── seed.sql               # Senha mestre padrão + projeto inicial
-    └── functions/             # 16 Edge Functions
+    └── functions/             # 17 Edge Functions
 ```
 
 > Esta árvore descreve o repositório do **sistema**. A instância de origem

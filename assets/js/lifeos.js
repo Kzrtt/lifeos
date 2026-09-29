@@ -40,6 +40,7 @@
   var NOTAS_FN = FN_BASE + 'lifeos-notas';
   var VIEWS_FN = FN_BASE + 'lifeos-views';
   var CITACOES_FN = FN_BASE + 'lifeos-citacoes';
+  var BACKUP_FN = FN_BASE + 'lifeos-backup';
   var ANON_KEY = CFG.anonKey;
   var LS_KEY = CFG.sessionKey; /* mesma chave de /financas e /eventos — "lembrar" vale nas três */
 
@@ -644,6 +645,26 @@
     }
     return { ok: true, citacoes: all.slice() };
   }
+  /* Backup: a senha do mock é a mesma da sessão local ('local-dev', ver
+     boot) — qualquer outra devolve `unauthorized`, como a Edge Function,
+     para dar pra testar o erro de senha. Os arquivos imitam o formato real
+     (lifeos-backup/montarArquivos) com as citações do mock. */
+  function mockBackup(body) {
+    if (!body.token) return { ok: false, error: 'missing_token' };
+    if (body.token !== 'local-dev') return { ok: false, error: 'unauthorized' };
+    var agora = new Date().toISOString();
+    var cit = mockCitacoesAll();
+    var cab = '-- Backup LifeOS · gerado em ' + agora + ' (mock local)';
+    var tabelas = [{ tabela: 'lifeos_citacoes', linhas: cit.length }];
+    if (body.incluir_credenciais !== false) tabelas.unshift({ tabela: 'access_tokens', linhas: 1 });
+    var arquivos = [
+      { nome: 'LEIAME.md', conteudo: '# Backup do LifeOS\n\nGerado em ' + agora + ' pelo mock local — não restaure isto.\n' },
+      { nome: '00_limpar.sql', conteudo: cab + '\n\ntruncate table ' + tabelas.map(function (t) { return 'public."' + t.tabela + '"'; }).join(', ') + ' restart identity;\n' },
+      { nome: '01_lifeos_citacoes.sql', conteudo: cab + '\n\ninsert into public."lifeos_citacoes" ("id", "texto", "autor")\nselect "id", "texto", "autor" from jsonb_populate_recordset(null::public."lifeos_citacoes", $lifeos$[\n' +
+        cit.map(function (c) { return JSON.stringify(c); }).join(',\n') + '\n]$lifeos$);\n' },
+    ];
+    return { ok: true, gerado_em: agora, arquivos: arquivos, tabelas: tabelas };
+  }
   var MOCK_NOTAS = null;
   function mockNotasQuery() {
     if (!MOCK_NOTAS) {
@@ -947,6 +968,28 @@
       });
     }
     return fetch(CITACOES_FN, {
+      method: 'POST',
+      headers: { 'apikey': ANON_KEY, 'Authorization': 'Bearer ' + ANON_KEY, 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    }).then(function (res) {
+      if (res.status === 401) return Promise.reject({ code: 'unauthorized' });
+      return res.json().catch(function () { return null; }).then(function (j) {
+        if (!res.ok || !j || !j.ok) return Promise.reject({ code: 'server', detail: (j && j.error) || String(res.status) });
+        return j;
+      });
+    });
+  }
+  /* Backup — a senha vem do #backup-modal, não de SESSION_PW (ver o
+     comentário do modal em lifeos.html). Por isso `unauthorized` aqui
+     significa "senha digitada errada", e quem chama NÃO faz logout. */
+  function apiBackup(senha, incluirCredenciais) {
+    var body = { token: senha, action: 'export', incluir_credenciais: incluirCredenciais };
+    if (IS_LOCAL_DEV) {
+      return mockDelay(mockBackup(body)).then(function (j) {
+        return j.ok ? j : Promise.reject({ code: j.error === 'unauthorized' ? 'unauthorized' : 'server', detail: j.error });
+      });
+    }
+    return fetch(BACKUP_FN, {
       method: 'POST',
       headers: { 'apikey': ANON_KEY, 'Authorization': 'Bearer ' + ANON_KEY, 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
@@ -1601,7 +1644,8 @@
       $('projeto-modal').classList.contains('open') ||
       $('projeto-detail-modal').classList.contains('open') ||
       $('manifestacao-modal').classList.contains('open') ||
-      $('citacoes-modal').classList.contains('open');
+      $('citacoes-modal').classList.contains('open') ||
+      $('backup-modal').classList.contains('open');
     if (open) {
       if (document.body.classList.contains('modal-scroll-lock')) return;
       SCROLL_LOCK_Y = window.scrollY;
@@ -3496,13 +3540,156 @@
     if (refocus !== false) $('menu-btn').focus();
   }
 
+  /* ── Backup completo: #backup-modal (ver LIFEOS.md §3.7) ─────────────
+     A Edge Function lifeos-backup devolve os .sql como texto; o .zip é
+     montado aqui, sem biblioteca: formato ZIP mínimo (sem ZIP64, que só
+     importaria acima de 4 GB) com deflate pelo CompressionStream nativo do
+     navegador, e arquivo guardado sem compressão onde ele não existir. */
+  var CRC32_TABELA = null;
+  function crc32(bytes) {
+    if (!CRC32_TABELA) {
+      CRC32_TABELA = [];
+      for (var n = 0; n < 256; n++) {
+        var c = n;
+        for (var k = 0; k < 8; k++) c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1);
+        CRC32_TABELA[n] = c >>> 0;
+      }
+    }
+    var crc = 0xFFFFFFFF;
+    for (var i = 0; i < bytes.length; i++) crc = CRC32_TABELA[(crc ^ bytes[i]) & 0xFF] ^ (crc >>> 8);
+    return (crc ^ 0xFFFFFFFF) >>> 0;
+  }
+  /* null = sem deflate-raw neste navegador; o arquivo vai sem compressão. */
+  function deflateRaw(bytes) {
+    try {
+      var stream = new Blob([bytes]).stream().pipeThrough(new CompressionStream('deflate-raw'));
+      return new Response(stream).arrayBuffer()
+        .then(function (buf) { return new Uint8Array(buf); })
+        .catch(function () { return null; });
+    } catch (e) { return Promise.resolve(null); }
+  }
+  function zipArquivos(arquivos, pasta) {
+    var enc = new TextEncoder();
+    var agora = new Date();
+    var dosHora = (agora.getHours() << 11) | (agora.getMinutes() << 5) | (agora.getSeconds() >> 1);
+    var dosData = ((agora.getFullYear() - 1980) << 9) | ((agora.getMonth() + 1) << 5) | agora.getDate();
+    return Promise.all(arquivos.map(function (a) {
+      var dados = enc.encode(a.conteudo);
+      return deflateRaw(dados).then(function (comp) {
+        var usaDeflate = !!comp && comp.length < dados.length;
+        return { nome: enc.encode(pasta + '/' + a.nome), crc: crc32(dados), tamanho: dados.length, metodo: usaDeflate ? 8 : 0, corpo: usaDeflate ? comp : dados };
+      });
+    })).then(function (itens) {
+      var partes = [], central = [], offset = 0, tamCentral = 0;
+      itens.forEach(function (it) {
+        /* flag 0x0800 = nome em UTF-8 (os nomes têm só ASCII hoje, mas a pasta vem de data local) */
+        var loc = new DataView(new ArrayBuffer(30));
+        loc.setUint32(0, 0x04034b50, true); loc.setUint16(4, 20, true); loc.setUint16(6, 0x0800, true);
+        loc.setUint16(8, it.metodo, true); loc.setUint16(10, dosHora, true); loc.setUint16(12, dosData, true);
+        loc.setUint32(14, it.crc, true); loc.setUint32(18, it.corpo.length, true); loc.setUint32(22, it.tamanho, true);
+        loc.setUint16(26, it.nome.length, true); loc.setUint16(28, 0, true);
+        partes.push(loc.buffer, it.nome, it.corpo);
+
+        var cen = new DataView(new ArrayBuffer(46));
+        cen.setUint32(0, 0x02014b50, true); cen.setUint16(4, 20, true); cen.setUint16(6, 20, true); cen.setUint16(8, 0x0800, true);
+        cen.setUint16(10, it.metodo, true); cen.setUint16(12, dosHora, true); cen.setUint16(14, dosData, true);
+        cen.setUint32(16, it.crc, true); cen.setUint32(20, it.corpo.length, true); cen.setUint32(24, it.tamanho, true);
+        cen.setUint16(28, it.nome.length, true); cen.setUint32(42, offset, true);
+        central.push(cen.buffer, it.nome);
+
+        offset += 30 + it.nome.length + it.corpo.length;
+        tamCentral += 46 + it.nome.length;
+      });
+      var fim = new DataView(new ArrayBuffer(22));
+      fim.setUint32(0, 0x06054b50, true); fim.setUint16(8, itens.length, true); fim.setUint16(10, itens.length, true);
+      fim.setUint32(12, tamCentral, true); fim.setUint32(16, offset, true);
+      return new Blob(partes.concat(central, [fim.buffer]), { type: 'application/zip' });
+    });
+  }
+  function baixarBlob(blob, nome) {
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url; a.download = nome;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+  }
+  /* Data e hora LOCAIS no nome — o gerado_em do servidor é UTC e, à noite,
+     cairia no dia seguinte. */
+  function nomeBackup() {
+    var d = new Date();
+    function p(n) { return String(n).padStart(2, '0'); }
+    return 'lifeos-backup-' + d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate()) + '-' + p(d.getHours()) + p(d.getMinutes());
+  }
+  function formatBytes(n) {
+    if (n < 1024) return n + ' B';
+    if (n < 1024 * 1024) return (n / 1024).toFixed(0) + ' KB';
+    return (n / (1024 * 1024)).toFixed(1).replace('.', ',') + ' MB';
+  }
+
+  var BACKUP_ERRO = {
+    unauthorized: 'senha incorreta',
+    missing_token: 'digite a senha mestre',
+    invalid_action: 'ação inválida — atualize a página',
+  };
+
+  function syncBackupCredHint() {
+    $('backup-credenciais-hint').textContent = $('backup-credenciais').value === 'incluir'
+      ? 'leva as senhas de acesso (em texto puro) e os tokens do GitHub e do MCP — guarde o arquivo como guardaria as senhas'
+      : 'o banco de destino mantém as senhas e tokens que já tem';
+  }
+  function openBackupModal() {
+    $('backup-senha').value = '';
+    setSingleChip('backup-credenciais-picker', 'backup-credenciais', 'incluir');
+    syncBackupCredHint();
+    $('backup-resumo').hidden = true; $('backup-resumo').textContent = '';
+    $('backup-error').textContent = '';
+    setBackupSaving(false);
+    $('backup-modal').classList.add('open');
+    syncModalScrollLock();
+    $('backup-senha').focus();
+  }
+  /* Limpa a senha ao fechar — ela não fica parada num input escondido. */
+  function closeBackupModal() { $('backup-modal').classList.remove('open'); $('backup-senha').value = ''; syncModalScrollLock(); }
+  function setBackupSaving(on) { $('backup-save').disabled = on; $('backup-save').textContent = on ? 'Gerando…' : 'Gerar backup'; }
+
+  function onBackupSubmit(e) {
+    e.preventDefault();
+    var errEl = $('backup-error'); errEl.textContent = '';
+    var senha = $('backup-senha').value.trim();
+    if (!senha) { errEl.textContent = BACKUP_ERRO.missing_token; $('backup-senha').focus(); return; }
+    var nome = nomeBackup();
+    $('backup-resumo').hidden = true;
+    setBackupSaving(true);
+    apiBackup(senha, $('backup-credenciais').value === 'incluir').then(function (j) {
+      return zipArquivos(j.arquivos || [], nome).then(function (blob) {
+        baixarBlob(blob, nome + '.zip');
+        setBackupSaving(false);
+        $('backup-senha').value = '';
+        var tabelas = j.tabelas || [];
+        var linhas = tabelas.reduce(function (s, t) { return s + (t.linhas || 0); }, 0);
+        var box = $('backup-resumo');
+        box.innerHTML = '<i class="fad fa-check"></i>';
+        box.appendChild(document.createTextNode(
+          nome + '.zip · ' + tabelas.length + ' tabelas · ' + linhas.toLocaleString('pt-BR') + ' linhas · ' + formatBytes(blob.size)
+        ));
+        box.hidden = false;
+      });
+    }).catch(function (err) {
+      setBackupSaving(false);
+      var code = err && (err.code === 'unauthorized' ? 'unauthorized' : err.detail);
+      if (code === 'unauthorized') { $('backup-senha').select(); }
+      errEl.textContent = BACKUP_ERRO[code] || ('erro ao gerar o backup — ' + ((err && (err.detail || err.message)) || 'tente de novo'));
+      console.error('[lifeos] backup', err);
+    });
+  }
+
   function onLogout() {
     closeDrawer(false);
     localStorage.removeItem(LS_KEY);
     dropHubCache();
     SESSION_PW = ''; MROWS = []; FIN_PREV_ROWS = []; FIN_MONTH_CACHE = {}; EVENTOS = []; HUB_EVENTOS_LOADED = {}; PROJETOS = []; TAREFAS_ALL = []; MANIFESTACOES = [];
     CITACOES = []; CITACAO_ATUAL_ID = null;
-    closeDayModal(); closeEventoModal(); closeDetailModal(); closeTarefaModal(); closeProjetoModal(); closeManifestacaoModal(); closeCitacoesModal(); resetDeletePending();
+    closeDayModal(); closeEventoModal(); closeDetailModal(); closeTarefaModal(); closeProjetoModal(); closeManifestacaoModal(); closeCitacoesModal(); closeBackupModal(); resetDeletePending();
     TAREFA_TIPO_SEL = []; PROJETO_TAGS_SEL = []; MANIFESTACAO_TAGS_SEL = []; MANIFESTACAO_BANNER_FILE = null;
     if (MANIF_FOCUS) { MANIF_FOCUS = false; $('app').classList.remove('is-manif-focus'); $('quicknav-manifestacoes').classList.remove('is-active'); }
     /* Volta a UI do toggle/botão do calendário pro default (eventos), sem
@@ -3775,6 +3962,19 @@
       if (delBtn) onDeleteCitacaoClick(delBtn, delBtn.getAttribute('data-id'));
     });
     $('cit-form').addEventListener('submit', onCitacaoSubmit);
+
+    /* ── #backup-modal (ver LIFEOS.md §3.7) ── */
+    $('backup-btn').addEventListener('click', openBackupModal);
+    $('backup-credenciais-picker').addEventListener('click', function (e) {
+      var btn = e.target.closest ? e.target.closest('.chip-opt') : null;
+      if (!btn) return;
+      setSingleChip('backup-credenciais-picker', 'backup-credenciais', btn.getAttribute('data-value'));
+      syncBackupCredHint();
+    });
+    $('backup-form').addEventListener('submit', onBackupSubmit);
+    $('backup-cancel').addEventListener('click', closeBackupModal);
+    $('backup-modal-close').addEventListener('click', closeBackupModal);
+    $('backup-modal').addEventListener('click', function (e) { if (e.target === $('backup-modal')) closeBackupModal(); });
     /* Cancelar volta pra lista — ou fecha, se não há lista pra voltar. */
     $('cit-cancel').addEventListener('click', function () { if (CITACOES.length) showCitacoesList(); else closeCitacoesModal(); });
 
@@ -3783,6 +3983,7 @@
       /* drawer primeiro: ele é o único elemento acima dos modais (z 1100),
          então é sempre ele que o ESC deve alcançar quando está aberto */
       if ($('config-drawer').classList.contains('open')) { closeDrawer(); return; }
+      if ($('backup-modal').classList.contains('open')) { closeBackupModal(); return; }
       if ($('citacoes-modal').classList.contains('open')) {
         /* No formulário, ESC volta pra lista; na lista, fecha o modal. */
         if (!$('cit-form').hidden && CITACOES.length) showCitacoesList(); else closeCitacoesModal();

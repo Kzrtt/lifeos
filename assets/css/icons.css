@@ -97,6 +97,7 @@
 .fa-copy::before { content: "\f0c5"; }
 .fa-cubes::before { content: "\f1b3"; }
 .fa-cut::before { content: "\f0c4"; }
+.fa-database::before { content: "\f1c0"; }
 .fa-diagram-project::before { content: "\f542"; }
 .fa-download::before { content: "\f019"; }
 .fa-exclamation-triangle::before { content: "\f071"; }

@@ -1108,6 +1108,19 @@
     .edit-btn-primary:hover { opacity: 0.9; }
     .edit-btn-primary:disabled { opacity: 0.5; cursor: default; }
 
+    /* ── #backup-modal (ver LIFEOS.md §3.7) — texto de apoio acima da senha
+       e o resumo do último backup gerado, em caixa tingida (nunca faixa
+       lateral). ── */
+    .backup-intro { font-size: 11.5px; line-height: 1.65; color: var(--dim); margin: 0 0 16px; }
+    .backup-intro strong { color: var(--text); font-weight: 500; }
+    .backup-hint { font-size: 10.5px; line-height: 1.55; color: var(--mute); margin-top: 7px; }
+    .backup-resumo {
+      margin-top: 14px; padding: 10px 12px; border-radius: 6px; font-size: 11px; line-height: 1.6; color: var(--text);
+      background: color-mix(in srgb, var(--green) 12%, transparent);
+      border: 1px solid color-mix(in srgb, var(--green) 35%, transparent);
+    }
+    .backup-resumo i { color: var(--green); margin-right: 6px; }
+
     /* ── Modal de detalhe (evento/tarefa) — texto SEM truncar, ao contrário
        das linhas de lista que geraram esse modal (ver .hub-list-name/
        .hub-list-proj, que cortam com ellipsis). ── */
@@ -1296,6 +1309,7 @@
     <a href="../index.html" class="back"><i class="fad fa-arrow-left"></i> arquivo</a>
     <div class="topbar-actions">
       <span id="hub-fetched-at" class="fetched"></span>
+      <button id="backup-btn" class="icon-btn" title="Backup completo" aria-label="Backup completo"><i class="fad fa-database"></i></button>
       <button id="hub-refresh-btn" class="icon-btn" title="Re-sincronizar" aria-label="Atualizar"><i class="fad fa-sync"></i></button>
       <button id="menu-btn" class="icon-btn" title="Menu" aria-label="Abrir menu" aria-haspopup="true" aria-expanded="false" aria-controls="config-drawer"><i class="fad fa-bars"></i></button>
     </div>
@@ -1885,6 +1899,45 @@
   </div>
 </div>
 
+<!-- ───────────────────────── MODAL · BACKUP COMPLETO ─────────────────────────
+     Aberto pelo #backup-btn da topbar (ver openBackupModal em lifeos.js e
+     LIFEOS.md §3.7). Pede a senha mestre DE NOVO em vez de usar a da sessão:
+     o arquivo leva o banco inteiro, e um navegador com "lembrar" ligado não
+     deveria bastar para tirá-lo. Senha errada aqui não derruba a sessão. -->
+<div id="backup-modal" class="modal" role="dialog" aria-modal="true">
+  <div class="modal-panel pdet-panel edit-panel">
+    <div class="pdet-banner">
+      <button type="button" class="pdet-close" id="backup-modal-close" aria-label="Fechar"><i class="fad fa-times"></i></button>
+      <div class="pdet-banner-icon"><i class="fad fa-database"></i></div>
+    </div>
+    <div class="modal-body">
+      <div class="pdet-head"><div class="pdet-name">Backup completo</div></div>
+      <form id="backup-form" class="pdet-body-pad" autocomplete="off">
+        <p class="backup-intro">Gera um <strong>.zip</strong> com os <strong>.sql</strong> que repõem todos os dados deste banco em outro — uma tabela por arquivo, na ordem certa de execução. O <strong>LEIAME.md</strong> dentro dele explica o restore.</p>
+        <div class="edit-field">
+          <label class="edit-label" for="backup-senha">Senha mestre</label>
+          <input type="password" id="backup-senha" class="edit-input" spellcheck="false" autocomplete="current-password">
+        </div>
+        <div class="edit-field">
+          <label class="edit-label">Senhas e tokens</label>
+          <input type="hidden" id="backup-credenciais" value="incluir">
+          <div class="chip-picker" id="backup-credenciais-picker">
+            <button type="button" class="chip-opt is-selected" data-value="incluir">Incluir</button>
+            <button type="button" class="chip-opt" data-value="omitir">Deixar de fora</button>
+          </div>
+          <div class="backup-hint" id="backup-credenciais-hint"></div>
+        </div>
+        <div id="backup-resumo" class="backup-resumo" hidden></div>
+        <div id="backup-error" class="edit-error"></div>
+        <div class="edit-actions">
+          <button type="button" id="backup-cancel" class="edit-btn edit-btn-ghost">Fechar</button>
+          <button type="submit" id="backup-save" class="edit-btn edit-btn-primary">Gerar backup</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
 <!-- ───────────────────────── DRAWER · CONFIGURAÇÃO ─────────────────────────
      Aberto pelo #menu-btn da topbar, que ocupa o lugar do antigo #logout-btn.
      O "Sair" desceu pra cá junto com as telas de config — a topbar tem espaço
@@ -1964,7 +2017,7 @@
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.6/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/marked@12.0.2/marked.min.js"></script>
-<script src="../assets/js/lifeos.js?v=20260928"></script>
+<script src="../assets/js/lifeos.js?v=20260929"></script>
 <script src="../assets/js/back-to-top.js?v=20260617"></script>
 
 <script>
