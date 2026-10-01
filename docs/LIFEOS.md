@@ -397,7 +397,12 @@ rolam até Manifestações):
   único status de Projeto sem equivalente em Tarefa), **tags** (chips,
   `.proj-tag`), **progresso** (barra + "`x/y tarefas`", calculado na hora
   sobre `TAREFAS_ALL` filtrado por `projeto_id` — sem fetch extra, já
-  carregado no boot) e **ações** (`.row-action-btn` Editar/Excluir, mesmo
+  carregado no boot; **projeto sem tarefa nenhuma mas com notas** — out/2026
+  — mostra "`N notas`" e a barra vira quantidade, não progresso: largura
+  relativa ao projeto só-de-notas com mais notas, contada sobre `NOTAS_HUB`
+  e `PROJETOS` inteiros, para a escala não mudar com o filtro de status, em
+  `var(--blue)` via `.proj-progress-fill.is-notas`; sem nenhum dos dois,
+  "sem tarefas nem notas") e **ações** (`.row-action-btn` Editar/Excluir, mesmo
   ícone-botão do resto do arquivo). Excluir usa `confirmDelete` (dois
   cliques, ver §7); em caso de `409 has_tarefas` (projeto com tarefa
   vinculada — `on delete restrict`, ver §6.2), a mensagem de erro já vem

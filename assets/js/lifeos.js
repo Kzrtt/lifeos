@@ -588,6 +588,12 @@
         });
       }
     });
+    /* Projetos só de notas (entram depois do laço, então ficam sem tarefa) —
+       exercitam a barra de quantidade de notas da tabela de Projetos. */
+    MOCK_PROJETOS.push(
+      { id: 'mock-proj-3', name: 'Leituras', emoji: '📖', status: 'Em Progresso', tags: ['Pessoal'] },
+      { id: 'mock-proj-4', name: 'Lembranças', emoji: null, status: 'Em Progresso', tags: ['Pessoal'] }
+    );
   }
   function mockProjetosQuery() { if (!MOCK_PROJETOS) seedMockTarefas(); return { ok: true, projetos: MOCK_PROJETOS.slice() }; }
   var MOCK_MANIFESTACOES = null;
@@ -669,9 +675,9 @@
   function mockNotasQuery() {
     if (!MOCK_NOTAS) {
       MOCK_NOTAS = [
-        { id: 'mock-nota-1', name: 'Bhagavad Gita — Introdução', tipo: ['Análise de Leitura', 'Conclusões'], data: '2026-06-05', projeto_ids: [], conteudo_md: null, created_at: '2026-06-05T18:00:00.000Z' },
-        { id: 'mock-nota-2', name: 'Análise da viabilidade da IA psiconauta', tipo: ['Faculdade', 'Pesquisa'], data: '2026-05-20', projeto_ids: [], conteudo_md: null, created_at: '2026-05-20T12:00:00.000Z' },
-        { id: 'mock-nota-3', name: '[08/06/2024] Visual do Fone', tipo: ['Lembranças', 'Conclusões', 'Vida'], data: null, projeto_ids: [], conteudo_md: null, created_at: '2026-04-01T09:00:00.000Z' },
+        { id: 'mock-nota-1', name: 'Bhagavad Gita — Introdução', tipo: ['Análise de Leitura', 'Conclusões'], data: '2026-06-05', projeto_ids: ['mock-proj-3'], conteudo_md: null, created_at: '2026-06-05T18:00:00.000Z' },
+        { id: 'mock-nota-2', name: 'Análise da viabilidade da IA psiconauta', tipo: ['Faculdade', 'Pesquisa'], data: '2026-05-20', projeto_ids: ['mock-proj-3', 'mock-proj-2'], conteudo_md: null, created_at: '2026-05-20T12:00:00.000Z' },
+        { id: 'mock-nota-3', name: '[08/06/2024] Visual do Fone', tipo: ['Lembranças', 'Conclusões', 'Vida'], data: null, projeto_ids: ['mock-proj-4'], conteudo_md: null, created_at: '2026-04-01T09:00:00.000Z' },
         { id: 'mock-nota-4', name: 'Nota rápida sem projeto', tipo: ['Pensamentos'], data: null, projeto_ids: [], conteudo_md: null, created_at: '2026-03-01T09:00:00.000Z' },
       ];
     }
@@ -2600,6 +2606,16 @@
       trF.appendChild(tdF); tbody.appendChild(trF);
       return;
     }
+    /* Projeto sem tarefa nenhuma (só notas) teria a barra sempre vazia: nele
+       a barra mostra QUANTIDADE de notas, relativa ao projeto só-de-notas
+       que tem mais notas (cheia = o maior deles). Conta sobre PROJETOS, não
+       sobre `lista`, pra escala não mudar quando o filtro de status muda. */
+    var tarefasPorProjeto = {}, notasPorProjeto = {}, maxNotas = 0;
+    TAREFAS_ALL.forEach(function (t) { tarefasPorProjeto[t.projeto_id] = (tarefasPorProjeto[t.projeto_id] || 0) + 1; });
+    NOTAS_HUB.forEach(function (n) { (n.projeto_ids || []).forEach(function (pid) { notasPorProjeto[pid] = (notasPorProjeto[pid] || 0) + 1; }); });
+    PROJETOS.forEach(function (p) {
+      if (!tarefasPorProjeto[p.id] && (notasPorProjeto[p.id] || 0) > maxNotas) maxNotas = notasPorProjeto[p.id];
+    });
     lista.forEach(function (p) {
       var row = document.createElement('tr');
       row.setAttribute('data-projeto-id', p.id); /* linha inteira abre o detalhe — ver openProjetoDetail */
@@ -2633,11 +2649,15 @@
       var tarefasProjeto = TAREFAS_ALL.filter(function (t) { return t.projeto_id === p.id; });
       var total = tarefasProjeto.length;
       var feitas = tarefasProjeto.filter(function (t) { return t.status === statusConcluido(TAR_STATUS); }).length;
-      var pct = total ? Math.round((feitas / total) * 100) : 0;
+      var nNotas = notasPorProjeto[p.id] || 0;
+      var soNotas = !total && nNotas > 0;
+      var pct = total ? Math.round((feitas / total) * 100) : (soNotas ? Math.round((nNotas / maxNotas) * 100) : 0);
       var progLabel = document.createElement('div'); progLabel.className = 'proj-progress-label';
-      progLabel.textContent = total ? (feitas + '/' + total + ' tarefas') : 'sem tarefas';
+      progLabel.textContent = total ? (feitas + '/' + total + ' tarefas')
+        : soNotas ? (nNotas + (nNotas === 1 ? ' nota' : ' notas'))
+        : 'sem tarefas nem notas';
       var progBar = document.createElement('div'); progBar.className = 'proj-progress-bar';
-      var progFill = document.createElement('div'); progFill.className = 'proj-progress-fill'; progFill.style.width = pct + '%';
+      var progFill = document.createElement('div'); progFill.className = 'proj-progress-fill' + (soNotas ? ' is-notas' : ''); progFill.style.width = pct + '%';
       progBar.appendChild(progFill);
       tdProg.appendChild(progLabel); tdProg.appendChild(progBar);
 
