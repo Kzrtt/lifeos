@@ -43,7 +43,7 @@
 
       var some = [
         '.drawer-item[href="publicar.html"]',  /* publicar entrada do archive */
-        '.topbar .back',                        /* "← arquivo" */
+        '.topbar .back[href="../index.html"]',   /* "← arquivo" — o "← lifeos" das telas do menu fica */
         '[data-requer-blog]',                   /* qualquer coisa marcada à mão */
         'a[href$="galeria.html"]',              /* a galeria é parte do arquivo */
       ];

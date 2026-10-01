@@ -1687,7 +1687,7 @@ O que muda, via `assets/js/blog.js`:
 | Onde | Efeito |
 |---|---|
 | Menu do hub | "Publicar página" some |
-| Topbar do LifeOS | o link "← arquivo" some |
+| Topbar do LifeOS | o link "← arquivo" do hub some (só ele: o seletor é `.topbar .back[href="../index.html"]` — o "← lifeos" das telas do menu continua). As ações do hub ficam à direita por `margin-left: auto` em `.topbar-actions` |
 | `senhas.html` | a seção de escopo por página some de cada card |
 | `index.html` e `galeria.html` | redirecionam para `lifeos/lifeos.html` |
 | Rodapé da capa | o link da galeria some |
@@ -1855,7 +1855,8 @@ explica o que ele *é*, pra quem está de fora.
 - **Script inline mínimo** (`blog.js` + inicialização do Mermaid), sem
   `assets/js/` próprio — como o tutorial, é uma página de texto, não um módulo.
 - **Blog desligado:** os dois links pro arquivo (topbar e fecho) somem via
-  `blog.js` (`.topbar .back` e `[data-requer-blog]`).
+  `blog.js` (`.topbar .back[href="../index.html"]` e `[data-requer-blog]`);
+  a etiqueta "apresentação" tem `margin-left: auto` pra continuar à direita.
 - **Sem link pro GitHub:** a página descreve o sistema, não um endereço; o
   texto diz que o projeto foi *preparado* pra ser instanciado (migrations,
   seed, config, MIT). Um fork que queira apontar pro próprio repositório
