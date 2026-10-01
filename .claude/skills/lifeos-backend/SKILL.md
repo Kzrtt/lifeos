@@ -87,7 +87,8 @@ igual em todas:
 | CORS | `LIFEOS_ALLOWED_ORIGIN ?? "*"`, headers, `Vary` | — |
 | `Deno.serve` | OPTIONS, só POST, `check_master_token`, `try/catch` → 500 | nome do objeto no corpo (`body.<dominio>`) |
 | Ações | `query` (default), `create`, `update` (patch parcial), `delete` | ações extras se houver entidade filha (ver `lifeos-memorias`: `registro_create`…) |
-| Helpers | `json()`, `cleanText()` | `normalizeRow()` com os campos novos |
+| Helpers | `json()`, `cleanText()`, `selectTodas()` | `normalizeRow()` com os campos novos |
+| `query` | lê por `selectTodas()` (paginado), `order` terminando em `id` | a ordem e, se houver N:N, o embed dos vínculos |
 
 Contrato que o front espera — não invente outro:
 
@@ -102,6 +103,10 @@ Contrato que o front espera — não invente outro:
 - `normalizeRow()` define o formato que sai — o front e o cache do hub
   dependem dele; campo novo que não passa por ali não chega na tela
 - Limites (`MAX_*`) como constantes no topo, com comentário do porquê
+- A lista nunca é um `fetch` único: o PostgREST corta em 1000 linhas sem
+  erro e a tela recebe metade achando que é tudo. Vínculo N:N vem por embed
+  (`projs:<tabela_vinculo>(projeto_id)`), nunca num segundo select com
+  `in.(<id de todas as linhas>)` — a URL estoura o gateway (`LIFEOS.md` §6.5)
 
 Campo de vocabulário: valide contra `lifeos_vocabularios` com fallback
 embutido, como `fetchCategorias()` em `lifeos-memorias`.

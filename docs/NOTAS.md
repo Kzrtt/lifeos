@@ -340,10 +340,12 @@ junção em vez de coluna nullable).
 `https://SEU-USUARIO.github.io` — mesmo esqueleto de `lifeos-tarefas`/
 `lifeos-projetos`.
 
-- **`query`** (default, sem filtro — só ~100 linhas, o cliente filtra por
-  projeto/tipo/busca): 2 SELECTs (`lifeos_notas` + `lifeos_notas_projetos`)
-  mesclados em memória na function (`projeto_ids: string[]` por nota) — a
-  function não depende de agregação SQL via PostgREST.
+- **`query`** (default, sem filtro; o cliente filtra por projeto/tipo/busca):
+  um SELECT só, com os vínculos embutidos
+  (`projs:lifeos_notas_projetos(projeto_id)`), virando `projeto_ids:
+  string[]` por nota, e paginado por `selectTodas()`. Até out/2026 eram 2
+  SELECTs com `nota_id=in.(<todas as notas>)`, uma URL que estouraria o
+  gateway por volta de 430 notas (`LIFEOS.md` §6.5).
 - **`create`** — `{ name, tipo[], data?, conteudo_md?, projeto_ids?[] }`.
   `projeto_ids` **opcional** (pode ser `[]`) — diferente de
   `lifeos-tarefas`, que trava `projeto_id` como obrigatório; a base real

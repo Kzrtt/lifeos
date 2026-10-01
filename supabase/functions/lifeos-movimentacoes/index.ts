@@ -154,6 +154,24 @@ function serverYm(): string {
   return d.getUTCFullYear() + "-" + String(d.getUTCMonth() + 1).padStart(2, "0");
 }
 
+// Todas as linhas da consulta, página a página. O PostgREST corta em
+// max-rows (1000 no Supabase) SEM erro: uma leitura única devolvia as
+// primeiras 1000 e a tela tratava como a lista inteira. A `order` de quem
+// chama termina numa coluna única (id), senão as páginas se sobrepõem.
+// Cópia em cada function que lista (ver LIFEOS.md §2), não import.
+async function selectTodas(REST: string, headers: Record<string, string>, tabelaQs: string): Promise<any[]> {
+  const PAGINA = 1000;
+  const out: any[] = [];
+  for (;;) {
+    const r = await fetch(`${REST}/${tabelaQs}&limit=${PAGINA}&offset=${out.length}`, { headers: { ...headers, Prefer: "count=exact" } });
+    if (!r.ok) throw new Error(`select ${tabelaQs.split("?")[0]} -> ${r.status} ${await r.text()}`);
+    const rows = await r.json();
+    out.push(...rows);
+    const total = Number((r.headers.get("content-range") || "").split("/")[1]);
+    if (!rows.length || !Number.isFinite(total) || out.length >= total) return out;
+  }
+}
+
 function monthRange(ym: string): { first: string; nextFirst: string } {
   const parts = ym.split("-").map(Number);
   const y = parts[0], m = parts[1];
@@ -184,17 +202,15 @@ function normalizeRow(r: any) {
 async function handleQuery(REST: string, headers: Record<string, string>, ym: string, ymPrev = "") {
   const { first, nextFirst } = monthRange(ym);
 
-  const [rowsRes, rangeRes, aberturaRes] = await Promise.all([
-    fetch(`${REST}/lifeos_movimentacoes?date=gte.${first}&date=lt.${nextFirst}&order=date.asc,created_at.asc`, { headers }),
+  const [rows, rangeRes, aberturaRes] = await Promise.all([
+    selectTodas(REST, headers, `lifeos_movimentacoes?date=gte.${first}&date=lt.${nextFirst}&order=date.asc,created_at.asc,id.asc`),
     fetch(`${REST}/rpc/lifeos_range`, { method: "POST", headers, body: JSON.stringify({}) }),
     fetch(`${REST}/rpc/lifeos_saldo_abertura`, { method: "POST", headers, body: JSON.stringify({ p_before: first }) }),
   ]);
 
-  if (!rowsRes.ok) throw new Error(`select movimentacoes -> ${rowsRes.status} ${await rowsRes.text()}`);
   if (!rangeRes.ok) throw new Error(`rpc lifeos_range -> ${rangeRes.status} ${await rangeRes.text()}`);
   if (!aberturaRes.ok) throw new Error(`rpc lifeos_saldo_abertura -> ${aberturaRes.status} ${await aberturaRes.text()}`);
 
-  const rows = await rowsRes.json();
   const rangeRows = await rangeRes.json();
   const saldoAbertura = await aberturaRes.json();
 
@@ -206,14 +222,12 @@ async function handleQuery(REST: string, headers: Record<string, string>, ym: st
   let movimentacoes_prev: unknown[] | undefined;
   if (ymPrev) {
     const pr = monthRange(ymPrev);
-    const prevRes = await fetch(
-      `${REST}/lifeos_movimentacoes?date=gte.${pr.first}&date=lt.${pr.nextFirst}&order=date.asc,created_at.asc`,
-      { headers },
-    );
     // Best-effort: se o mes anterior falhar, devolve o mes atual mesmo
     // assim com uma lista vazia -- melhor um card de fatura vazio do que a
     // tela inteira sem carregar.
-    movimentacoes_prev = prevRes.ok ? (await prevRes.json()).map(normalizeRow) : [];
+    movimentacoes_prev = await selectTodas(
+      REST, headers, `lifeos_movimentacoes?date=gte.${pr.first}&date=lt.${pr.nextFirst}&order=date.asc,created_at.asc,id.asc`,
+    ).then((prev) => prev.map(normalizeRow), () => []);
   }
 
   return json({

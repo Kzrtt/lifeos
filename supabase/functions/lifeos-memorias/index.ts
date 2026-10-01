@@ -186,15 +186,31 @@ async function fetchMemoria(ctx: Ctx, id: string) {
   return rows.length ? normalizeMemoria(rows[0]) : null;
 }
 
+// Todas as linhas da consulta, página a página. O PostgREST corta em
+// max-rows (1000 no Supabase) SEM erro: uma leitura única devolvia as
+// primeiras 1000 e a tela tratava como a lista inteira. A `order` de quem
+// chama termina numa coluna única (id), senão as páginas se sobrepõem.
+// Cópia em cada function que lista (ver LIFEOS.md §2), não import.
+async function selectTodas(REST: string, headers: Record<string, string>, tabelaQs: string): Promise<any[]> {
+  const PAGINA = 1000;
+  const out: any[] = [];
+  for (;;) {
+    const r = await fetch(`${REST}/${tabelaQs}&limit=${PAGINA}&offset=${out.length}`, { headers: { ...headers, Prefer: "count=exact" } });
+    if (!r.ok) throw new Error(`select ${tabelaQs.split("?")[0]} -> ${r.status} ${await r.text()}`);
+    const rows = await r.json();
+    out.push(...rows);
+    const total = Number((r.headers.get("content-range") || "").split("/")[1]);
+    if (!rows.length || !Number.isFinite(total) || out.length >= total) return out;
+  }
+}
+
 // ── handlers ─────────────────────────────────────────────────────────────
 
 async function handleQuery(ctx: Ctx) {
-  const [r, categorias] = await Promise.all([
-    fetch(`${ctx.REST}/lifeos_memorias?select=*,lifeos_memoria_registros(*)&order=updated_at.desc`, { headers: ctx.headers }),
+  const [rows, categorias] = await Promise.all([
+    selectTodas(ctx.REST, ctx.headers, "lifeos_memorias?select=*,lifeos_memoria_registros(*)&order=updated_at.desc,id.desc"),
     fetchCategorias(ctx),
   ]);
-  if (!r.ok) throw new Error(`select memorias -> ${r.status} ${await r.text()}`);
-  const rows = await r.json();
   return json({ ok: true, memorias: rows.map(normalizeMemoria), categorias });
 }
 

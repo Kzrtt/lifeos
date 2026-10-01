@@ -107,6 +107,19 @@ Olhe **só as linhas adicionadas** no diff:
   `check_master_token`; responde `{ok, error}`; CORS pelo
   `LIFEOS_ALLOWED_ORIGIN`.
 - **Limites** — `MAX_*` iguais na function, no JS que valida e no MCP.
+- **Leitura de lista** (`LIFEOS.md` §6.5) — nenhum select de tabela de
+  conteúdo sem paginação nem limite, nenhum `in.(` montado com ids da
+  própria lista, toda `order` terminando em `id`:
+  ```bash
+  grep -nE 'fetch\(`\$\{(ctx\.)?REST\}/lifeos_[a-z_]+\?' supabase/functions/*/index.ts \
+    | grep -vE 'id=eq\.|nota_id=eq\.|limit=|lifeos_(vocabularios|recorrencias|views)'
+  grep -nE 'in\.\(\$\{[a-zA-Z]+\.join' supabase/functions/*/index.ts
+  grep -nE 'order[=:] ?"?[a-z_.,]+' supabase/functions/*/index.ts | grep -v 'id\.\(asc\|desc\)' \
+    | grep -vE 'lifeos_(vocabularios|recorrencias|views)|token_pages|access_tokens'
+  ```
+  O que sobrar é suspeito: confira se a tabela é catálogo pequeno (ok), se o
+  `in.(` usa ids vindos do argumento, limitados (ok, como o `get_memoria`), ou
+  se é conteúdo que cresce (achado).
 
 ### MCP (se `lifeos-mcp` ou `mcp.js` mudou)
 

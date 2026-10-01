@@ -102,6 +102,7 @@ Navegação entre telas é sempre `<a href>` real — nunca uma "página" trocad
 - Contrato: `POST {token, action, …}` → `{ok: true, …}` ou `{ok: false, error: "<codigo>"}`. Códigos de erro curtos (`invalid_titulo`, `not_found`, `unauthorized`); o front traduz num mapa `ERRO`
 - Validação e limites (`MAX_*`) vivem na Edge Function; o front e o MCP **copiam** os mesmos limites
 - O MCP (`lifeos-mcp`) fala direto com o PostgREST — não passa pelas Edge Functions de domínio. Mudou regra de validação num domínio, muda no MCP também
+- **Leitura no banco, nunca em memória.** Lista inteira passa por `selectTodas()` (paginada — o PostgREST corta em 1000 linhas sem erro); busca do MCP filtra, ordena e limita na query (`selectPagina()`). N:N por embed, nunca `in.(...)` com ids de todas as linhas. Toda `order` termina em `id`. Ver `LIFEOS.md` §6.5
 - A lista de functions a deployar está em `SETUP.md` — function nova entra lá; migration nova é aplicada em ordem numérica
 - CORS é `*` por padrão (`LIFEOS_ALLOWED_ORIGIN` restringe) — a fronteira é a senha, não a origem (`OPENSOURCE.md` §5.4)
 

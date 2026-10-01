@@ -67,14 +67,35 @@ Tools de referência no arquivo:
 ```ts
 // ── Tool: search_<dominio> ────────────────────────────────────────────────
 async function handleSearch<Dominio>(REST: string, headers: Record<string, string>, args: Record<string, any>) {
+  const nome = args?.nome ? String(args.nome).trim() : "";
   const limit = clampLimit(args?.limit);
-  // … busca no PostgREST com a service role (REST + headers) …
-  // … filtros …
+  // … valida vocabulário (VOCAB.*) e datas (erroDatas) antes de ir ao banco …
+
+  const q = new URLSearchParams();
+  q.set("select", "id,name,…");
+  if (nome) q.set("name", "ilike." + ilikeContem(nome));
+  // array: q.set("tags", "ov." + pgArrayLiteral(tags)) · texto: q.set("tipo", "in." + pgInList(tipos))
+  q.set("order", "created_at.asc,id.asc"); // sempre termina em id
+  q.set("limit", String(limit));
+  const { rows, total } = await selectPagina(REST, headers, "lifeos_<dominio>", q);
+
   return toolText(JSON.stringify({
-    total_matches: total, returned: lista.length, truncated: total > lista.length, <plural>: lista,
+    total_matches: total, returned: rows.length, truncated: total > rows.length, <plural>: rows.map(…),
   }, null, 2));
 }
 ```
+
+- **Filtro, ordem e limite rodam no banco** — nunca baixe a tabela para
+  filtrar em memória: o PostgREST corta em 1000 linhas **antes** do filtro,
+  sem erro (`LIFEOS.md` §6.5). Os helpers do topo do arquivo já cobrem os
+  casos: `selectPagina()` (página + total), `selectTodas()` (conjunto
+  inteiro, paginado — só para quem precisa de tudo, como o
+  `resumo_financeiro`), `ilikeContem()`, `pgArrayLiteral()`, `pgInList()`,
+  `erroDatas()`.
+- **Filtro por projeto:** `resolveProjetoFiltro()` sobre `fetchAllProjetos()`
+  e depois `projeto_id=in.(<ids de projeto>)` — ou, em N:N, um embed
+  `!inner` vazio (`search_notas`). Nunca `in.(...)` com ids da própria
+  tabela.
 
 - **Erro de domínio é resposta, não exceção:** `return toolText("Projeto
   'xyz' não encontrado. Projetos existentes: A, B, C.", true)`. O modelo lê o
@@ -138,6 +159,7 @@ texto legível, não como erro JSON-RPC.
 - `enum` literal onde existe vocabulário
 - Pedir id quando dá para resolver por nome
 - Lista truncada sem `truncated: true`
+- Baixar a tabela inteira e filtrar em memória, ou `order` sem `id` no fim
 - Limite ou regra diferente da Edge Function do domínio
 - Esquecer `mcp.js` e a apresentação (a tela diz uma coisa, o servidor faz
   outra)

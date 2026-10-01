@@ -164,18 +164,31 @@ function validProjetoIds(v: unknown): string[] | null {
   return out;
 }
 
-async function fetchProjetoIdsByNota(REST: string, headers: Record<string, string>, notaIds: string[]) {
-  const map: Record<string, string[]> = {};
-  if (!notaIds.length) return map;
-  const idsFilter = notaIds.join(",");
-  const r = await fetch(`${REST}/lifeos_notas_projetos?nota_id=in.(${idsFilter})`, { headers });
-  if (!r.ok) throw new Error(`select notas_projetos -> ${r.status} ${await r.text()}`);
-  const rows: { nota_id: string; projeto_id: string }[] = await r.json();
-  for (const row of rows) {
-    if (!map[row.nota_id]) map[row.nota_id] = [];
-    map[row.nota_id].push(row.projeto_id);
+// Todas as linhas da consulta, página a página. O PostgREST corta em
+// max-rows (1000 no Supabase) SEM erro: uma leitura única devolvia as
+// primeiras 1000 e a tela tratava como a lista inteira. A `order` de quem
+// chama termina numa coluna única (id), senão as páginas se sobrepõem.
+// Cópia em cada function que lista (ver LIFEOS.md §2), não import.
+async function selectTodas(REST: string, headers: Record<string, string>, tabelaQs: string): Promise<any[]> {
+  const PAGINA = 1000;
+  const out: any[] = [];
+  for (;;) {
+    const r = await fetch(`${REST}/${tabelaQs}&limit=${PAGINA}&offset=${out.length}`, { headers: { ...headers, Prefer: "count=exact" } });
+    if (!r.ok) throw new Error(`select ${tabelaQs.split("?")[0]} -> ${r.status} ${await r.text()}`);
+    const rows = await r.json();
+    out.push(...rows);
+    const total = Number((r.headers.get("content-range") || "").split("/")[1]);
+    if (!rows.length || !Number.isFinite(total) || out.length >= total) return out;
   }
-  return map;
+}
+
+// Projetos de UMA nota (resposta do update quando o patch não mexe nos
+// vínculos). A lista inteira não passa por aqui: vem por embed no query.
+async function fetchProjetoIdsDaNota(REST: string, headers: Record<string, string>, notaId: string): Promise<string[]> {
+  const r = await fetch(`${REST}/lifeos_notas_projetos?nota_id=eq.${notaId}&select=projeto_id`, { headers });
+  if (!r.ok) throw new Error(`select notas_projetos -> ${r.status} ${await r.text()}`);
+  const rows: { projeto_id: string }[] = await r.json();
+  return rows.map((row) => row.projeto_id);
 }
 
 async function setProjetoLinks(REST: string, headers: Record<string, string>, notaId: string, projetoIds: string[]) {
@@ -194,14 +207,14 @@ async function setProjetoLinks(REST: string, headers: Record<string, string>, no
   if (!ins.ok) throw new Error(`insert notas_projetos -> ${ins.status} ${await ins.text()}`);
 }
 
+// Os vínculos vêm embutidos (embed `projs`) em vez de um segundo select com
+// `nota_id=in.(<id de todas as notas>)`: aquela URL crescia ~37 bytes por
+// nota e passava do limite do gateway por volta de 430 notas.
 async function handleQuery(REST: string, headers: Record<string, string>) {
-  const r = await fetch(`${REST}/lifeos_notas?order=data.desc.nullslast,created_at.desc`, { headers });
-  if (!r.ok) throw new Error(`select notas -> ${r.status} ${await r.text()}`);
-  const rows = await r.json();
-  const projetoMap = await fetchProjetoIdsByNota(REST, headers, rows.map((row: any) => row.id));
+  const rows = await selectTodas(REST, headers, "lifeos_notas?select=*,projs:lifeos_notas_projetos(projeto_id)&order=data.desc.nullslast,created_at.desc,id.desc");
   const notas = rows.map((row: any) => ({
     id: row.id, name: row.name, tipo: row.tipo ?? [], data: row.data,
-    conteudo_md: row.conteudo_md, projeto_ids: projetoMap[row.id] ?? [],
+    conteudo_md: row.conteudo_md, projeto_ids: (row.projs || []).map((l: { projeto_id: string }) => l.projeto_id),
     created_at: row.created_at, updated_at: row.updated_at,
   }));
   return json({ ok: true, notas });
@@ -315,8 +328,7 @@ async function handleUpdate(REST: string, headers: Record<string, string>, id: s
     }
     finalProjetoIds = projeto_ids;
   } else {
-    const map = await fetchProjetoIdsByNota(REST, headers, [id]);
-    finalProjetoIds = map[id] ?? [];
+    finalProjetoIds = await fetchProjetoIdsDaNota(REST, headers, id);
   }
 
   return json({

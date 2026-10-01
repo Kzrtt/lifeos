@@ -1062,6 +1062,42 @@ lifeos_manifestacoes: id uuid, name text,
   ler o schema, checar o cover de amostras) — fica dormente também, mesma
   postura de `notion-movimentacoes` (rede de segurança, não apagada).
 
+### 6.5 Leitura de listas — no banco e paginada (out/2026)
+
+Vale para toda Edge Function e para o MCP. Antes, as leituras baixavam a
+tabela inteira e filtravam em memória, o que tinha dois tetos que falham
+**sem erro**:
+
+- **max-rows do PostgREST** (1000 no Supabase): a leitura única volta com as
+  primeiras 1000 linhas e parece completa. Com uma centena de movimentações
+  por mês, o `resumo_financeiro` perderia os meses mais recentes em menos de
+  um ano de uso.
+- **Tamanho da URL**: `lifeos-notas` e a `search_notas` montavam
+  `nota_id=in.(<id de todas as notas>)` para trazer os vínculos com projetos.
+  A URL crescia ~37 bytes por nota e passaria de 16 KB por volta de 430
+  notas, derrubando a tela de Notas, o hub e o MCP juntos.
+
+O padrão agora:
+
+- **Lista inteira** (o `query` das functions, o catálogo de projetos e o
+  índice da memória no MCP, o `resumo_financeiro`): `selectTodas()`, que
+  pagina com `limit`/`offset` e `Prefer: count=exact` até o `Content-Range`
+  fechar. Cópia em cada function que lista (§2), não import.
+- **Busca do MCP**: filtro, ordem e `limit` na própria query
+  (`selectPagina()`, que devolve também o total para `total_matches`). Nome
+  com `ilike` escapado, arrays com `ov`/`cs`, valores entre aspas.
+- **N:N**: os vínculos vêm por embed (`projs:lifeos_notas_projetos(projeto_id)`);
+  filtrar por projeto é um segundo embed `!inner` vazio, para não encolher a
+  lista de projetos da nota. Nunca `in.(...)` com ids de todas as linhas.
+- **Toda `order` termina em `id`**: importações em lote dividem o mesmo
+  `created_at` (a migração do Notion gravou centenas de linhas assim), e sem
+  desempate a ordem entre elas varia por chamada. Com `limit` ou paginação,
+  isso troca qual linha entra.
+
+Ficam de fora os catálogos de configuração (`lifeos_vocabularios`,
+`lifeos_recorrencias`, `lifeos_views`, `access_tokens`, `admin_config`),
+pequenos por natureza.
+
 ---
 
 ## 7. Ação de excluir (`confirmDelete`) — padrão repetido, não compartilhado

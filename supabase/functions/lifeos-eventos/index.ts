@@ -150,6 +150,24 @@ Deno.serve(async (req) => {
   }
 });
 
+// Todas as linhas da consulta, página a página. O PostgREST corta em
+// max-rows (1000 no Supabase) SEM erro: uma leitura única devolvia as
+// primeiras 1000 e a tela tratava como a lista inteira. A `order` de quem
+// chama termina numa coluna única (id), senão as páginas se sobrepõem.
+// Cópia em cada function que lista (ver LIFEOS.md §2), não import.
+async function selectTodas(REST: string, headers: Record<string, string>, tabelaQs: string): Promise<any[]> {
+  const PAGINA = 1000;
+  const out: any[] = [];
+  for (;;) {
+    const r = await fetch(`${REST}/${tabelaQs}&limit=${PAGINA}&offset=${out.length}`, { headers: { ...headers, Prefer: "count=exact" } });
+    if (!r.ok) throw new Error(`select ${tabelaQs.split("?")[0]} -> ${r.status} ${await r.text()}`);
+    const rows = await r.json();
+    out.push(...rows);
+    const total = Number((r.headers.get("content-range") || "").split("/")[1]);
+    if (!rows.length || !Number.isFinite(total) || out.length >= total) return out;
+  }
+}
+
 function normalizeRow(r: any) {
   return { id: r.id, name: r.name, date: r.date, date_fim: r.date_fim ?? null, tipo: r.tipo, projeto_id: r.projeto_id ?? null };
 }
@@ -161,9 +179,7 @@ function normalizeRow(r: any) {
 // date <= to E (date_fim >= from OU (date_fim é nulo E date >= from)).
 async function handleQuery(REST: string, headers: Record<string, string>, from: string, to: string) {
   const filtro = `or=(date_fim.gte.${from},and(date_fim.is.null,date.gte.${from}))`;
-  const r = await fetch(`${REST}/lifeos_eventos?date=lte.${to}&${filtro}&order=date.asc`, { headers });
-  if (!r.ok) throw new Error(`select eventos -> ${r.status} ${await r.text()}`);
-  const rows = await r.json();
+  const rows = await selectTodas(REST, headers, `lifeos_eventos?date=lte.${to}&${filtro}&order=date.asc,created_at.asc,id.asc`);
   return json({ ok: true, eventos: rows.map(normalizeRow) });
 }
 
