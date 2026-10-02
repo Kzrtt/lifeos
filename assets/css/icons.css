@@ -66,6 +66,7 @@
 .fad::after { content: none !important; }
 
 /* ── Glifos ── */
+.fa-archive::before { content: "\f187"; }
 .fa-arrow-down::before { content: "\f063"; }
 .fa-arrow-from-bottom::before { content: "\f093"; }
 .fa-arrow-left::before { content: "\f060"; }
@@ -75,6 +76,7 @@
 .fa-bars::before { content: "\f0c9"; }
 .fa-book::before { content: "\f02d"; }
 .fa-book-open::before { content: "\f518"; }
+.fa-box-open::before { content: "\f49e"; }
 .fa-brain::before { content: "\f5dc"; }
 .fa-calendar-alt::before { content: "\f073"; }
 .fa-calendar-check::before { content: "\f274"; }
@@ -114,6 +116,7 @@
 .fa-grid-2::before { content: "\f009"; }
 .fa-hand-holding-usd::before { content: "\f4c0"; }
 .fa-history::before { content: "\f1da"; }
+.fa-hourglass-start::before { content: "\f251"; }
 .fa-hourglass-half::before { content: "\f252"; }
 .fa-image::before { content: "\f03e"; }
 .fa-info-circle::before { content: "\f05a"; }
@@ -133,6 +136,7 @@
 .fa-question-circle::before { content: "\f059"; }
 .fa-quote-right::before { content: "\f10e"; }
 .fa-receipt::before { content: "\f543"; }
+.fa-redo::before { content: "\f01e"; }
 .fa-repeat::before { content: "\f01e"; }
 .fa-robot::before { content: "\f544"; }
 .fa-rotate-left::before { content: "\f0e2"; }
@@ -150,6 +154,7 @@
 .fa-th-large::before { content: "\f009"; }
 .fa-times::before { content: "\f00d"; }
 .fa-trash::before { content: "\f1f8"; }
+.fa-trophy::before { content: "\f091"; }
 .fa-triangle-exclamation::before { content: "\f071"; }
 .fa-upload::before { content: "\f093"; }
 .fa-user-edit::before { content: "\f4ff"; }

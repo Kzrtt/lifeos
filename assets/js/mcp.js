@@ -124,6 +124,11 @@
       filtros: 'texto · autor — só criar, sem editar',
     },
     {
+      nome: 'search_renuncias', tipo: 'leitura',
+      desc: 'Há quanto tempo você está sem cada hábito: tempo corrido, próximo marco e quanto falta, recaídas e recorde. Criar e registrar recaída é só pela tela.',
+      filtros: 'nome · incluir arquivadas · histórico de tentativas',
+    },
+    {
       nome: 'list_memorias', tipo: 'leitura',
       desc: 'Índice da memória de longo prazo: título, categoria e descrição de cada memória, sem o conteúdo. O mesmo índice já chega à IA ao conectar.',
       filtros: 'categoria',

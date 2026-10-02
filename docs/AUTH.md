@@ -163,7 +163,8 @@ Streamable HTTP, pensado pra ser cadastrado como "custom connector" em
 claude.ai (Settings → Connectors), não pra ser aberto num browser. Expõe
 tools de CONSULTA sobre todo o sistema (`search_notas`, `search_tarefas`,
 `search_projetos`, `search_eventos`, `search_manifestacoes`,
-`search_citacoes`, `search_movimentacoes`, `list_memorias`, `get_memoria`)
+`search_citacoes`, `search_movimentacoes`, `search_renuncias`, `list_memorias`,
+`get_memoria`)
 e tools de ESCRITA (create/update) em Notas, Tarefas, Eventos,
 Movimentações, Citações (só create) e Memória (`create_memoria`,
 `add_registro`, `update_memoria`, `update_registro` — ver `LIFEOS.md` §17).

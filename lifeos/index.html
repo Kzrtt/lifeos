@@ -364,7 +364,7 @@
       .boot-row:nth-child(4) { animation-delay: 500ms; } .boot-row:nth-child(5) { animation-delay: 560ms; }
       .boot-row:nth-child(6) { animation-delay: 620ms; } .boot-row:nth-child(7) { animation-delay: 680ms; }
       .boot-row:nth-child(8) { animation-delay: 740ms; } .boot-row:nth-child(9) { animation-delay: 800ms; }
-      .boot-row:nth-child(10) { animation-delay: 860ms; }
+      .boot-row:nth-child(10) { animation-delay: 860ms; } .boot-row:nth-child(11) { animation-delay: 920ms; }
       @keyframes rise { to { opacity: 1; transform: none; } }
       @keyframes bootIn { from { opacity: 0; transform: translateX(-6px); } to { opacity: 1; transform: none; } }
     }
@@ -439,7 +439,8 @@
         <div class="boot-row"><span class="boot-ok">✓</span><span class="boot-name">manifestações</span><span class="boot-dots"></span><span class="boot-what">objetivos de um ano</span></div>
         <div class="boot-row"><span class="boot-ok">✓</span><span class="boot-name">citações</span><span class="boot-dots"></span><span class="boot-what">uma por abertura</span></div>
         <div class="boot-row"><span class="boot-ok">✓</span><span class="boot-name">memória</span><span class="boot-dots"></span><span class="boot-what">o que a IA sabe de você</span></div>
-        <div class="boot-row"><span class="boot-ok">✓</span><span class="boot-name">mcp</span><span class="boot-dots"></span><span class="boot-what">23 ferramentas</span></div>
+        <div class="boot-row"><span class="boot-ok">✓</span><span class="boot-name">renúncias</span><span class="boot-dots"></span><span class="boot-what">dias sem cada hábito</span></div>
+        <div class="boot-row"><span class="boot-ok">✓</span><span class="boot-name">mcp</span><span class="boot-dots"></span><span class="boot-what">24 ferramentas</span></div>
         <div class="boot-row boot-foot">pronto.</div>
       </div>
     </div>
@@ -500,7 +501,7 @@
   <section class="sec" id="modulos">
     <div class="sec-side">
       <div class="sec-num">§ 02</div>
-      <h2>Oito áreas, um eixo</h2>
+      <h2>Nove áreas, um eixo</h2>
       <p class="sec-abstract"><b>O que ele faz.</b> Um hub com o resumo de tudo; cada área ganha tela própria quando precisa de trabalho de verdade.</p>
     </div>
     <div class="sec-main">
@@ -574,6 +575,14 @@
             <li>qualquer IA conectada lê e acrescenta</li>
           </ul>
         </article>
+        <article class="mod">
+          <div class="mod-top"><i class="fad fa-hourglass-half ico"></i><h4>Renúncias</h4><span class="mod-tag">novo</span></div>
+          <p>Hábitos que você cortou e há quanto tempo está sem cada um. A data da última vez pode ser no passado; o contador corre sozinho.</p>
+          <ul>
+            <li>barra até o próximo marco: 1 dia, 3, 7, 14, 21, 1 mês…</li>
+            <li>recaída zera o contador e guarda o recorde</li>
+          </ul>
+        </article>
       </div>
 
       <h3><span class="h3-n">02.1</span>Projeto é o eixo</h3>
@@ -582,7 +591,7 @@
           Tarefas exigem um projeto; notas podem ter vários; eventos podem ter um. É esse
           vínculo que permite perguntar <em>“o que existe sobre X?”</em> e receber de volta as
           tarefas, as notas e os compromissos juntos. As manifestações ficam acima de tudo,
-          como horizonte; o dinheiro, as citações e a memória correm por fora.
+          como horizonte; o dinheiro, as citações, a memória e as renúncias correm por fora.
         </p>
       </div>
       <div class="diagram">
@@ -602,6 +611,7 @@ flowchart LR
     MOV["Movimentações"]
     CIT["Citações"]
     MEM["Memória"]
+    REN["Renúncias"]
   end
         </pre>
       </div>
@@ -677,7 +687,7 @@ flowchart LR
     <div class="sec-side">
       <div class="sec-num">§ 04</div>
       <h2>O sistema inteiro, aberto para a IA</h2>
-      <p class="sec-abstract"><b>O servidor MCP.</b> 23 ferramentas: 10 que consultam, 13 que escrevem, nenhuma que apaga. Mais as duas capacidades que mudaram o que o sistema é — contas feitas do jeito certo e uma memória que não depende do modelo.</p>
+      <p class="sec-abstract"><b>O servidor MCP.</b> 24 ferramentas: 11 que consultam, 13 que escrevem, nenhuma que apaga. Mais as duas capacidades que mudaram o que o sistema é — contas feitas do jeito certo e uma memória que não depende do modelo.</p>
     </div>
     <div class="sec-main">
       <div class="prose">
@@ -720,7 +730,7 @@ flowchart LR
         </p>
       </div>
       <div class="chat" aria-label="Conversa ilustrativa">
-        <div class="ch-sys"><i class="fad fa-plug"></i> conectado · <b>23 ferramentas</b> · índice de memória com <b>4 memórias</b> nas instruções</div>
+        <div class="ch-sys"><i class="fad fa-plug"></i> conectado · <b>24 ferramentas</b> · índice de memória com <b>4 memórias</b> nas instruções</div>
         <div class="ch-user">Fechei o mês? Quanto sobrou, e quanto ainda devo de cartão?</div>
         <div class="ch-tool"><i class="fad fa-terminal"></i><span class="t-n">resumo_financeiro</span>({ mes: "2026-09" })<span class="t-r">← saldo, faturas e projeção do mês, já com as regras de crédito</span></div>
         <div class="ch-tool"><i class="fad fa-terminal"></i><span class="t-n">get_memoria</span>({ memorias: ["Como colaborar comigo"] })<span class="t-r">← “prefere resumos em tópicos curtos”</span></div>
@@ -735,7 +745,7 @@ flowchart LR
       </div>
       <p class="ilustrativo">conversa ilustrativa — valores e nomes fictícios</p>
 
-      <h3><span class="h3-n">04.3</span>As 23 ferramentas, por domínio</h3>
+      <h3><span class="h3-n">04.3</span>As 24 ferramentas, por domínio</h3>
       <div class="doms">
         <div class="dom">
           <div class="dom-head"><i class="fad fa-feather-alt ico"></i><b>Notas</b><span>1 + 2</span></div>
@@ -773,7 +783,7 @@ flowchart LR
           </ul>
         </div>
         <div class="dom dom-wide">
-          <div class="dom-head"><i class="fad fa-brain ico"></i><b>Memória e citações</b><span>3 + 5</span></div>
+          <div class="dom-head"><i class="fad fa-brain ico"></i><b>Memória, citações e renúncias</b><span>4 + 5</span></div>
           <ul class="tl">
             <li><div class="tl-top"><code>list_memorias</code><span class="rw r">consulta</span><span class="novo">novo</span></div><p>O índice: título, categoria, descrição e quantos fatos cada memória tem.</p></li>
             <li><div class="tl-top"><code>get_memoria</code><span class="rw r">consulta</span><span class="novo">novo</span></div><p>Abre uma ou mais memórias com todos os registros, datados e com a origem.</p></li>
@@ -783,6 +793,7 @@ flowchart LR
             <li><div class="tl-top"><code>update_registro</code><span class="rw w">escrita</span><span class="novo">novo</span></div><p>Corrige um fato que envelheceu; a data original fica.</p></li>
             <li><div class="tl-top"><code>search_citacoes</code><span class="rw r">consulta</span></div><p>As frases guardadas, por texto ou autor.</p></li>
             <li><div class="tl-top"><code>create_citacao</code><span class="rw w">escrita</span></div><p>Guarda uma frase; trecho entre asteriscos vira destaque no painel.</p></li>
+            <li><div class="tl-top"><code>search_renuncias</code><span class="rw r">consulta</span><span class="novo">novo</span></div><p>Há quanto tempo sem cada hábito, o próximo marco e o recorde. Só leitura.</p></li>
           </ul>
         </div>
       </div>
@@ -924,7 +935,7 @@ flowchart LR
   end
   subgraph SUPA["Supabase"]
     EF["<b>Edge Functions</b><br/>uma por módulo"]
-    MCP["<b>lifeos-mcp</b><br/>23 ferramentas"]
+    MCP["<b>lifeos-mcp</b><br/>24 ferramentas"]
     ING["<b>lifeos-ingest</b><br/>lançamento rápido"]
     DB[("<b>Postgres</b><br/>tabelas lifeos_*<br/>sem acesso público")]
   end

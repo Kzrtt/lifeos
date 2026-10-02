@@ -40,6 +40,7 @@ Cada linha é um par HTML + JS isolado (ver §4.1). As páginas moram em `lifeos
 | `tarefas.html` | `tarefas.js` | Tarefas completo (kanban, lista, gráficos); só lê Projetos | `lifeos-tarefas`, `lifeos-projetos` |
 | `notas.html` | `notas.js` | Notas em markdown, N:N com projetos — ver [`NOTAS.md`](../docs/NOTAS.md) | `lifeos-notas` |
 | `memoria.html` | `memoria.js` | Memória de longo prazo das IAs (índice + registros) — `LIFEOS.md` §17 | `lifeos-memorias` |
+| `renuncias.html` | `renuncias.js` | Renúncias: tempo sem cada hábito, marcos, recaídas — `LIFEOS.md` §19 | `lifeos-renuncias` |
 | `publicar.html`, `senhas.html`, `temas.html`, `tags.html`, `automacao.html`, `mcp.html` | homônimos | Telas de configuração do drawer | `lifeos-config`, `lifeos-senhas`, `lifeos-vocabularios`… |
 | `tutorial.html` | — | Guia de uso, sem gate e sem JS próprio | — |
 | `index.html` | inline | Apresentação pública do LifeOS, sem gate — `LIFEOS.md` §18 | — |

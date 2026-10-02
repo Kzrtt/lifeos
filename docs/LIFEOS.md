@@ -132,6 +132,7 @@ tags.html + assets/js/tags.js           → vocabulários de todas as tabelas �
 automacao.html + assets/js/automacao.js → webhook de lançamento por celular — ver §15
 mcp.html + assets/js/mcp.js             → URL do conector MCP e guia das tools — ver §13
 memoria.html + assets/js/memoria.js     → memória de longo prazo (índice + registros) — ver §17
+renuncias.html + assets/js/renuncias.js → hábitos cortados, tempo sem cada um e marcos — ver §19
 tutorial.html                           → guia do sistema (sem gate, sem JS próprio) — ver §13
 index.html                              → apresentação pública do LifeOS (sem gate, script inline mínimo) — ver §18
 eventos.html + assets/js/eventos.js     → DORMENTE — sem link algum apontando pra ela (ver §5)
@@ -1231,6 +1232,7 @@ sofrem disso porque rodam o `closest` ANTES de trocar o conteúdo.
 | Notas | ✅ Funcional, página própria (CRUD completo) | `notas.html` | `lifeos_notas` + `lifeos_notas_projetos` | `lifeos-notas` |
 | Citações | ✅ Funcional, nativo do hub (banner sorteado + CRUD no modal — ver §3.6) | `lifeos.html` | `lifeos_citacoes` | `lifeos-citacoes` (+ `search_citacoes`/`create_citacao` no MCP) |
 | Memória | ✅ Funcional, página própria no drawer (CRUD completo — ver §17) | `memoria.html` | `lifeos_memorias` + `lifeos_memoria_registros` | `lifeos-memorias` (+ 6 tools e o índice nas `instructions` do MCP) |
+| Renúncias | ✅ Funcional, página própria no drawer (CRUD + recaída — ver §19) | `renuncias.html` | `lifeos_renuncias` + `lifeos_renuncia_tentativas` | `lifeos-renuncias` (+ `search_renuncias` no MCP, só leitura) |
 | Backup | ✅ Funcional, modal no hub (`#backup-btn` da topbar — ver §3.7) | `lifeos.html` | lê todas (RPC `lifeos_backup_dump`) | `lifeos-backup` |
 
 Ver [`FINANCAS.md`](FINANCAS.md) pra tudo sobre o módulo Finanças (contrato
@@ -1529,8 +1531,8 @@ Backend: **`lifeos-config`** (ver `AUTH.md`). O valor nunca volta do servidor
 ### `mcp.html`
 
 Mostra a URL do conector com botão de copiar, explica o que é MCP, lista as
-tools (23 desde set/2026: as de Memória — ver §17 — e `resumo_financeiro`,
-ver `FINANCAS.md` §9.1) e traz exemplos de pergunta.
+tools (24 desde out/2026: as de Memória — ver §17 —, `resumo_financeiro`,
+ver `FINANCAS.md` §9.1, e `search_renuncias`, ver §19) e traz exemplos de pergunta.
 
 **Tem gate**, porque a URL carrega o token de acesso embutido no path: quem a
 tiver lê todo o LifeOS.
@@ -1877,7 +1879,7 @@ explica o que ele *é*, pra quem está de fora.
   `66ch` e deixava um vão vazio à direita na maior parte da página.
 - **O MCP é o centro** (§04, sete subseções): a conexão (token no caminho da
   URL, rotação sem redeploy, fechado por padrão), uma conversa ilustrativa com
-  as chamadas de ferramenta à vista, as 23 ferramentas por domínio com o
+  as chamadas de ferramenta à vista, as 24 ferramentas por domínio com o
   contrato de cada uma, as decisões que tornam o servidor usável por um modelo,
   `resumo_financeiro`, a memória e o ciclo completo.
 - **Contraste sobre o banner:** o banner tem moldura de pergaminho claro; o
@@ -1904,6 +1906,99 @@ explica o que ele *é*, pra quem está de fora.
   acrescenta o link no §07.
 
 **Ao mudar o sistema, confira esta página.** Ela cita fatos que envelhecem: a
-lista das 23 tools do MCP (os `<code>` de `.tl` devem bater com `buildTools()`
+lista das 24 tools do MCP (os `<code>` de `.tl` devem bater com `buildTools()`
 em `lifeos-mcp`, e os rótulos consulta/escrita com o que cada uma faz), as
 quatro regras de Finanças, os módulos e as telas do menu.
+
+---
+
+## 19. Renúncias (`renuncias.html`) — há quanto tempo sem cada hábito
+
+Out/2026, migration `0010_lifeos_renuncias.sql`. Pedido do autor: quando corta
+um hábito por um tempo, quer saber há quanto tempo está sem ele — e ver a
+distância até o próximo marco (1 dia, 3, 7…), no espírito do app Quitzilla.
+
+### Por que página de drawer, e não hub
+
+Consulta de vez em quando, não uso diário, e tem regra própria (marcos,
+recaídas, histórico). Fica no grupo **Contexto** do drawer, abaixo de Memória:
+é dado sobre o usuário, não configuração. O hub não ganhou card — decisão
+explícita ("só no menu").
+
+### Modelo
+
+| Tabela | Papel | Campos |
+|---|---|---|
+| `lifeos_renuncias` | a renúncia em curso | `nome` (único sem diferenciar caixa, ≤80), `emoji` (≤16 — sequências ZWJ cabem), `desde` (timestamptz: a última vez, pode ser no passado), `arquivada` |
+| `lifeos_renuncia_tentativas` | o histórico | `renuncia_id` (cascade), `inicio`, `fim` (`check fim >= inicio`) |
+
+- **Recaída** é a RPC `lifeos_renuncia_recaida(p_id, p_quando)`: numa
+  transação só, fecha a tentativa atual (`inicio` = `desde` antigo, `fim` =
+  momento da recaída) e recomeça o `desde`. Devolve `ok` / `not_found` /
+  `antes_do_inicio` — a function traduz em `quando_antes_do_inicio`.
+- **Editar a data não é recaída.** Mudar o `desde` pelo formulário corrige um
+  valor errado e não grava tentativa; o formulário diz isso no modo editar.
+- **Data no futuro é inválida** (com 5 min de folga para o relógio do
+  aparelho) — `invalid_desde` / `invalid_quando`.
+- **Recorde** = maior entre a tentativa atual e as do histórico. Não é
+  guardado: sai das tentativas a cada leitura.
+- **Arquivar** tira da lista principal sem perder nada (chip "Arquivadas",
+  que só aparece quando há alguma). O contador de uma arquivada continua
+  correndo — arquivar não é "concluir".
+
+### Os marcos
+
+Escala fixa em dias: 1, 3, 7, 14, 21, 30 (1 mês), 60, 90, 180, 270, 365
+(1 ano), 730, 1095, 1825, 3650. Mês = 30 dias e ano = 365, de propósito — a
+barra precisa de um alvo fixo. **Não é vocabulário nem config**: é uma escala
+de tempo, não preferência. Vive em `MARCOS` (`renuncias.js`) e é **cópia** em
+`RENUNCIA_MARCOS` (`lifeos-mcp`) — mudou num, muda no outro.
+
+A barra mede o tempo corrido sobre o alvo do marco (de zero, não do marco
+anterior), então no detalhe todas as barras são comparáveis.
+
+### A tela
+
+- Cards em grade (uma coluna abaixo de 780px), do que está há mais tempo para
+  o mais recente: emoji, nome, "desde", tempo corrido com segundos, barra até
+  o próximo marco com "faltam", trilha de pontos (verde = conquistado, ouro =
+  o próximo) e, se houver, recaídas e recorde.
+- **O relógio anda sem re-render.** `tick()` roda a cada segundo e só troca o
+  conteúdo dos nós marcados (`data-tempo`, `data-bar`, `data-falta`) — um
+  re-render por segundo perderia a confirmação de dois cliques e o hover.
+  Quando um marco é cruzado (o `data-idx` do bloco "próximo marco" deixa de
+  bater), aí sim re-renderiza — a não ser com uma confirmação pendente.
+- Clicar num card abre o **detalhe** (`.pdet-*` com o emoji no banner): tempo
+  corrido, marcos/recorde/recaídas, uma barra por marco (conquistado com a
+  data, o próximo com o que falta, os futuros com a data em que chegam), a
+  caixa de recaída, o histórico e Editar / Arquivar / Excluir.
+- **Recaída** pede a data (padrão agora, aceita uma anterior — "recaí ontem")
+  e usa a mesma confirmação de dois cliques da exclusão (§7): é destrutiva
+  para o contador. O `confirmar()` desta página serve aos dois — o botão
+  guarda o rótulo em `data-orig`.
+- Formulário: nome, seletor de emoji (sugestões + campo livre para colar
+  qualquer outro) e a data/hora da última vez (`datetime-local`, padrão agora).
+  O preview do banner acompanha o emoji escolhido.
+
+Backend: **`lifeos-renuncias`** — `query` (tudo, com as tentativas por embed),
+`create`, `update` (patch: nome, emoji, desde, arquivada), `delete`,
+`recaida` (`id` + `quando` opcional). Mesmo gate `check_master_token`.
+
+### No MCP
+
+Uma tool, **`search_renuncias`**, só leitura (decisão do autor: criar, editar e
+recaída ficam na tela). Filtros: trecho do nome, `incluir_arquivadas`,
+`historico` (lista de tentativas). Devolve, por renúncia: `desde` e datas em
+hora de Brasília, tempo corrido, último marco, `marcos_conquistados` (N/15),
+próximo marco com `faltam`, `chega_em` e `progresso_pct`, recaídas, recorde e
+se o recorde é a tentativa atual.
+
+### O que não foi implementado
+
+- Card ou resumo no hub (pedido: só no menu).
+- Desfazer uma recaída ou excluir uma tentativa do histórico — a confirmação
+  de dois cliques é a proteção; corrigir exige editar a data.
+- Economia por dia (R$ economizados) e motivo/nota por renúncia — oferecidos
+  na entrevista, não escolhidos.
+- Marcos personalizados por renúncia.
+- Escrita pelo MCP.

@@ -4,7 +4,7 @@
 // -- pensado pra ser cadastrado como "custom connector" em claude.ai (Settings
 // > Connectors > Add custom connector, colando a URL desta function + token).
 // Expoe tools de CONSULTA sobre todo o sistema (Notas, Tarefas, Projetos,
-// Eventos, Manifestações, Citações, Finanças) e tools de ESCRITA em cinco
+// Eventos, Manifestações, Citações, Finanças, Renúncias) e tools de ESCRITA em cinco
 // domínios: Notas (create_nota, update_nota), Tarefas (create_tarefa,
 // update_tarefa), Eventos (create_evento, update_evento), Finanças
 // (create_movimentacao, update_movimentacao) e Citações (create_citacao --
@@ -510,6 +510,27 @@ function buildTools() {
     },
   },
   {
+    name: "search_renuncias",
+    description:
+      "Lê as renúncias do usuário: hábitos que ele cortou e há quanto tempo " +
+      "está sem cada um. Para cada renúncia devolve desde quando (a última " +
+      "vez), o tempo corrido, os marcos de tempo já conquistados (1 dia, 3, " +
+      "7, 14, 21, 1 mês, 2, 3, 6, 9 meses, 1, 2, 3, 5, 10 anos — mês = 30 " +
+      "dias, ano = 365), o próximo marco com quanto falta e a data em que " +
+      "chega, o nº de recaídas e o recorde. Sem filtros devolve as ativas, " +
+      "da mais antiga para a mais recente. Só leitura: criar, editar e " +
+      "registrar recaída é pela tela do LifeOS.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        nome: { type: "string", description: "Trecho do nome da renúncia (não precisa ser exato)." },
+        incluir_arquivadas: { type: "boolean", description: "Inclui as arquivadas (padrão false)." },
+        historico: { type: "boolean", description: "Inclui a lista de tentativas anteriores (início, fim, duração) de cada renúncia (padrão false)." },
+        limit: { type: "integer", description: "Máximo de resultados (padrão 20, máximo 50)." },
+      },
+    },
+  },
+  {
     name: "list_memorias",
     description:
       "Lista o ÍNDICE da memória de longo prazo sobre o usuário: título, " +
@@ -789,7 +810,7 @@ Deno.serve(async (req) => {
       return respond(rpcResult(id, {
         protocolVersion: params?.protocolVersion || "2025-06-18",
         capabilities: { tools: {} },
-        serverInfo: { name: "lifeos-mcp", version: "2.6.0" },
+        serverInfo: { name: "lifeos-mcp", version: "2.7.0" },
         instructions: await buildInstructions(REST, restHeaders),
       }));
     }
@@ -817,6 +838,7 @@ Deno.serve(async (req) => {
         search_manifestacoes: (a) => handleSearchManifestacoes(REST, restHeaders, a),
         search_citacoes: (a) => handleSearchCitacoes(REST, restHeaders, a),
         create_citacao: (a) => handleCreateCitacao(REST, restHeaders, a),
+        search_renuncias: (a) => handleSearchRenuncias(REST, restHeaders, a),
         list_memorias: (a) => handleListMemorias(REST, restHeaders, a),
         get_memoria: (a) => handleGetMemoria(REST, restHeaders, a),
         create_memoria: (a) => handleCreateMemoria(REST, restHeaders, a),
@@ -1587,6 +1609,101 @@ async function buildInstructions(REST: string, headers: Record<string, string>):
   if (cortado) indice += "\n(… índice cortado por tamanho -- use list_memorias para ver todas.)";
 
   return base + "\n\nÍndice de memória:" + indice;
+}
+
+// ── Tool: search_renuncias ────────────────────────────────────────────────
+// Só leitura (decisão do autor, out/2026): criar, editar e recaída são da
+// tela. A escala de marcos é CÓPIA de MARCOS em assets/js/renuncias.js --
+// mudou lá, muda aqui, senão a IA e a tela discordam do "próximo marco".
+const RENUNCIA_MARCOS: { dias: number; rot: string }[] = [
+  { dias: 1, rot: "1 dia" }, { dias: 3, rot: "3 dias" }, { dias: 7, rot: "7 dias" },
+  { dias: 14, rot: "14 dias" }, { dias: 21, rot: "21 dias" }, { dias: 30, rot: "1 mês" },
+  { dias: 60, rot: "2 meses" }, { dias: 90, rot: "3 meses" }, { dias: 180, rot: "6 meses" },
+  { dias: 270, rot: "9 meses" }, { dias: 365, rot: "1 ano" }, { dias: 730, rot: "2 anos" },
+  { dias: 1095, rot: "3 anos" }, { dias: 1825, rot: "5 anos" }, { dias: 3650, rot: "10 anos" },
+];
+const DIA_MS = 86400000;
+
+// "47d 5h", "3h 12m", "1a 20d" -- mesmo formato curto da tela (duracao()).
+function duracaoCurta(ms: number): string {
+  const s = Math.max(0, Math.floor(ms / 1000));
+  const d = Math.floor(s / 86400), h = Math.floor((s % 86400) / 3600), m = Math.floor((s % 3600) / 60);
+  if (d >= 365) return `${Math.floor(d / 365)}a ${d % 365}d`;
+  if (d > 0) return `${d}d ${h}h`;
+  if (h > 0) return `${h}h ${m}m`;
+  if (m > 0) return `${m}m`;
+  return `${s}s`;
+}
+
+// Instante em hora de Brasília, "AAAA-MM-DD HH:MM" -- o modelo fala com o
+// usuário em hora local, não em UTC.
+function horaSaoPaulo(ms: number): string {
+  const p = Object.fromEntries(new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Sao_Paulo", year: "numeric", month: "2-digit", day: "2-digit",
+    hour: "2-digit", minute: "2-digit", hourCycle: "h23",
+  }).formatToParts(new Date(ms)).map((x) => [x.type, x.value]));
+  return `${p.year}-${p.month}-${p.day} ${p.hour}:${p.minute}`;
+}
+
+async function handleSearchRenuncias(REST: string, headers: Record<string, string>, args: Record<string, any>) {
+  const nome = args?.nome ? String(args.nome).trim() : "";
+  const incluirArquivadas = args?.incluir_arquivadas === true;
+  const comHistorico = args?.historico === true;
+  const limit = clampLimit(args?.limit);
+
+  const q = new URLSearchParams();
+  q.set("select", "id,nome,emoji,desde,arquivada,tentativas:lifeos_renuncia_tentativas(inicio,fim)");
+  if (nome) q.set("nome", "ilike." + ilikeContem(nome));
+  if (!incluirArquivadas) q.set("arquivada", "eq.false");
+  q.set("order", "desde.asc,id.asc");
+  q.set("limit", String(limit));
+  const { rows, total: totalMatches } = await selectPagina(REST, headers, "lifeos_renuncias", q);
+
+  const agora = Date.now();
+  const returned = rows.map((r: any) => {
+    const desde = Date.parse(r.desde);
+    const ms = Math.max(0, agora - desde);
+    const tents = (Array.isArray(r.tentativas) ? r.tentativas : [])
+      .map((t: any) => ({ inicio: Date.parse(t.inicio), fim: Date.parse(t.fim) }))
+      .sort((a: any, b: any) => b.fim - a.fim);
+    const melhorAnterior = tents.reduce((m: number, t: any) => Math.max(m, t.fim - t.inicio), 0);
+    const conquistados = RENUNCIA_MARCOS.filter((m) => m.dias * DIA_MS <= ms);
+    const prox = RENUNCIA_MARCOS.find((m) => m.dias * DIA_MS > ms) || null;
+    const recorde = Math.max(ms, melhorAnterior);
+
+    const out: Record<string, unknown> = {
+      nome: r.nome,
+      emoji: r.emoji,
+      arquivada: !!r.arquivada,
+      desde: horaSaoPaulo(desde),
+      tempo_sem: duracaoCurta(ms),
+      dias_sem: Math.floor(ms / DIA_MS),
+      ultimo_marco: conquistados.length ? conquistados[conquistados.length - 1].rot : null,
+      marcos_conquistados: `${conquistados.length}/${RENUNCIA_MARCOS.length}`,
+      proximo_marco: prox
+        ? {
+          marco: prox.rot,
+          faltam: duracaoCurta(prox.dias * DIA_MS - ms),
+          chega_em: horaSaoPaulo(desde + prox.dias * DIA_MS),
+          progresso_pct: Math.round((ms / (prox.dias * DIA_MS)) * 100),
+        }
+        : null,
+      recaidas: tents.length,
+      recorde: duracaoCurta(recorde),
+      recorde_e_a_atual: ms >= melhorAnterior,
+    };
+    if (comHistorico) {
+      out.historico = tents.map((t: any) => ({
+        inicio: horaSaoPaulo(t.inicio), fim: horaSaoPaulo(t.fim), duracao: duracaoCurta(t.fim - t.inicio),
+      }));
+    }
+    return out;
+  });
+
+  return toolText(JSON.stringify({
+    consultado_em: horaSaoPaulo(agora) + " (America/Sao_Paulo)",
+    total_matches: totalMatches, returned: returned.length, truncated: totalMatches > returned.length, renuncias: returned,
+  }, null, 2));
 }
 
 // ── Tool: list_memorias ───────────────────────────────────────────────────

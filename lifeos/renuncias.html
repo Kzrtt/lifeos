@@ -1,0 +1,509 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="theme-color" content="#14120f">
+  <title>LifeOS · Renúncias</title>
+  <link rel="icon" href="../assets/images/favicon.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,500;0,700;0,900;1,400&family=JetBrains+Mono:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../assets/css/icons.css">
+  <style>
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    /* Tokens base — cópia do conjunto de lifeos.html (LIFEOS.md §2: padrões de
+       UI repetidos por cópia, não por arquivo compartilhado). A paleta final
+       vem do bloco SYSTEM SKIN no fim deste <style>. */
+    :root {
+      --bg:        #0c0e12;
+      --surface:   #14171d;
+      --surface-2: #1b1f27;
+      --border:    #262b34;
+      --text:      #e7e9ee;
+      --dim:       #9aa3b2;
+      --mute:      #5d6675;
+      --green:     #3fb98c;
+      --red:       #e5616a;
+      --gold:      #c9a96e;
+      --mono: 'JetBrains Mono', monospace;
+      --serif: 'Playfair Display', Georgia, serif;
+    }
+
+    [hidden] { display: none !important; }
+    /* Scroll minimalista em TUDO que rola — a janela e qualquer container
+       (modal, lista, tabela). Mesmo padrão que já existia só no kanban, nas
+       listas do hub e nos modais; global pra nenhum scroll novo cair no
+       padrão do navegador (grosso, chapado). Cópia por página (LIFEOS.md §2). */
+    * { scrollbar-width: thin; scrollbar-color: rgba(255,255,255,0.14) transparent; }
+    *::-webkit-scrollbar { width: 5px; height: 5px; }
+    *::-webkit-scrollbar-track { background: transparent; }
+    *::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.14); border-radius: 999px; }
+    *::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.24); }
+    *::-webkit-scrollbar-corner { background: transparent; }
+
+    html, body { height: 100%; }
+    body {
+      background: var(--bg); color: var(--text); font-family: var(--mono);
+      -webkit-font-smoothing: antialiased; line-height: 1.5;
+    }
+    .wrap { max-width: 860px; margin: 0 auto; padding: 0 20px 80px; }
+
+    /* ── Gate ── */
+    .gate {
+      position: fixed; inset: 0; z-index: 400; display: flex; align-items: center; justify-content: center;
+      padding: 24px; background: radial-gradient(ellipse at 50% 28%, #1c1a16 0%, #14120f 72%);
+    }
+    .gate-box { width: 100%; max-width: 380px; text-align: center; }
+    .gate-orn { font-size: 11px; letter-spacing: 0.5em; color: var(--mute); margin-bottom: 18px; }
+    .gate-brand {
+      font-family: var(--serif); font-weight: 900; font-style: italic;
+      font-size: clamp(44px, 11vw, 64px); line-height: 0.95; color: var(--text);
+      letter-spacing: -0.02em; margin-bottom: 36px;
+    }
+    .gate-label { font-size: 10px; letter-spacing: 0.32em; text-transform: uppercase; color: var(--mute); margin-bottom: 16px; }
+    .gate-row {
+      display: flex; border: 1px solid var(--border); border-radius: 6px; overflow: hidden;
+      transition: border-color 0.2s; background: var(--surface);
+    }
+    .gate-row:focus-within { border-color: var(--gold); }
+    .gate-row.shake { animation: shake 0.35s ease; }
+    @keyframes shake {
+      0%,100% { transform: translateX(0); }
+      20% { transform: translateX(-7px); }
+      60% { transform: translateX(7px); }
+      80% { transform: translateX(-3px); }
+    }
+    #gate-input {
+      flex: 1; min-width: 0; background: transparent; border: none; outline: none; padding: 15px 18px;
+      font-family: var(--mono); font-size: 16px; color: var(--text); letter-spacing: 0.12em; caret-color: var(--gold);
+    }
+    #gate-input::placeholder { color: var(--mute); }
+    #gate-btn {
+      background: transparent; border: none; border-left: 1px solid var(--border); color: var(--mute);
+      font-family: var(--mono); font-size: 18px; padding: 0 22px; cursor: pointer; transition: color 0.2s, background 0.2s;
+    }
+    #gate-btn:hover:not(:disabled) { color: var(--gold); background: var(--surface-2); }
+    #gate-btn:disabled { opacity: 0.4; cursor: default; }
+    .gate-remember {
+      display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 16px;
+      font-size: 10px; letter-spacing: 0.1em; color: var(--mute); text-transform: uppercase; cursor: pointer; user-select: none;
+    }
+    .gate-remember input { accent-color: var(--gold); cursor: pointer; width: 15px; height: 15px; }
+    .gate-error { margin-top: 16px; min-height: 14px; font-size: 10px; letter-spacing: 0.15em; text-transform: uppercase; color: var(--red); }
+    .gate-checking { margin-top: 8px; font-size: 11px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--mute); }
+
+    /* ── Topbar / cabeçalho ── */
+    .topbar {
+      display: flex; align-items: center; justify-content: space-between; gap: 10px;
+      padding: 18px 0 14px; border-bottom: 1px solid var(--border);
+    }
+    .back { font-size: 10px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--mute); text-decoration: none; transition: color 0.2s; white-space: nowrap; }
+    .back .fad { margin-right: 4px; }
+    .back:hover { color: var(--gold); }
+    .icon-btn {
+      width: 36px; height: 36px; flex-shrink: 0; display: flex; align-items: center; justify-content: center;
+      background: var(--surface); border: 1px solid var(--border); border-radius: 6px; color: var(--dim);
+      cursor: pointer; font-size: 15px; transition: color 0.15s, border-color 0.15s, background 0.15s;
+    }
+    .icon-btn:hover { color: var(--gold); border-color: var(--gold); background: var(--gold-wash); }
+
+    .head { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 16px; padding: 34px 0 22px; }
+    .head h1 {
+      font-family: var(--serif); font-weight: 700; font-style: italic;
+      font-size: clamp(34px, 7vw, 46px); line-height: 1; letter-spacing: -0.02em;
+    }
+    .head p { margin-top: 10px; font-size: 11px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--mute); }
+    .head-action {
+      display: inline-flex; align-items: center; gap: 8px; padding: 10px 16px;
+      background: transparent; border: 1px solid var(--border); border-radius: 6px;
+      color: var(--dim); font-family: var(--mono); font-size: 11px; letter-spacing: 0.1em;
+      cursor: pointer; transition: border-color 0.15s, color 0.15s, background 0.15s;
+    }
+    .head-action:hover { border-color: var(--gold); color: var(--gold); background: var(--gold-wash); }
+
+    .notice {
+      display: flex; gap: 12px; padding: 14px 16px; margin-bottom: 26px;
+      border: 1px solid var(--border); border-radius: 8px;
+      background: var(--surface); font-size: 11.5px; line-height: 1.75; color: var(--mute);
+    }
+    .notice .fad { color: var(--gold); font-size: 14px; flex-shrink: 0; margin-top: 2px; }
+    .notice strong { color: var(--dim); font-weight: 500; }
+
+    /* ── Filtro ativas / arquivadas ── */
+    .toolbar { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-bottom: 22px; }
+    .cat-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+    .cat-chip {
+      padding: 8px 12px; background: transparent; border: 1px solid var(--border); border-radius: 999px;
+      color: var(--mute); font-family: var(--mono); font-size: 10.5px; letter-spacing: 0.06em;
+      cursor: pointer; transition: border-color 0.15s, color 0.15s, background 0.15s;
+    }
+    .cat-chip:hover { color: var(--dim); border-color: var(--border-mid); }
+    .cat-chip.on { color: var(--gold); border-color: var(--gold); background: var(--gold-wash); }
+    .chip-n { opacity: 0.65; margin-left: 2px; }
+
+    /* ── Cards das renúncias ──
+       O card inteiro abre o detalhe. O tempo corrido, a barra e o "faltam"
+       são atualizados a cada segundo pelo tick() de renuncias.js, sem
+       re-render (data-tempo / data-bar / data-falta). */
+    .ren-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+    .ren-card {
+      display: block; width: 100%; padding: 18px; text-align: left; cursor: pointer;
+      background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+      color: inherit; font: inherit; transition: border-color 0.15s, background 0.15s;
+    }
+    .ren-card:hover { border-color: var(--border-mid); background: var(--surface-2); }
+    .ren-card:hover .ren-nome { color: var(--gold); }
+    .ren-card.arquivada { opacity: 0.62; }
+    .ren-top { display: flex; align-items: center; gap: 14px; }
+    .ren-emoji {
+      width: 52px; height: 52px; flex-shrink: 0; display: flex; align-items: center; justify-content: center;
+      background: var(--surface-2); border: 1px solid var(--border); border-radius: 14px;
+      font-size: 27px; line-height: 1;
+    }
+    .ren-card:hover .ren-emoji { background: var(--surface); }
+    .ren-id { min-width: 0; }
+    .ren-nome {
+      font-family: var(--serif); font-style: italic; font-weight: 700; font-size: 20px; line-height: 1.2;
+      color: var(--text); overflow-wrap: anywhere; transition: color 0.15s;
+    }
+    .ren-desde { margin-top: 5px; font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--mute); }
+
+    /* Tempo corrido: número grande, unidade pequena — lê-se de relance. */
+    .tempo { font-variant-numeric: tabular-nums; color: var(--text); white-space: nowrap; }
+    .tempo b { font-weight: 600; }
+    .tempo span { color: var(--mute); font-size: 0.6em; margin: 0 0.4em 0 0.08em; letter-spacing: 0.04em; }
+    .tempo span:last-child { margin-right: 0; }
+    .ren-tempo { margin-top: 18px; font-size: 25px; line-height: 1; }
+
+    .prox { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin: 16px 0 7px; font-size: 10.5px; color: var(--dim); }
+    .prox strong { color: var(--gold); font-weight: 500; }
+    .prox .falta { color: var(--mute); font-variant-numeric: tabular-nums; white-space: nowrap; }
+    .bar { height: 6px; background: var(--surface-2); border-radius: 999px; overflow: hidden; }
+    .ren-card:hover .bar { background: var(--border); }
+    .bar > i { display: block; height: 100%; width: 0; background: var(--gold); border-radius: 999px; transition: width 0.6s ease; }
+
+    /* Trilha dos marcos: um ponto por marco, verde quando conquistado. */
+    .trilha { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 14px; }
+    .trilha i { width: 8px; height: 8px; border-radius: 50%; background: var(--border-mid); }
+    .trilha i.ok { background: var(--green); }
+    .trilha i.prox-dot { background: var(--gold); box-shadow: 0 0 0 3px color-mix(in srgb, var(--gold) 22%, transparent); }
+
+    .ren-foot { display: flex; flex-wrap: wrap; gap: 6px 16px; margin-top: 14px; font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--mute); }
+    .ren-foot .fad { margin-right: 5px; }
+
+    /* ── Detalhe ── */
+    .pdet-banner-icon.emoji { font-size: 34px; color: inherit; }
+    .pdet-meta { margin-top: 8px; font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--mute); }
+    .det-tempo { margin-top: 14px; font-size: 30px; line-height: 1; text-align: center; }
+
+    .det-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 18px; }
+    .det-stat { border-radius: 8px; padding: 10px 8px; text-align: center; background: var(--surface-2); }
+    .det-stat-num { font-size: 15px; font-weight: 600; color: var(--text); font-variant-numeric: tabular-nums; line-height: 1.2; }
+    .det-stat-label { font-size: 8.5px; letter-spacing: 0.08em; text-transform: uppercase; font-weight: 600; color: var(--mute); margin-top: 4px; }
+    .det-stat.recorde { background: color-mix(in srgb, var(--gold) 14%, transparent); }
+    .det-stat.recorde .det-stat-label { color: var(--gold); }
+
+    .sec-label {
+      display: flex; align-items: baseline; gap: 10px; margin: 26px 0 10px;
+      font-size: 10px; letter-spacing: 0.26em; text-transform: uppercase; color: var(--mute);
+    }
+    .sec-label .n { color: var(--gold); letter-spacing: 0.1em; }
+    .sec-label::after { content: ''; flex: 1; height: 1px; background: var(--border); transform: translateY(-3px); }
+
+    /* Uma barra por marco: conquistado (verde, com a data), o próximo (ouro,
+       com o que falta) e os futuros (a data em que chegam). */
+    .marcos { list-style: none; }
+    .marco { display: grid; grid-template-columns: 74px minmax(0, 1fr) 118px; align-items: center; gap: 12px; padding: 6px 0; }
+    .marco-rot { font-size: 11px; color: var(--dim); white-space: nowrap; }
+    .marco-info { font-size: 10px; letter-spacing: 0.04em; color: var(--mute); text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+    .marco.ok .marco-rot, .marco.ok .marco-info { color: var(--green); }
+    .marco.ok .bar > i { background: var(--green); }
+    .marco.atual .marco-rot { color: var(--gold); font-weight: 500; }
+    .marco.atual .marco-info { color: var(--dim); }
+    .marco.futuro .bar > i { background: color-mix(in srgb, var(--gold) 45%, transparent); }
+
+    .recaida-box { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+    .recaida-box .edit-input { flex: 1 1 200px; width: auto; }
+    .recaida-hint { margin-top: 8px; font-size: 10.5px; line-height: 1.7; color: var(--mute); }
+    .edit-btn-danger { background: transparent; border: 1px solid color-mix(in srgb, var(--red) 55%, transparent); color: var(--red); }
+    .edit-btn-danger:hover, .edit-btn-danger.pending { background: color-mix(in srgb, var(--red) 14%, transparent); border-color: var(--red); }
+
+    .tents { list-style: none; }
+    .tent { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px 12px; padding: 10px 0; border-bottom: 1px solid var(--border); font-size: 11px; color: var(--dim); }
+    .tent:last-child { border-bottom: none; }
+    .tent-dur { color: var(--text); font-variant-numeric: tabular-nums; }
+    .tent-dur.recorde { color: var(--gold); }
+    .tent-dur .fad { margin-right: 5px; }
+    .tents-vazio { padding: 6px 0; font-size: 11.5px; color: var(--mute); font-style: italic; }
+
+    .det-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; margin-top: 26px; padding-top: 16px; border-top: 1px solid var(--border); }
+    .det-actions .row-btn { width: auto; padding: 0 12px; gap: 7px; font-family: var(--mono); font-size: 11px; letter-spacing: 0.03em; }
+
+    /* ── Formulário: seletor de emoji ── */
+    .emoji-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(40px, 1fr)); gap: 6px; }
+    .emoji-opt {
+      height: 40px; display: flex; align-items: center; justify-content: center; font-size: 20px; line-height: 1;
+      background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; cursor: pointer;
+      transition: border-color 0.15s, background 0.15s;
+    }
+    .emoji-opt:hover { border-color: var(--border-mid); }
+    .emoji-opt.is-selected { border-color: var(--gold); background: var(--gold-wash); }
+    .emoji-outro { display: flex; align-items: center; gap: 10px; margin-top: 10px; }
+    .emoji-outro .edit-input { width: 120px; font-size: 18px; text-align: center; padding: 7px 10px; }
+    .emoji-outro span { font-size: 10.5px; color: var(--mute); }
+    input[type="datetime-local"].edit-input { color-scheme: dark; }
+
+    .row-btn {
+      width: 30px; height: 30px; display: inline-flex; align-items: center; justify-content: center;
+      background: transparent; border: 1px solid var(--border); border-radius: 5px;
+      color: var(--mute); cursor: pointer; font-size: 11px; transition: color 0.15s, border-color 0.15s;
+    }
+    .row-btn:hover:not(:disabled) { color: var(--gold); border-color: var(--gold); }
+    .row-btn.danger:hover:not(:disabled) { color: var(--red); border-color: var(--red); }
+    .row-btn.pending { color: var(--red); border-color: var(--red); }
+
+    .list-loading, .list-vazio { padding: 60px 20px; text-align: center; font-size: 12px; color: var(--mute); }
+    .list-vazio .fad { display: block; font-size: 28px; color: var(--gold); margin-bottom: 14px; opacity: 0.8; }
+    .list-vazio strong { color: var(--dim); font-weight: 500; }
+
+
+    /* ── Modal (padrão banner .pdet-* do hub) ── */
+    .modal {
+      position: fixed; inset: 0; z-index: 1000; display: flex; align-items: center; justify-content: center;
+      padding: 20px; background: rgba(6,8,11,0.78); opacity: 0; pointer-events: none; transition: opacity 0.2s ease;
+    }
+    .modal.open { opacity: 1; pointer-events: auto; }
+    .modal-panel {
+      width: 100%; max-width: 560px; max-height: 88vh; display: flex; flex-direction: column;
+      background: var(--surface); border-radius: 12px; overflow: hidden;
+    }
+    .modal-body {
+      overflow-y: auto; -webkit-overflow-scrolling: touch; padding: 0;
+      scrollbar-width: thin; scrollbar-color: rgba(255,255,255,0.14) transparent;
+    }
+    .pdet-banner {
+      position: relative; height: 120px; flex-shrink: 0; overflow: hidden;
+      display: flex; align-items: center; justify-content: center;
+      background: radial-gradient(circle at 50% 120%, var(--gold) -40%, var(--surface-2) 68%);
+    }
+    .pdet-banner::before {
+      content: ''; position: absolute; inset: 0;
+      background: repeating-linear-gradient(135deg, rgba(255,255,255,0.028) 0 2px, transparent 2px 9px);
+    }
+    .pdet-banner::after {
+      content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 58%;
+      background: linear-gradient(to bottom, transparent, var(--surface));
+    }
+    .pdet-banner-icon {
+      position: relative; z-index: 1; width: 68px; height: 68px; border-radius: 18px;
+      display: flex; align-items: center; justify-content: center; font-size: 28px; line-height: 1;
+      background: var(--surface); border: 1px solid var(--border); color: var(--gold);
+      box-shadow: 0 10px 26px rgba(0,0,0,0.42);
+    }
+    .pdet-close {
+      position: absolute; top: 12px; right: 12px; z-index: 2;
+      width: 34px; height: 34px; display: flex; align-items: center; justify-content: center;
+      background: rgba(6,8,11,0.5); border: 1px solid var(--border); border-radius: 8px;
+      color: var(--dim); cursor: pointer; font-size: 13px; transition: color 0.15s, background 0.15s;
+    }
+    .pdet-close:hover { color: var(--gold); background: rgba(6,8,11,0.75); }
+    .pdet-head { padding: 2px 22px 0; text-align: center; flex-shrink: 0; }
+    .pdet-name { font-family: var(--serif); font-style: italic; font-weight: 700; font-size: 23px; line-height: 1.25; color: var(--text); }
+    .pdet-body-pad { padding: 18px 22px 22px; }
+
+    .edit-field { margin-bottom: 14px; }
+    .edit-label { display: flex; justify-content: space-between; font-size: 10px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--mute); margin-bottom: 6px; }
+    .edit-count { letter-spacing: 0.05em; }
+    .edit-count.over { color: var(--red); }
+    .edit-input {
+      width: 100%; background: var(--surface-2); border: 1px solid var(--border); border-radius: 6px;
+      padding: 10px 12px; font-family: var(--mono); font-size: 13px; color: var(--text); outline: none;
+      transition: border-color 0.15s;
+    }
+    .edit-input:focus { border-color: var(--gold); }
+    select.edit-input { cursor: pointer; }
+    textarea.edit-input { resize: vertical; min-height: 76px; line-height: 1.6; }
+    .edit-hint { margin-top: 7px; font-size: 10.5px; line-height: 1.7; color: var(--mute); }
+    .edit-error { min-height: 14px; font-size: 11px; letter-spacing: 0.04em; color: var(--red); margin-top: 10px; }
+    .edit-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 18px; }
+    .edit-btn {
+      display: inline-flex; align-items: center; justify-content: center; gap: 7px;
+      font-family: var(--mono); font-size: 12px; letter-spacing: 0.04em; padding: 10px 18px;
+      border-radius: 6px; cursor: pointer; transition: border-color 0.15s, background 0.15s, color 0.15s;
+    }
+    .edit-btn-ghost { background: transparent; border: 1px solid var(--border); color: var(--dim); }
+    .edit-btn-ghost:hover { border-color: var(--gold); color: var(--text); }
+    .edit-btn-primary { background: var(--gold); border: 1px solid var(--gold); color: #14120f; font-weight: 500; }
+    .edit-btn-primary:hover { opacity: 0.9; }
+    .edit-btn-primary:disabled { opacity: 0.5; cursor: default; }
+    .edit-btn-sm { padding: 8px 14px; font-size: 11px; }
+
+    .foot { margin-top: 60px; padding-top: 22px; border-top: 3px double var(--text); text-align: center; }
+    .foot-text { font-size: 10px; letter-spacing: 0.22em; text-transform: uppercase; color: var(--mute); }
+    .loading-ov { position: fixed; inset: 0; z-index: 1200; display: flex; align-items: center; justify-content: center; background: rgba(20,18,15,0.55); }
+    .spinner { width: 32px; height: 32px; border: 3px solid var(--border); border-top-color: var(--gold); border-radius: 50%; animation: spin 0.7s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    @media (max-width: 780px) {
+      .ren-grid { grid-template-columns: minmax(0, 1fr); }
+    }
+    @media (max-width: 560px) {
+      .ren-card { padding: 16px 14px; }
+      .ren-tempo { font-size: 22px; }
+      .det-tempo { font-size: 25px; }
+      .marco { grid-template-columns: 58px minmax(0, 1fr) 96px; gap: 10px; }
+      .pdet-head, .pdet-body-pad { padding-left: 16px; padding-right: 16px; }
+    }
+
+    /* ═══════════════════════════════════════════════════════════════════
+       SYSTEM SKIN — paleta sépia-quente do arquivo. Mesma reskin das
+       outras páginas do LifeOS, copiada (LIFEOS.md §2).
+       ═══════════════════════════════════════════════════════════════════ */
+    :root {
+      --bg:        #14120f;
+      --surface:   #1c1a16;
+      --surface-2: #242018;
+      --border:    #2e2a24;
+      --text:      #ede8df;
+      --dim:       #b0a898;
+      --mute:      #6b6456;
+      --gold:      #c4913a;
+      --gold-wash: rgba(196, 145, 58, 0.10);
+      --border-mid: #3a352d;
+    }
+    html { background: var(--bg); }
+    .gate { background: radial-gradient(ellipse at 50% 28%, #1c1a16 0%, #14120f 72%); }
+    /* ═══ SYSTEM SKIN ▸ END ═══ */
+  </style>
+  <link rel="stylesheet" id="lifeos-tema" href="../assets/css/themes/lifeos/abismo.css">
+  <!-- Config da instância + tema. Precisam vir AQUI, nesta ordem e sem defer:
+       o <link> acima tem de ficar depois do <style> pra vencer o SYSTEM SKIN,
+       e tema.js tem de rodar antes da primeira pintura. Ver assets/js/tema.js. -->
+  <script src="../assets/js/lifeos-config.js"></script>
+  <script src="../assets/js/tema.js"></script>
+  <script src="../assets/js/blog.js"></script>
+</head>
+<body>
+
+<!-- ───────────────────────── GATE ───────────────────────── -->
+<div id="gate" class="gate">
+  <div class="gate-box">
+    <div class="gate-orn">✦ &nbsp; ✦ &nbsp; ✦</div>
+    <div class="gate-brand">LifeOS</div>
+    <form id="gate-form" autocomplete="off">
+      <div class="gate-label">acesso restrito · senha mestre</div>
+      <div class="gate-row" id="gate-row">
+        <input id="gate-input" type="password" placeholder="senha mestre" spellcheck="false" autocomplete="current-password">
+        <button id="gate-btn" type="submit"><i class="fad fa-arrow-right"></i></button>
+      </div>
+      <label class="gate-remember"><input type="checkbox" id="gate-remember"> lembrar neste navegador</label>
+      <div id="gate-error" class="gate-error"></div>
+    </form>
+    <div id="gate-checking" class="gate-checking" hidden>verificando sessão…</div>
+  </div>
+</div>
+
+<!-- ───────────────────────── APP ───────────────────────── -->
+<div id="app" class="wrap" hidden>
+
+  <div class="topbar">
+    <a href="lifeos.html" class="back"><i class="fad fa-arrow-left"></i> lifeos</a>
+    <button id="logout-btn" class="icon-btn" title="Sair" aria-label="Sair"><i class="fad fa-sign-out"></i></button>
+  </div>
+
+  <header class="head">
+    <div>
+      <h1>Renúncias</h1>
+      <p>há quanto tempo você está sem</p>
+    </div>
+    <button type="button" id="add-renuncia-btn" class="head-action"><i class="fad fa-plus"></i> Nova renúncia</button>
+  </header>
+
+  <div class="notice">
+    <i class="fad fa-hourglass-half"></i>
+    <span id="notice-text">
+      Cada renúncia conta a partir da <strong>última vez</strong> — pode ser uma data no passado.
+      A barra mostra quanto falta para o <strong>próximo marco</strong> (1 dia, 3, 7, 14, 21, 1 mês…).
+      Uma <strong>recaída</strong> zera o contador e guarda a tentativa no histórico, de onde sai o recorde.
+    </span>
+  </div>
+
+  <div class="toolbar" id="toolbar" hidden>
+    <div id="filtro-chips" class="cat-chips"></div>
+  </div>
+
+  <div id="renuncias">
+    <div class="list-loading">carregando…</div>
+  </div>
+
+  <footer class="foot">
+    <span class="foot-text">✦ LifeOS</span>
+  </footer>
+</div>
+
+<!-- ───────────────── MODAL · RENÚNCIA (detalhe) ───────────────── -->
+<div id="detalhe-modal" class="modal" role="dialog" aria-modal="true">
+  <div class="modal-panel">
+    <div class="pdet-banner">
+      <button type="button" class="pdet-close" id="detalhe-modal-close" aria-label="Fechar"><i class="fad fa-times"></i></button>
+      <div class="pdet-banner-icon emoji" id="detalhe-emoji"></div>
+    </div>
+    <div class="modal-body">
+      <div class="pdet-head">
+        <div class="pdet-name" id="detalhe-nome">—</div>
+        <div class="pdet-meta" id="detalhe-meta"></div>
+      </div>
+      <div class="pdet-body-pad" id="detalhe-body"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ───────────────── MODAL · RENÚNCIA (criar/editar) ───────────────── -->
+<div id="renuncia-modal" class="modal" role="dialog" aria-modal="true">
+  <div class="modal-panel">
+    <div class="pdet-banner">
+      <button type="button" class="pdet-close" id="renuncia-modal-close" aria-label="Fechar"><i class="fad fa-times"></i></button>
+      <div class="pdet-banner-icon emoji" id="renuncia-preview"></div>
+    </div>
+    <div class="modal-body">
+      <div class="pdet-head"><div class="pdet-name" id="renuncia-modal-title">Nova renúncia</div></div>
+      <div class="pdet-body-pad">
+        <form id="renuncia-form" autocomplete="off">
+          <div class="edit-field">
+            <label class="edit-label" for="renuncia-nome">Do que você está abrindo mão</label>
+            <input id="renuncia-nome" class="edit-input" type="text" maxlength="80" spellcheck="false" placeholder="ex.: refrigerante, redes sociais">
+          </div>
+          <div class="edit-field">
+            <div class="edit-label">Emoji</div>
+            <div id="emoji-grid" class="emoji-grid"></div>
+            <div class="emoji-outro">
+              <input id="renuncia-emoji" class="edit-input" type="text" maxlength="16" spellcheck="false" aria-label="Emoji">
+              <span>ou cole qualquer outro aqui</span>
+            </div>
+          </div>
+          <div class="edit-field">
+            <label class="edit-label" for="renuncia-desde">A última vez foi em</label>
+            <input id="renuncia-desde" class="edit-input" type="datetime-local">
+            <div class="edit-hint" id="renuncia-desde-hint"></div>
+          </div>
+          <div id="renuncia-error" class="edit-error"></div>
+          <div class="edit-actions">
+            <button type="button" id="renuncia-cancel" class="edit-btn edit-btn-ghost">Cancelar</button>
+            <button type="submit" id="renuncia-save" class="edit-btn edit-btn-primary">Salvar</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="loading" class="loading-ov" hidden><div class="spinner"></div></div>
+
+<script src="../assets/js/renuncias.js?v=20261002"></script>
+
+</body>
+</html>
