@@ -216,6 +216,7 @@
   var ACTIVE_VIEW_NOTAS_ID = null;
   var VIEWS_TAREFAS = [];
   var ACTIVE_VIEW_TAREFAS_ID = null;
+  var HUB_VIEWS_PADRAO_APLICADAS = false; /* a view padrão só abre uma vez por sessão — ↻ não desfaz a troca manual */
 
   /* Motor de regras — mesma lógica isolada de notas.js/tarefas.js (ver
      LIFEOS.md §2), uma variante de getCampo por tabela já que aqui um
@@ -241,6 +242,17 @@
     if (!view || !view.regras.length) return true;
     var results = view.regras.map(function (r) { return matchesRegraView(getCampo(r.campo, row), r); });
     return view.modo === 'qualquer' ? results.some(Boolean) : results.every(Boolean);
+  }
+  /* View marcada como padrão (lifeos_views.padrao, escolhida em
+     notas.html/tarefas.html) abre no lugar de "Todas" — só na primeira
+     carga da sessão, venha ela do cache ou da rede. */
+  function aplicarViewsPadraoHub() {
+    if (HUB_VIEWS_PADRAO_APLICADAS) return;
+    HUB_VIEWS_PADRAO_APLICADAS = true;
+    var vn = VIEWS_NOTAS.find(function (v) { return v.padrao; });
+    var vt = VIEWS_TAREFAS.find(function (v) { return v.padrao; });
+    ACTIVE_VIEW_NOTAS_ID = vn ? vn.id : null;
+    ACTIVE_VIEW_TAREFAS_ID = vt ? vt.id : null;
   }
   function activeViewNotas() {
     if (!ACTIVE_VIEW_NOTAS_ID) return null;
@@ -268,7 +280,12 @@
     views.forEach(function (v) {
       var b = document.createElement('button');
       b.type = 'button'; b.className = 'chip' + (v.id === activeId ? ' active' : '');
-      b.textContent = v.nome;
+      if (v.padrao) {
+        var ico = document.createElement('i');
+        ico.className = 'fad fa-star view-padrao-ico'; ico.setAttribute('aria-hidden', 'true');
+        b.appendChild(ico); b.title = 'abre por padrão';
+      }
+      b.appendChild(document.createTextNode(v.nome));
       b.addEventListener('click', function () { onPick(v.id); });
       host.appendChild(b);
     });
@@ -3329,7 +3346,7 @@
          idempotente (só busca o que falta), então isso não gera as 6
          chamadas de novo, só as que realmente faltam (geralmente zero). */
   var HUB_CACHE_KEY = 'lifeos_hub_cache';
-  var HUB_CACHE_V = 4; /* bump: cache ganhou o campo citacoes */
+  var HUB_CACHE_V = 5; /* bump: views ganharam o campo padrao */
   function readHubCache() {
     try {
       var raw = localStorage.getItem(HUB_CACHE_KEY);
@@ -3398,6 +3415,7 @@
       NOTAS_HUB = notas.notas || [];
       VIEWS_NOTAS = viewsNotas.views || [];
       VIEWS_TAREFAS = viewsTarefas.views || [];
+      aplicarViewsPadraoHub();
     });
   }
 
@@ -3422,6 +3440,7 @@
     NOTAS_HUB = cache.notas || [];
     VIEWS_NOTAS = cache.views_notas || [];
     VIEWS_TAREFAS = cache.views_tarefas || [];
+    aplicarViewsPadraoHub();
     CITACOES = cache.citacoes || [];
     EVENTOS = (cache.eventos && cache.eventos.eventos) || [];
     HUB_EVENTOS_LOADED = (cache.eventos && cache.eventos.loaded) || {};
@@ -3721,7 +3740,7 @@
     addBtnReset.innerHTML = 'Adicionar <i class="fad fa-plus"></i>';
     addBtnReset.setAttribute('aria-label', 'Novo evento');
     TAR_PROJETO_FILTRO = ''; TAR_BUSCA_FILTRO = ''; $('tar-busca-input').value = ''; DRAG_TAREFA_ID = null;
-    VIEWS_NOTAS = []; VIEWS_TAREFAS = []; ACTIVE_VIEW_NOTAS_ID = null; ACTIVE_VIEW_TAREFAS_ID = null;
+    VIEWS_NOTAS = []; VIEWS_TAREFAS = []; ACTIVE_VIEW_NOTAS_ID = null; ACTIVE_VIEW_TAREFAS_ID = null; HUB_VIEWS_PADRAO_APLICADAS = false;
     /* não chapa 'Em Progresso': o status pode ter sido renomeado na tela
        de Tags, e o filtro precisa apontar pra algo que existe. */
     PROJ_STATUS_FILTRO = STATUS_PROJETO[1] || STATUS_PROJETO[0] || '';

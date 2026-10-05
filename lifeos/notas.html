@@ -165,6 +165,7 @@
        acento: não é ação destrutiva. */
     .chip-edit { border-style: dashed; color: var(--gold); }
     .chip-edit i { font-size: 10px; margin-right: 3px; }
+    .view-padrao-ico { font-size: 10px; margin-right: 5px; }
 
     .section-divider { position: relative; border-top: 1px solid var(--border); margin: 8px 0 24px; }
 
@@ -799,6 +800,12 @@
           <div id="view-regras-list" class="view-regras-list"></div>
           <button type="button" id="view-add-regra" class="chip chip-clear">+ regra</button>
         </div>
+        <div class="edit-field">
+          <label class="edit-label">Padrão</label>
+          <div class="chip-picker">
+            <button type="button" class="chip-opt" id="view-padrao-toggle" aria-pressed="false"><i class="fad fa-star"></i> abrir a página nesta view</button>
+          </div>
+        </div>
         <div id="view-error" class="edit-error"></div>
         <div class="edit-actions-icons" id="view-icon-actions" hidden>
           <button type="button" id="view-delete" class="icon-btn icon-btn-danger" aria-label="Excluir view"><i class="fad fa-trash"></i></button>
@@ -891,7 +898,7 @@
 
 <script src="https://cdn.jsdelivr.net/npm/marked@12.0.2/marked.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/easymde@2.18.0/dist/easymde.min.js"></script>
-<script src="../assets/js/notas.js?v=20260929"></script>
+<script src="../assets/js/notas.js?v=20261005"></script>
 <script src="../assets/js/back-to-top.js?v=20260617"></script>
 
 <script>

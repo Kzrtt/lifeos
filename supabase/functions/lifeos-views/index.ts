@@ -8,7 +8,8 @@
 // a DEFINICAO da view, pra sincronizar entre aparelhos.
 //
 // A view "Todas" (sem filtro) e implicita no front-end -- nunca vira uma
-// linha aqui.
+// linha aqui. `padrao = true` marca a view que abre no lugar dela (no
+// maximo uma por tabela -- ver desmarcarPadrao e 0011_lifeos_views_padrao).
 //
 // Acoes: "query" ({ tabela }), "create" ({ view }), "update" ({ id, patch }),
 // "delete" ({ id }).
@@ -104,7 +105,7 @@ Deno.serve(async (req) => {
 function normalizeRow(r: any) {
   return {
     id: r.id, tabela: r.tabela, nome: r.nome, modo: r.modo,
-    regras: r.regras ?? [], ordem: r.ordem,
+    regras: r.regras ?? [], ordem: r.ordem, padrao: r.padrao === true,
     created_at: r.created_at, updated_at: r.updated_at,
   };
 }
@@ -146,6 +147,18 @@ async function nextOrdem(REST: string, headers: Record<string, string>, tabela: 
   return rows.length ? Number(rows[0].ordem) + 1 : 0;
 }
 
+// Tira a marca de padrao das outras views da tabela -- precisa rodar ANTES
+// de marcar a nova, senao o indice unico parcial (lifeos_views_padrao_uniq)
+// recusa o insert/patch.
+async function desmarcarPadrao(REST: string, headers: Record<string, string>, tabela: Tabela) {
+  const r = await fetch(`${REST}/lifeos_views?tabela=eq.${tabela}&padrao=is.true`, {
+    method: "PATCH",
+    headers,
+    body: JSON.stringify({ padrao: false }),
+  });
+  if (!r.ok) throw new Error(`patch views_padrao -> ${r.status} ${await r.text()}`);
+}
+
 async function handleQuery(REST: string, headers: Record<string, string>, tabelaRaw: string) {
   const tabela = validTabela(tabelaRaw);
   if (!tabela) return json({ ok: false, error: "invalid_tabela" }, 400);
@@ -170,12 +183,16 @@ async function handleCreate(REST: string, headers: Record<string, string>, view:
   const regras = validRegras(view.regras, tabela);
   if (regras === null) return json({ ok: false, error: "invalid_regras" }, 400);
 
+  if (view.padrao !== undefined && typeof view.padrao !== "boolean") return json({ ok: false, error: "invalid_padrao" }, 400);
+  const padrao = view.padrao === true;
+
   const ordem = Number.isFinite(view.ordem) ? Number(view.ordem) : await nextOrdem(REST, headers, tabela);
 
+  if (padrao) await desmarcarPadrao(REST, headers, tabela);
   const r = await fetch(`${REST}/lifeos_views`, {
     method: "POST",
     headers: { ...headers, Prefer: "return=representation" },
-    body: JSON.stringify({ tabela, nome, modo, regras, ordem }),
+    body: JSON.stringify({ tabela, nome, modo, regras, ordem, padrao }),
   });
   if (!r.ok) return json({ ok: false, error: `db_error: ${r.status} ${await r.text()}` }, 502);
   const rows = await r.json();
@@ -210,9 +227,14 @@ async function handleUpdate(REST: string, headers: Record<string, string>, id: s
     if (regras === null) return json({ ok: false, error: "invalid_regras" }, 400);
     update.regras = regras;
   }
+  if ("padrao" in patch) {
+    if (typeof patch.padrao !== "boolean") return json({ ok: false, error: "invalid_padrao" }, 400);
+    update.padrao = patch.padrao;
+  }
   if (!Object.keys(update).length) return json({ ok: false, error: "empty_patch" }, 400);
 
   update.updated_at = new Date().toISOString();
+  if (update.padrao === true) await desmarcarPadrao(REST, headers, tabela);
   const r = await fetch(`${REST}/lifeos_views?id=eq.${id}`, {
     method: "PATCH",
     headers: { ...headers, Prefer: "return=representation" },

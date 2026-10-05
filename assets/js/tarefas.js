@@ -31,7 +31,7 @@
   var LS_KEY = (window.LIFEOS_CONFIG && window.LIFEOS_CONFIG.sessionKey) || 'financas_master';        /* mesma chave de /financas, /eventos e /lifeos */
   var LS_ACTIVE_PROJETO = 'tarefas_active_projeto'; /* lembra o último projeto aberto, só nesta página */
   var CACHE_KEY = 'tarefas_cache';       /* cache persistente (localStorage) — ver LIFEOS.md */
-  var CACHE_V = 2;                       /* bump: cache ganhou o campo `views` */
+  var CACHE_V = 3;                       /* bump: views ganharam o campo `padrao` */
 
   var STATUS_TAREFA = ['Não Iniciado', 'Em Andamento', 'Feito'];
   var TIPOS_TAREFA = ['Vida', 'Organização', 'Documentação', 'Estudo', 'Avaliação', 'Código', 'Freelance', 'Trabalho', 'Tarefa'];
@@ -110,6 +110,7 @@
   var EDIT_VIEW_ID = null;       /* null = #view-modal em modo "criar" */
   var VIEW_MODO = 'todas';       /* 'todas' (E) | 'qualquer' (OU) — estado do editor */
   var VIEW_REGRAS = [];          /* estado do editor de regras do #view-modal, ver renderRegrasEditor */
+  var VIEW_PADRAO = false;       /* estado do toggle "abrir por padrão" do #view-modal */
   var VIEW_CAMPOS = ['projeto', 'tipo', 'status']; /* campos válidos pra views de Tarefas */
 
   /* ── Helpers ─────────────────────────────────────────────────── */
@@ -250,17 +251,20 @@
     return { ok: true, id: id };
   }
   var MOCK_VIEWS = [];
+  function mockDesmarcarPadrao() { MOCK_VIEWS.forEach(function (x) { x.padrao = false; }); } /* mesma regra da function: no máximo uma padrão */
   function mockViewsQuery() { return { ok: true, views: MOCK_VIEWS.slice() }; }
   function mockViewsCreate(v) {
     var now = new Date().toISOString();
     var ordem = MOCK_VIEWS.length ? Math.max.apply(null, MOCK_VIEWS.map(function (x) { return x.ordem; })) + 1 : 0;
-    var created = Object.assign({ id: 'mock-view-' + Date.now(), ordem: ordem, created_at: now, updated_at: now }, v);
+    var created = Object.assign({ id: 'mock-view-' + Date.now(), ordem: ordem, padrao: false, created_at: now, updated_at: now }, v);
+    if (created.padrao) mockDesmarcarPadrao();
     MOCK_VIEWS.push(created);
     return { ok: true, view: created };
   }
   function mockViewsUpdate(id, patch) {
     var existing = null;
     for (var i = 0; i < MOCK_VIEWS.length; i++) { if (MOCK_VIEWS[i].id === id) { existing = MOCK_VIEWS[i]; break; } }
+    if (patch.padrao === true) mockDesmarcarPadrao();
     var withTimestamp = Object.assign({}, patch, { updated_at: new Date().toISOString() });
     var updated = Object.assign({}, existing || { id: id }, withTimestamp);
     if (existing) Object.assign(existing, withTimestamp);
@@ -419,7 +423,12 @@
     VIEWS.forEach(function (v) {
       var b = document.createElement('button');
       b.type = 'button'; b.className = 'chip' + (v.id === ACTIVE_VIEW_ID ? ' active' : ''); b.setAttribute('data-view-id', v.id);
-      b.textContent = v.nome;
+      if (v.padrao) {
+        var ico = document.createElement('i');
+        ico.className = 'fad fa-star view-padrao-ico'; ico.setAttribute('aria-hidden', 'true');
+        b.appendChild(ico); b.title = 'abre por padrão';
+      }
+      b.appendChild(document.createTextNode(v.nome));
       host.appendChild(b);
       if (v.id === ACTIVE_VIEW_ID) {
         var ed = document.createElement('button');
@@ -528,6 +537,12 @@
   }
 
   var VIEW_DELETE_PENDING = false;
+  function setViewPadrao(on) {
+    VIEW_PADRAO = on;
+    var btn = $('view-padrao-toggle');
+    btn.classList.toggle('is-selected', on); btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+  }
+
   function openViewModal(id) {
     EDIT_VIEW_ID = id || null;
     var v = id ? VIEWS.find(function (x) { return x.id === id; }) : null;
@@ -537,6 +552,7 @@
     if (v) { $('view-delete').textContent = 'Excluir'; $('view-delete').disabled = false; }
     $('view-nome').value = v ? v.nome : '';
     setViewModo(v ? v.modo : 'todas');
+    setViewPadrao(!!(v && v.padrao));
     /* Cópia profunda — editar aqui não pode mexer no objeto de VIEWS
        enquanto o usuário ainda não salvou (Cancelar precisa descartar). */
     VIEW_REGRAS = v ? JSON.parse(JSON.stringify(v.regras)) : [{ campo: 'projeto', operador: 'incluir', valores: [] }];
@@ -574,7 +590,7 @@
 
     setViewSaving(true);
     $('view-error').textContent = '';
-    var payload = { nome: nome, modo: VIEW_MODO, regras: VIEW_REGRAS };
+    var payload = { nome: nome, modo: VIEW_MODO, regras: VIEW_REGRAS, padrao: VIEW_PADRAO };
     var req = EDIT_VIEW_ID ? apiViewsUpdate(SESSION_PW, EDIT_VIEW_ID, payload) : apiViewsCreate(SESSION_PW, payload);
 
     req.then(function (j) {
@@ -583,6 +599,7 @@
       var found = false;
       for (var i = 0; i < VIEWS.length; i++) { if (VIEWS[i].id === saved.id) { VIEWS[i] = saved; found = true; break; } }
       if (!found) VIEWS.push(saved);
+      if (saved.padrao) VIEWS.forEach(function (x) { if (x.id !== saved.id) x.padrao = false; }); /* a function já desmarcou a anterior */
       setActiveView(saved.id);
       writeCache();
     }).catch(function (err) {
@@ -1148,6 +1165,19 @@
     else ACTIVE_PROJETO_ID = PROJETOS[0] ? PROJETOS[0].id : null;
   }
 
+  /* View marcada como padrão (lifeos_views.padrao) abre no lugar de
+     "Todas" — só no carregamento inicial; ↻ e as trocas manuais por badge
+     não mexem na view escolhida. Mesma regra de setActiveView: view ativa
+     força "Todos os projetos" e trava o <select> — sem gravar em
+     LS_ACTIVE_PROJETO, que segue lembrando a escolha manual. */
+  function aplicarViewPadrao() {
+    var v = VIEWS.find(function (x) { return x.padrao; });
+    if (!v || ACTIVE_PROJETO_ID === null) return;
+    ACTIVE_VIEW_ID = v.id;
+    ACTIVE_PROJETO_ID = '';
+    $('projeto-select').disabled = true;
+  }
+
   function loadInitial() {
     var cache = readCache();
     if (cache) {
@@ -1155,6 +1185,7 @@
       TAREFAS_CACHE = cache.tarefas_by_projeto || {};
       VIEWS = cache.views || [];
       resolveActiveProjeto();
+      aplicarViewPadrao();
       renderProjetoSelect();
       return loadTarefas();
     }
@@ -1163,6 +1194,7 @@
       VIEWS = res[1].views || [];
       TAREFAS_CACHE = {};
       resolveActiveProjeto();
+      aplicarViewPadrao();
       renderProjetoSelect();
       writeCache();
       return loadTarefas();
@@ -1345,6 +1377,7 @@
       var btn = e.target.closest ? e.target.closest('.chip-opt') : null;
       if (btn) setViewModo(btn.getAttribute('data-value'));
     });
+    $('view-padrao-toggle').addEventListener('click', function () { setViewPadrao(!VIEW_PADRAO); });
     $('view-form').addEventListener('submit', onViewSubmit);
     $('view-cancel').addEventListener('click', closeViewModal);
     $('view-modal-close').addEventListener('click', closeViewModal);

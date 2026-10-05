@@ -803,6 +803,16 @@ e §6.1) — essa assimetria é proposital, não um descuido.
   desmarcável. Regra "Projeto **incluir**" precisa de edição para cada
   projeto novo; "Projeto **excluir**" pega os novos sozinha. O hub só
   aplica as views (badges em Notas e no mini-kanban), sem editar.
+  **View padrão** (out/2026, migration `0011_lifeos_views_padrao.sql`):
+  o toggle "abrir a página nesta view" no `#view-modal` grava
+  `lifeos_views.padrao`. No máximo uma por tabela — índice único parcial
+  `(tabela) where padrao`, e a function desmarca a anterior antes de
+  marcar a nova. A badge dela leva uma estrela. A página (e o hub, nas
+  badges de Notas e do mini-kanban) abre nela em vez de "Todas", **só na
+  primeira carga**: ↻ e a troca manual por badge não voltam pra padrão.
+  Em `tarefas.html` vale a regra de `setActiveView` — força "Todos os
+  projetos" e trava o select, sem gravar em `tarefas_active_projeto`.
+  Nenhuma marcada = "Todas", como antes.
 - **Kanban** (`.kanban-board`): **3 colunas fixas** — `Não Iniciado`,
   `Em Andamento`, `Feito` — nessa ordem, com fundo colorido por status
   (cinza/dourado/verde translúcido, mesmo mapeamento do mini-kanban do hub

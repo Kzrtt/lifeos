@@ -146,6 +146,7 @@
 .fa-sign-out::before { content: "\f2f5"; }
 .fa-sparkles::before { content: "\f0d0"; }
 .fa-spinner-third::before { content: "\f110"; }
+.fa-star::before { content: "\f005"; }
 .fa-sync::before { content: "\f021"; }
 .fa-tag::before { content: "\f02b"; }
 .fa-tags::before { content: "\f02c"; }

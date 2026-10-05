@@ -29,7 +29,7 @@
   var ANON_KEY = window.LIFEOS_CONFIG ? window.LIFEOS_CONFIG.anonKey : '';
   var LS_KEY = (window.LIFEOS_CONFIG && window.LIFEOS_CONFIG.sessionKey) || 'financas_master';    /* mesma chave de /financas, /tarefas e /lifeos */
   var CACHE_KEY = 'notas_cache';     /* cache persistente (localStorage) — ver LIFEOS.md */
-  var CACHE_V = 2;                   /* bump: cache ganhou o campo `views` */
+  var CACHE_V = 3;                   /* bump: views ganharam o campo `padrao` */
 
   /* Os 12 valores reais da base Notion (ver NOTAS.md) — mais do que os 9
      listados no CLAUDE.md pessoal (Pessoal/Relato/Documentação faltavam lá). */
@@ -91,6 +91,7 @@
   var EDIT_VIEW_ID = null;       /* null = #view-modal em modo "criar" */
   var VIEW_MODO = 'todas';       /* 'todas' (E) | 'qualquer' (OU) — estado do editor */
   var VIEW_REGRAS = [];          /* estado do editor de regras do #view-modal, ver renderRegrasEditor */
+  var VIEW_PADRAO = false;       /* estado do toggle "abrir por padrão" do #view-modal */
   var VIEW_CAMPOS = ['projeto', 'tipo']; /* campos válidos pra views de Notas (sem status — só Tarefas tem) */
 
   var EDIT_NOTA_ID = null;       /* null = modal de nota em modo "criar" */
@@ -192,6 +193,13 @@
     var results = view.regras.map(function (r) { return matchesRegra(getCampoNota(r.campo, n), r); });
     return view.modo === 'qualquer' ? results.some(Boolean) : results.every(Boolean);
   }
+  /* View marcada como padrão (lifeos_views.padrao) abre no lugar de
+     "Todas" — só no carregamento inicial (loadInitial); ↻ e as trocas
+     manuais por badge não mexem na view escolhida. */
+  function viewPadraoId() {
+    var v = VIEWS.find(function (x) { return x.padrao; });
+    return v ? v.id : null;
+  }
   function activeView() {
     if (!ACTIVE_VIEW_ID) return null;
     return VIEWS.find(function (v) { return v.id === ACTIVE_VIEW_ID; }) || null;
@@ -248,17 +256,20 @@
     ];
   }
   var MOCK_VIEWS = [];
+  function mockDesmarcarPadrao() { MOCK_VIEWS.forEach(function (x) { x.padrao = false; }); } /* mesma regra da function: no máximo uma padrão */
   function mockViewsQuery() { return { ok: true, views: MOCK_VIEWS.slice() }; }
   function mockViewsCreate(v) {
     var now = new Date().toISOString();
     var ordem = MOCK_VIEWS.length ? Math.max.apply(null, MOCK_VIEWS.map(function (x) { return x.ordem; })) + 1 : 0;
-    var created = Object.assign({ id: 'mock-view-' + Date.now(), ordem: ordem, created_at: now, updated_at: now }, v);
+    var created = Object.assign({ id: 'mock-view-' + Date.now(), ordem: ordem, padrao: false, created_at: now, updated_at: now }, v);
+    if (created.padrao) mockDesmarcarPadrao();
     MOCK_VIEWS.push(created);
     return { ok: true, view: created };
   }
   function mockViewsUpdate(id, patch) {
     var existing = null;
     for (var i = 0; i < MOCK_VIEWS.length; i++) { if (MOCK_VIEWS[i].id === id) { existing = MOCK_VIEWS[i]; break; } }
+    if (patch.padrao === true) mockDesmarcarPadrao();
     var withTimestamp = Object.assign({}, patch, { updated_at: new Date().toISOString() });
     var updated = Object.assign({}, existing || { id: id }, withTimestamp);
     if (existing) Object.assign(existing, withTimestamp);
@@ -430,7 +441,12 @@
     VIEWS.forEach(function (v) {
       var b = document.createElement('button');
       b.type = 'button'; b.className = 'chip' + (v.id === ACTIVE_VIEW_ID ? ' active' : ''); b.setAttribute('data-view-id', v.id);
-      b.textContent = v.nome;
+      if (v.padrao) {
+        var ico = document.createElement('i');
+        ico.className = 'fad fa-star view-padrao-ico'; ico.setAttribute('aria-hidden', 'true');
+        b.appendChild(ico); b.title = 'abre por padrão';
+      }
+      b.appendChild(document.createTextNode(v.nome));
       host.appendChild(b);
       if (v.id === ACTIVE_VIEW_ID) {
         var ed = document.createElement('button');
@@ -542,6 +558,12 @@
     for (var i = 0; i < btns.length; i++) btns[i].classList.toggle('is-selected', btns[i].getAttribute('data-value') === modo);
   }
 
+  function setViewPadrao(on) {
+    VIEW_PADRAO = on;
+    var btn = $('view-padrao-toggle');
+    btn.classList.toggle('is-selected', on); btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+  }
+
   function openViewModal(id) {
     EDIT_VIEW_ID = id || null;
     var v = id ? VIEWS.find(function (x) { return x.id === id; }) : null;
@@ -550,6 +572,7 @@
     if (v) resetDeletePendingUI($('view-delete'), '<i class="fad fa-trash"></i>');
     $('view-nome').value = v ? v.nome : '';
     setViewModo(v ? v.modo : 'todas');
+    setViewPadrao(!!(v && v.padrao));
     /* Cópia profunda — editar aqui não pode mexer no objeto de VIEWS
        enquanto o usuário ainda não salvou (Cancelar precisa descartar). */
     VIEW_REGRAS = v ? JSON.parse(JSON.stringify(v.regras)) : [{ campo: 'projeto', operador: 'incluir', valores: [] }];
@@ -588,7 +611,7 @@
 
     setViewSaving(true);
     $('view-error').textContent = '';
-    var payload = { nome: nome, modo: VIEW_MODO, regras: VIEW_REGRAS };
+    var payload = { nome: nome, modo: VIEW_MODO, regras: VIEW_REGRAS, padrao: VIEW_PADRAO };
     var req = EDIT_VIEW_ID ? apiViewsUpdate(SESSION_PW, EDIT_VIEW_ID, payload) : apiViewsCreate(SESSION_PW, payload);
 
     req.then(function (j) {
@@ -597,6 +620,7 @@
       var found = false;
       for (var i = 0; i < VIEWS.length; i++) { if (VIEWS[i].id === saved.id) { VIEWS[i] = saved; found = true; break; } }
       if (!found) VIEWS.push(saved);
+      if (saved.padrao) VIEWS.forEach(function (x) { if (x.id !== saved.id) x.padrao = false; }); /* a function já desmarcou a anterior */
       ACTIVE_VIEW_ID = saved.id;
       writeCache();
       renderAll();
@@ -780,6 +804,7 @@
       PROJETOS = cache.projetos || [];
       NOTAS = cache.notas || [];
       VIEWS = cache.views || [];
+      ACTIVE_VIEW_ID = viewPadraoId();
       renderProjetoSelect();
       renderAll();
       updateFetchedLabel();
@@ -790,6 +815,7 @@
       PROJETOS = res[0].projetos || [];
       NOTAS = res[1].notas || [];
       VIEWS = res[2].views || [];
+      ACTIVE_VIEW_ID = viewPadraoId();
       renderProjetoSelect();
       renderAll();
       writeCache();
@@ -1331,6 +1357,7 @@
       var btn = e.target.closest ? e.target.closest('.chip-opt') : null;
       if (btn) setViewModo(btn.getAttribute('data-value'));
     });
+    $('view-padrao-toggle').addEventListener('click', function () { setViewPadrao(!VIEW_PADRAO); });
     $('view-form').addEventListener('submit', onViewSubmit);
     $('view-cancel').addEventListener('click', closeViewModal);
     $('view-modal-close').addEventListener('click', closeViewModal);
