@@ -189,8 +189,9 @@
           ] },
         { id: 'r3', nome: 'Café depois das 16h', emoji: '☕', desde: atras(5 * H), arquivada: false,
           created_at: atras(5 * H), updated_at: atras(5 * H), tentativas: [] },
-        { id: 'r4', nome: 'Doces', emoji: '🍬', desde: atras(400 * DIA), arquivada: true,
-          created_at: atras(400 * DIA), updated_at: atras(10 * DIA), tentativas: [] },
+        { id: 'r4', nome: 'Doces', emoji: '🍬', desde: atras(10 * DIA), arquivada: true,
+          created_at: atras(400 * DIA), updated_at: atras(10 * DIA),
+          tentativas: [{ id: 't4', inicio: atras(400 * DIA), fim: atras(10 * DIA) }] },
       ],
     };
   }
@@ -249,7 +250,9 @@
         if (!r) return mockFail('not_found');
         if (patch.nome && mockNomeExiste(patch.nome, id)) return mockFail('nome_duplicado');
         if (patch.desde && !mockInstanteOk(patch.desde)) return mockFail('invalid_desde');
-        Object.assign(r, patch, { updated_at: new Date().toISOString() });
+        var agoraIso = new Date().toISOString();
+        if (patch.arquivada === false && r.arquivada && !('desde' in patch)) r.desde = agoraIso; /* mesma regra da function */
+        Object.assign(r, patch, { updated_at: agoraIso });
         return mockDelay({ ok: true, renuncia: clone(r) });
       }
       return callFn({ action: 'update', id: id, patch: patch });
@@ -416,7 +419,31 @@
 
   function pct(ms, alvo) { return Math.min(100, (ms / alvo) * 100).toFixed(2); }
 
+  /* Arquivada encerra a contagem: sem tempo corrente nem marcos — o
+     período desde a última recaída não conta como tentativa (quem arquiva
+     depois de recair voltou ao hábito). Sobra o histórico. */
+  function cardArquivadaHtml(r) {
+    var n = (r.tentativas || []).length;
+    var melhor = melhorTentativaMs(r);
+    var foot = [];
+    foot.push(melhor
+      ? '<span><i class="fad fa-trophy"></i>recorde ' + duracao(melhor) + '</span>'
+      : '<span>sem tentativas no histórico</span>');
+    if (n) foot.push('<span><i class="fad fa-redo"></i>' + n + (n === 1 ? ' recaída' : ' recaídas') + '</span>');
+    return '<button type="button" class="ren-card arquivada" data-open="' + esc(r.id) + '">'
+      + '<div class="ren-top">'
+        + '<div class="ren-emoji">' + esc(r.emoji) + '</div>'
+        + '<div class="ren-id">'
+          + '<div class="ren-nome">' + esc(r.nome) + '</div>'
+          + '<div class="ren-desde">arquivada · contagem encerrada</div>'
+        + '</div>'
+      + '</div>'
+      + '<div class="ren-foot">' + foot.join('') + '</div>'
+    + '</button>';
+  }
+
   function cardHtml(r, now) {
+    if (r.arquivada) return cardArquivadaHtml(r);
     var ms = decorrido(r, now);
     var idx = proximoIdx(ms);
     var trilha = MARCOS.map(function (m, i) {
@@ -433,12 +460,12 @@
         : '<span><i class="fad fa-trophy"></i>recorde ' + duracao(melhor) + '</span>');
     }
 
-    return '<button type="button" class="ren-card' + (r.arquivada ? ' arquivada' : '') + '" data-open="' + esc(r.id) + '">'
+    return '<button type="button" class="ren-card" data-open="' + esc(r.id) + '">'
       + '<div class="ren-top">'
         + '<div class="ren-emoji">' + esc(r.emoji) + '</div>'
         + '<div class="ren-id">'
           + '<div class="ren-nome">' + esc(r.nome) + '</div>'
-          + '<div class="ren-desde">desde ' + esc(fmtDataHora(r.desde)) + (r.arquivada ? ' · arquivada' : '') + '</div>'
+          + '<div class="ren-desde">desde ' + esc(fmtDataHora(r.desde)) + '</div>'
         + '</div>'
       + '</div>'
       + '<div class="tempo ren-tempo" data-tempo="' + esc(r.id) + '">' + tempoHtml(ms) + '</div>'
@@ -462,7 +489,7 @@
     /* O detalhe confere por conta própria: o card dele pode não estar na
        tela (filtro de arquivadas). */
     var rd = DETALHE_ID && acharRenuncia(DETALHE_ID);
-    if (rd && proximoIdx(decorrido(rd, now)) !== DETALHE_IDX) cruzou = true;
+    if (rd && !rd.arquivada && proximoIdx(decorrido(rd, now)) !== DETALHE_IDX) cruzou = true;
     if (cruzou) {
       /* Marco cruzado: o "próximo" mudou, a trilha também. Re-render
          completo — a não ser com uma confirmação pendente, que esperaria. */
@@ -502,6 +529,7 @@
     var r = acharRenuncia(DETALHE_ID);
     if (!r) return;
     DELETE_PENDING = null;
+    if (r.arquivada) { renderDetalheArquivada(r); return; }
     var now = Date.now();
     var ms = decorrido(r, now);
     var inicio = Date.parse(r.desde);
@@ -514,7 +542,7 @@
 
     $('detalhe-emoji').textContent = r.emoji;
     $('detalhe-nome').textContent = r.nome;
-    $('detalhe-meta').textContent = 'desde ' + fmtDataHora(r.desde) + (r.arquivada ? ' · arquivada' : '');
+    $('detalhe-meta').textContent = 'desde ' + fmtDataHora(r.desde);
 
     var marcos = MARCOS.map(function (m, i) {
       var alvo = m.dias * DIA;
@@ -554,19 +582,60 @@
       + '<div class="sec-label">marcos</div>'
       + '<ol class="marcos">' + marcos + '</ol>'
 
-      + (r.arquivada ? '' :
-        '<div class="sec-label">recaída</div>'
+      + '<div class="sec-label">recaída</div>'
         + '<div class="recaida-box">'
           + '<input type="datetime-local" class="edit-input" id="recaida-quando" value="' + agora + '" max="' + agora + '" aria-label="Quando foi a recaída">'
           + '<button type="button" class="edit-btn edit-btn-danger" data-recaida="' + esc(r.id) + '" data-orig="Recaí"><i class="fad fa-redo"></i> Recaí</button>'
         + '</div>'
         + '<div class="recaida-hint">Guarda esta tentativa (' + esc(duracao(ms)) + ') no histórico e recomeça o contador a partir da data acima. Clique duas vezes para confirmar.</div>'
-        + '<div class="edit-error" id="recaida-error"></div>')
+        + '<div class="edit-error" id="recaida-error"></div>'
 
       + '<div class="sec-label">histórico <span class="n">' + tents.length + '</span></div>'
       + tentsHtml
 
-      + '<div class="det-actions">'
+      + detalheAcoesHtml(r);
+  }
+
+  /* Detalhe da arquivada: sem relógio, sem marcos, sem recaída — recorde,
+     recaídas e o histórico. Desarquivar recomeça o contador a partir de
+     agora (a regra mora na Edge Function, ver handleUpdate). */
+  function renderDetalheArquivada(r) {
+    var tents = r.tentativas || [];
+    var melhor = melhorTentativaMs(r);
+    var idxMelhor = proximoIdx(melhor);
+    DETALHE_IDX = null;
+
+    $('detalhe-emoji').textContent = r.emoji;
+    $('detalhe-nome').textContent = r.nome;
+    $('detalhe-meta').textContent = 'arquivada · contagem encerrada';
+
+    var tentsHtml = tents.length
+      ? '<ul class="tents">' + tents.map(function (t) {
+          var dur = Date.parse(t.fim) - Date.parse(t.inicio);
+          var top = dur === melhor;
+          return '<li class="tent">'
+            + '<span>' + esc(fmtDataHora(t.inicio)) + ' → ' + esc(fmtDataHora(t.fim)) + '</span>'
+            + '<span class="tent-dur' + (top ? ' recorde' : '') + '">' + (top ? '<i class="fad fa-trophy"></i>' : '') + duracao(dur) + '</span>'
+          + '</li>';
+        }).join('') + '</ul>'
+      : '<div class="tents-vazio">nenhuma tentativa no histórico</div>';
+
+    $('detalhe-body').innerHTML =
+      '<div class="det-stats">'
+        + '<div class="det-stat"><div class="det-stat-num">' + (melhor ? duracao(melhor) : '—') + '</div><div class="det-stat-label">recorde</div></div>'
+        + '<div class="det-stat"><div class="det-stat-num">' + (idxMelhor === -1 ? MARCOS.length : idxMelhor) + '/' + MARCOS.length + '</div><div class="det-stat-label">marcos no recorde</div></div>'
+        + '<div class="det-stat"><div class="det-stat-num">' + tents.length + '</div><div class="det-stat-label">' + (tents.length === 1 ? 'recaída' : 'recaídas') + '</div></div>'
+      + '</div>'
+      + '<div class="recaida-hint">Arquivada não conta tempo nem marcos. Desarquivar recomeça o contador a partir de agora.</div>'
+
+      + '<div class="sec-label">histórico <span class="n">' + tents.length + '</span></div>'
+      + tentsHtml
+
+      + detalheAcoesHtml(r);
+  }
+
+  function detalheAcoesHtml(r) {
+    return '<div class="det-actions">'
         + '<button type="button" class="row-btn" data-edit="' + esc(r.id) + '"><i class="fad fa-pen"></i> Editar</button>'
         + '<button type="button" class="row-btn" data-arquivar="' + esc(r.id) + '">'
           + (r.arquivada ? '<i class="fad fa-box-open"></i> Desarquivar' : '<i class="fad fa-archive"></i> Arquivar') + '</button>'

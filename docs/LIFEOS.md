@@ -1953,8 +1953,16 @@ explícita ("só no menu").
 - **Recorde** = maior entre a tentativa atual e as do histórico. Não é
   guardado: sai das tentativas a cada leitura.
 - **Arquivar** tira da lista principal sem perder nada (chip "Arquivadas",
-  que só aparece quando há alguma). O contador de uma arquivada continua
-  correndo — arquivar não é "concluir".
+  que só aparece quando há alguma) e **encerra a contagem** (out/2026 —
+  até então o contador seguia correndo, e um hábito arquivado depois de uma
+  recaída aparecia como se ainda estivesse em abstinência). Arquivada não tem tempo
+  corrente nem marcos: card e detalhe mostram só recorde, recaídas e o
+  histórico (o detalhe também os marcos que o recorde alcançou). O período
+  entre a última recaída e o arquivamento não vira tentativa — quem arquiva
+  depois de recair voltou ao hábito. **Desarquivar recomeça o contador a
+  partir de agora**: a regra mora na function (`update` com
+  `arquivada: false` e sem `desde` grava `desde = now()` se ela estava
+  arquivada), e o mock copia.
 
 ### Os marcos
 
@@ -1991,7 +1999,8 @@ anterior), então no detalhe todas as barras são comparáveis.
   O preview do banner acompanha o emoji escolhido.
 
 Backend: **`lifeos-renuncias`** — `query` (tudo, com as tentativas por embed),
-`create`, `update` (patch: nome, emoji, desde, arquivada), `delete`,
+`create`, `update` (patch: nome, emoji, desde, arquivada — desarquivar
+recomeça o `desde`), `delete`,
 `recaida` (`id` + `quando` opcional). Mesmo gate `check_master_token`.
 
 ### No MCP
@@ -2001,7 +2010,8 @@ recaída ficam na tela). Filtros: trecho do nome, `incluir_arquivadas`,
 `historico` (lista de tentativas). Devolve, por renúncia: `desde` e datas em
 hora de Brasília, tempo corrido, último marco, `marcos_conquistados` (N/15),
 próximo marco com `faltam`, `chega_em` e `progresso_pct`, recaídas, recorde e
-se o recorde é a tentativa atual.
+se o recorde é a tentativa atual. Arquivada vem sem nada disso — só
+`contagem: "encerrada…"`, recaídas e recorde do histórico (MCP 2.7.1).
 
 ### O que não foi implementado
 

@@ -517,7 +517,11 @@ function buildTools() {
       "vez), o tempo corrido, os marcos de tempo já conquistados (1 dia, 3, " +
       "7, 14, 21, 1 mês, 2, 3, 6, 9 meses, 1, 2, 3, 5, 10 anos — mês = 30 " +
       "dias, ano = 365), o próximo marco com quanto falta e a data em que " +
-      "chega, o nº de recaídas e o recorde. Sem filtros devolve as ativas, " +
+      "chega, o nº de recaídas e o recorde. Uma renúncia ARQUIVADA não conta " +
+      "tempo: o usuário parou de acompanhar (em geral voltou ao hábito), então " +
+      "ela vem sem tempo corrido nem marcos — só recaídas e recorde do " +
+      "histórico. Nunca diga que ele está há X tempo sem um hábito arquivado. " +
+      "Sem filtros devolve as ativas, " +
       "da mais antiga para a mais recente. Só leitura: criar, editar e " +
       "registrar recaída é pela tela do LifeOS.",
     inputSchema: {
@@ -810,7 +814,7 @@ Deno.serve(async (req) => {
       return respond(rpcResult(id, {
         protocolVersion: params?.protocolVersion || "2025-06-18",
         capabilities: { tools: {} },
-        serverInfo: { name: "lifeos-mcp", version: "2.7.0" },
+        serverInfo: { name: "lifeos-mcp", version: "2.7.1" },
         instructions: await buildInstructions(REST, restHeaders),
       }));
     }
@@ -1667,6 +1671,24 @@ async function handleSearchRenuncias(REST: string, headers: Record<string, strin
       .map((t: any) => ({ inicio: Date.parse(t.inicio), fim: Date.parse(t.fim) }))
       .sort((a: any, b: any) => b.fim - a.fim);
     const melhorAnterior = tents.reduce((m: number, t: any) => Math.max(m, t.fim - t.inicio), 0);
+    const historico = () => tents.map((t: any) => ({
+      inicio: horaSaoPaulo(t.inicio), fim: horaSaoPaulo(t.fim), duracao: duracaoCurta(t.fim - t.inicio),
+    }));
+
+    // Arquivada encerra a contagem (mesma regra de renuncias.js): o `desde`
+    // dela nao e abstinencia, entao nada de tempo corrido nem marcos.
+    if (r.arquivada) {
+      const arq: Record<string, unknown> = {
+        nome: r.nome,
+        emoji: r.emoji,
+        arquivada: true,
+        contagem: "encerrada — arquivada, não conta tempo nem marcos",
+        recaidas: tents.length,
+        recorde: melhorAnterior ? duracaoCurta(melhorAnterior) : null,
+      };
+      if (comHistorico) arq.historico = historico();
+      return arq;
+    }
     const conquistados = RENUNCIA_MARCOS.filter((m) => m.dias * DIA_MS <= ms);
     const prox = RENUNCIA_MARCOS.find((m) => m.dias * DIA_MS > ms) || null;
     const recorde = Math.max(ms, melhorAnterior);
@@ -1692,11 +1714,7 @@ async function handleSearchRenuncias(REST: string, headers: Record<string, strin
       recorde: duracaoCurta(recorde),
       recorde_e_a_atual: ms >= melhorAnterior,
     };
-    if (comHistorico) {
-      out.historico = tents.map((t: any) => ({
-        inicio: horaSaoPaulo(t.inicio), fim: horaSaoPaulo(t.fim), duracao: duracaoCurta(t.fim - t.inicio),
-      }));
-    }
+    if (comHistorico) out.historico = historico();
     return out;
   });
 

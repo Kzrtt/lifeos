@@ -125,7 +125,7 @@
     },
     {
       nome: 'search_renuncias', tipo: 'leitura',
-      desc: 'Há quanto tempo você está sem cada hábito: tempo corrido, próximo marco e quanto falta, recaídas e recorde. Criar e registrar recaída é só pela tela.',
+      desc: 'Há quanto tempo você está sem cada hábito: tempo corrido, próximo marco e quanto falta, recaídas e recorde. Arquivada vem sem tempo nem marcos, só o histórico. Criar e registrar recaída é só pela tela.',
       filtros: 'nome · incluir arquivadas · histórico de tentativas',
     },
     {

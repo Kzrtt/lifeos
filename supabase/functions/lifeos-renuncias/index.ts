@@ -7,7 +7,8 @@
 // progresso até eles são conta do front -- aqui só existe o dado.
 //
 // Acoes: "query" (default, todas com o histórico embutido), "create",
-// "update" (patch parcial: nome, emoji, desde, arquivada), "delete",
+// "update" (patch parcial: nome, emoji, desde, arquivada -- desarquivar
+// recomeca o `desde` agora), "delete",
 // "recaida" (id + `quando` opcional, padrão agora -- RPC
 // lifeos_renuncia_recaida, migration 0010).
 //
@@ -228,6 +229,16 @@ async function handleUpdate(ctx: Ctx, id: string, patch: Record<string, any> | n
   if ("arquivada" in patch) {
     if (typeof patch.arquivada !== "boolean") return json({ ok: false, error: "invalid_arquivada" }, 400);
     update.arquivada = patch.arquivada;
+    // Arquivada nao conta tempo (a tela e o MCP ignoram o `desde` dela), entao
+    // desarquivar e uma tentativa nova: o contador recomeca agora, a menos que
+    // o patch traga o proprio `desde`. So vale se ela estava arquivada.
+    if (patch.arquivada === false && !("desde" in patch)) {
+      const atual = await fetch(`${ctx.REST}/lifeos_renuncias?id=eq.${id}&select=arquivada`, { headers: ctx.headers });
+      if (!atual.ok) return await dbError(atual);
+      const linhas = await atual.json();
+      if (!linhas.length) return json({ ok: false, error: "not_found" }, 404);
+      if (linhas[0].arquivada) update.desde = new Date().toISOString();
+    }
   }
   if (!Object.keys(update).length) return json({ ok: false, error: "empty_patch" }, 400);
   update.updated_at = new Date().toISOString();
