@@ -615,6 +615,13 @@ cópia de nada; só o MCP calcula:
   `fechamento_projetado` (até hoje com pontuais + `media_diaria` nos dias
   restantes) inclui os já lançados, porque é dinheiro que já saiu;
   `fechamento_sem_pontuais` é o comparável com `media_mes_janela_sem_pontuais`
+- **`por_dia`** (out/2026): `{data, consumo, variavel}` de cada dia, com as
+  regras de `consumo_mes` e `variavel_mes` (com pontuais) restritas ao dia,
+  sem regra nova. Do dia 1 ao fim do mês; no mês corrente, só até hoje. A
+  soma dos dias é `consumo_mes` e `variavel_mes`; no mês corrente com
+  lançamento de data futura, a soma do variável é `ritmo.variavel_ate_hoje`.
+  Serve de base a uma meta diária de gasto num cliente, sem que ele precise
+  recalcular regra de Finanças
 - **`projecao`** (sempre, na raiz): os 2 meses seguintes ao corrente. Renda
   e compromissos pelo típico ou pelo já lançado (nunca os dois), fatura pelo
   `restante` da lógica existente, `livre_para_variavel` e `livre_por_dia`,
@@ -624,7 +631,11 @@ cópia de nada; só o MCP calcula:
 
 As constantes ficam no início da seção pura. A verificação de set/2026 rodou
 a seção nova e a de antes sobre os dados reais: campos antigos idênticos em
-todos os meses e datas testados.
+todos os meses e datas testados. A do `por_dia` (out/2026) repetiu o método
+com cinco datas de "hoje" e todos os meses dos dados: campos antigos e
+`projecao` idênticos, soma dos dias igual a `consumo_mes` e `variavel_mes`
+em todo mês completo e igual a `ritmo.variavel_ate_hoje` no corrente. Duas
+mutações (tirar o filtro de compromisso, deslocar o dia) geraram falhas.
 
 **A seção do MCP é pura** (sem fetch/Deno, entre os marcadores
 `RESUMO FINANCEIRO · início/fim`) justamente pra ser testável fora do Deno.
@@ -638,7 +649,9 @@ caixa) gerou 25 divergências — o teste pega erro de verdade.
 **Ao mudar uma regra de Finanças, mude as três** e refaça essa comparação.
 Pra obter os dados sem expor a senha real, o mesmo recurso de sempre: token
 mestre temporário em `access_tokens`, buscar via `lifeos-movimentacoes`,
-apagar o token.
+apagar o token. Sem token nenhum: com o Supabase CLI logado,
+`supabase db query --linked --project-ref <ref> -o json "select ..." > arquivo.json`
+grava as linhas direto num arquivo (as linhas ficam em `rows`).
 
 ---
 

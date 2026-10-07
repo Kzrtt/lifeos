@@ -673,6 +673,9 @@ function buildTools() {
       "ritmo (mês corrente) = variável até hoje contra a média da janela no " +
       "mesmo dia (desvio_pct); toda média e comparação é sem pontuais, só " +
       "fechamento_projetado inclui os pontuais já lançados. " +
+      "por_dia = consumo e variavel de cada dia (data YYYY-MM-DD), com as regras " +
+      "de consumo_mes e variavel_mes (com pontuais), do dia 1 ao fim do mês, ou " +
+      "até hoje no mês corrente. " +
       "por_nome (mês único) ou comparativo_por_nome na raiz (intervalo). " +
       "projecao = os 2 meses seguintes ao atual: livre_para_variavel e " +
       "livre_por_dia, com detalhe e premissas; com faixa no cadastro, " +
@@ -814,7 +817,7 @@ Deno.serve(async (req) => {
       return respond(rpcResult(id, {
         protocolVersion: params?.protocolVersion || "2025-06-18",
         capabilities: { tools: {} },
-        serverInfo: { name: "lifeos-mcp", version: "2.7.1" },
+        serverInfo: { name: "lifeos-mcp", version: "2.7.2" },
         instructions: await buildInstructions(REST, restHeaders),
       }));
     }
@@ -2526,6 +2529,28 @@ function criarAnalise(
       };
     }
 
+    // Consumo e variável de cada dia (out/2026, base de uma meta diária de
+    // gasto num cliente): as regras de consumoMes e de variavelAte (com
+    // pontuais) restritas ao dia, sem regra nova. Um item por dia, de 1 ao
+    // último dia do mês; no mês corrente, só até hoje. Por isso a soma dos
+    // dias é consumo_mes e variavel_mes, exceto no mês corrente com
+    // lançamento de data futura: ali a soma do variável é
+    // ritmo.variavel_ate_hoje.
+    const ultimoDia = ym === mesHoje ? diaHoje : finLastDay(ym);
+    const acc = Array.from({ length: ultimoDia }, () => ({ consumo: 0, variavel: 0 }));
+    for (const m of rows) {
+      const d = acc[finDia(m) - 1];
+      if (!d) continue;
+      const v = finNum(m.valor);
+      if (finIsSaida(m) && !ehFatura(m)) d.consumo += v;
+      else if (finIsEntrada(m) && ehRateio(m)) d.consumo -= v;
+      if (finIsSaida(m) && !ehFatura(m) && !setComp.has(finChave(m.name))) d.variavel += v;
+      else if (finIsEntrada(m) && ehRateio(m)) d.variavel -= v;
+    }
+    const porDia = acc.map((d, i) => ({
+      data: `${ym}-${String(i + 1).padStart(2, "0")}`, consumo: r2(d.consumo), variavel: r2(d.variavel),
+    }));
+
     let lista;
     if (opts.lista) {
       lista = {
@@ -2577,6 +2602,7 @@ function criarAnalise(
         consumo_base: r2(consumo - finSoma(pontuais.map((p) => p.valor))),
       },
       ...(ritmo ? { ritmo } : {}),
+      por_dia: porDia,
       ...(lista ? { lista_movimentacoes: lista } : {}),
     };
   };

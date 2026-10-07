@@ -160,7 +160,7 @@
     },
     {
       nome: 'resumo_financeiro', tipo: 'leitura',
-      desc: 'O mês já agregado com as mesmas regras da tela de Finanças: saldo com abertura, crédito fora do caixa, fatura que fecha (pago, restante, adiantamento), recorrências. Por cima disso, consumo real do mês, rateios, compromissos fixos (do cadastro de Recorrências previstas, ou adivinhados pelo histórico), gastos fora da curva, ritmo do mês e quanto sobra por dia nos dois meses seguintes, em faixa quando o cadastro tem faixa. Com um intervalo, compara até 12 meses, nome a nome.',
+      desc: 'O mês já agregado com as mesmas regras da tela de Finanças: saldo com abertura, crédito fora do caixa, fatura que fecha (pago, restante, adiantamento), recorrências. Por cima disso, consumo real do mês, rateios, compromissos fixos (do cadastro de Recorrências previstas, ou adivinhados pelo histórico), gastos fora da curva, ritmo do mês, consumo e variável de cada dia e quanto sobra por dia nos dois meses seguintes, em faixa quando o cadastro tem faixa. Com um intervalo, compara até 12 meses, nome a nome.',
       filtros: 'mês · ou de/até · incluir movimentações (até 3 meses)',
     },
     {
